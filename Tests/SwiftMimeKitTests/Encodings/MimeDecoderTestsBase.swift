@@ -5,19 +5,21 @@ enum MimeDecoderTestsBase {
     static let dataDir = "encoders"
     static let wikipediaUnix: [UInt8] = {
         let data = try! TestHelper.loadData(relativePath: "\(dataDir)/wikipedia.txt")
-        let filtered = FilteredStream()
-        filtered.add(Dos2UnixFilter())
-        filtered.write(data, startIndex: 0, length: data.count)
-        filtered.flush()
-        return filtered.toByteArray()
+        let output = MemoryStream([], writable: true)
+        let filtered = try! FilteredStream(output)
+        try! filtered.add(Dos2UnixFilter())
+        try! filtered.write(data, offset: 0, count: data.count)
+        try! filtered.flush()
+        return output.toByteArray()
     }()
     static let wikipediaDos: [UInt8] = {
         let data = try! TestHelper.loadData(relativePath: "\(dataDir)/wikipedia.txt")
-        let filtered = FilteredStream()
-        filtered.add(Unix2DosFilter())
-        filtered.write(data, startIndex: 0, length: data.count)
-        filtered.flush()
-        return filtered.toByteArray()
+        let output = MemoryStream([], writable: true)
+        let filtered = try! FilteredStream(output)
+        try! filtered.add(Unix2DosFilter())
+        try! filtered.write(data, offset: 0, count: data.count)
+        try! filtered.flush()
+        return output.toByteArray()
     }()
     static let photo: [UInt8] = {
         try! TestHelper.loadData(relativePath: "\(dataDir)/photo.jpg")
@@ -95,21 +97,22 @@ enum MimeDecoderTestsBase {
 
     static func testDecoder(_ decoder: any MimeDecoder, rawData: [UInt8], encodedFile: String, bufferSize: Int, unix: Bool = false, sourceLocation: SourceLocation = #_sourceLocation) {
         let data = try! TestHelper.loadData(relativePath: "\(dataDir)/\(encodedFile)")
-        let decodedStream = FilteredStream()
-        decodedStream.add(DecoderFilter(decoder: decoder))
+        let decodedOutput = MemoryStream([], writable: true)
+        let decodedStream = try! FilteredStream(decodedOutput)
+        try! decodedStream.add(DecoderFilter(decoder))
         if unix {
-            decodedStream.add(Dos2UnixFilter())
+            try! decodedStream.add(Dos2UnixFilter())
         }
 
         var index = 0
         while index < data.count {
             let chunkSize = min(bufferSize, data.count - index)
-            decodedStream.write(data, startIndex: index, length: chunkSize)
+            try! decodedStream.write(data, offset: index, count: chunkSize)
             index += chunkSize
         }
-        decodedStream.flush()
+        try! decodedStream.flush()
 
-        let actual = decodedStream.toByteArray()
+        let actual = decodedOutput.toByteArray()
         #expect(actual == rawData, sourceLocation: sourceLocation)
     }
 }

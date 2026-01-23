@@ -5,19 +5,21 @@ enum MimeEncoderTestsBase {
     static let dataDir = "encoders"
     static let wikipediaUnix: [UInt8] = {
         let data = try! TestHelper.loadData(relativePath: "\(dataDir)/wikipedia.txt")
-        let filtered = FilteredStream()
-        filtered.add(Dos2UnixFilter())
-        filtered.write(data, startIndex: 0, length: data.count)
-        filtered.flush()
-        return filtered.toByteArray()
+        let output = MemoryStream([], writable: true)
+        let filtered = try! FilteredStream(output)
+        try! filtered.add(Dos2UnixFilter())
+        try! filtered.write(data, offset: 0, count: data.count)
+        try! filtered.flush()
+        return output.toByteArray()
     }()
     static let wikipediaDos: [UInt8] = {
         let data = try! TestHelper.loadData(relativePath: "\(dataDir)/wikipedia.txt")
-        let filtered = FilteredStream()
-        filtered.add(Unix2DosFilter())
-        filtered.write(data, startIndex: 0, length: data.count)
-        filtered.flush()
-        return filtered.toByteArray()
+        let output = MemoryStream([], writable: true)
+        let filtered = try! FilteredStream(output)
+        try! filtered.add(Unix2DosFilter())
+        try! filtered.write(data, offset: 0, count: data.count)
+        try! filtered.flush()
+        return output.toByteArray()
     }()
     static let photo: [UInt8] = {
         try! TestHelper.loadData(relativePath: "\(dataDir)/photo.jpg")
@@ -120,24 +122,26 @@ enum MimeEncoderTestsBase {
 
     static func testEncoder(_ encoder: any MimeEncoder, fileName: String, rawData: [UInt8], encodedFile: String, bufferSize: Int, sourceLocation: SourceLocation = #_sourceLocation) {
         let expectedData = try! TestHelper.loadData(relativePath: "\(dataDir)/\(encodedFile)")
-        let expectedStream = FilteredStream()
-        expectedStream.add(Dos2UnixFilter())
-        expectedStream.write(expectedData, startIndex: 0, length: expectedData.count)
-        expectedStream.flush()
-        let expected = expectedStream.toByteArray()
+        let expectedOutput = MemoryStream([], writable: true)
+        let expectedStream = try! FilteredStream(expectedOutput)
+        try! expectedStream.add(Dos2UnixFilter())
+        try! expectedStream.write(expectedData, offset: 0, count: expectedData.count)
+        try! expectedStream.flush()
+        let expected = expectedOutput.toByteArray()
 
-        let encodedStream = FilteredStream()
-        encodedStream.add(EncoderFilter(encoder: encoder))
+        let encodedOutput = MemoryStream([], writable: true)
+        let encodedStream = try! FilteredStream(encodedOutput)
+        try! encodedStream.add(EncoderFilter(encoder))
 
         var index = 0
         while index < rawData.count {
             let chunkSize = min(bufferSize, rawData.count - index)
-            encodedStream.write(rawData, startIndex: index, length: chunkSize)
+            try! encodedStream.write(rawData, offset: index, count: chunkSize)
             index += chunkSize
         }
-        encodedStream.flush()
+        try! encodedStream.flush()
 
-        var actual = encodedStream.toByteArray()
+        var actual = encodedOutput.toByteArray()
         if encoder.encoding == .uuEncode {
             let begin = Array("begin 644 \(fileName)\n".utf8)
             let end = Array("end\n".utf8)
@@ -149,11 +153,12 @@ enum MimeEncoderTestsBase {
 
     static func testEncoderFlush(_ encoder: any MimeEncoder, fileName: String, rawData: [UInt8], encodedFile: String, sourceLocation: SourceLocation = #_sourceLocation) {
         let expectedData = try! TestHelper.loadData(relativePath: "\(dataDir)/\(encodedFile)")
-        let expectedStream = FilteredStream()
-        expectedStream.add(Dos2UnixFilter())
-        expectedStream.write(expectedData, startIndex: 0, length: expectedData.count)
-        expectedStream.flush()
-        let expected = expectedStream.toByteArray()
+        let expectedOutput = MemoryStream([], writable: true)
+        let expectedStream = try! FilteredStream(expectedOutput)
+        try! expectedStream.add(Dos2UnixFilter())
+        try! expectedStream.write(expectedData, offset: 0, count: expectedData.count)
+        try! expectedStream.flush()
+        let expected = expectedOutput.toByteArray()
 
         let outputLength = encoder.estimateOutputLength(rawData.count)
         var output: [UInt8]? = [UInt8](repeating: 0, count: outputLength)

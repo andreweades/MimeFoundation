@@ -17,4 +17,10 @@ enum TestHelper {
         let data = try Data(contentsOf: url)
         return Array(data)
     }
+
+    static var isoLatinHebrew: String.Encoding {
+        let cfEncoding = CFStringEncodings.isoLatinHebrew.rawValue
+        let nsEncoding = CFStringConvertEncodingToNSStringEncoding(CFStringEncoding(cfEncoding))
+        return String.Encoding(rawValue: nsEncoding)
+    }
 }

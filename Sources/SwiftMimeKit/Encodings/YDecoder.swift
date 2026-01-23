@@ -1,0 +1,357 @@
+//
+// YDecoder.swift
+//
+// Ported from MimeKit (C#) to Swift.
+//
+
+public final class YDecoder: MimeDecoder {
+    private enum State {
+        case expectYBegin
+        case yBeginEqual
+        case yBeginEqualY
+        case yBeginEqualYB
+        case yBeginEqualYBe
+        case yBeginEqualYBeg
+        case yBeginEqualYBegi
+        case yBeginEqualYBegin
+        case expectYBeginNewLine
+        case expectYPartOrPayload
+        case yPartEqual
+        case yPartEqualY
+        case yPartEqualYP
+        case yPartEqualYPa
+        case yPartEqualYPar
+        case yPartEqualYPart
+        case expectYPartNewLine
+        case payload
+        case ended
+    }
+
+    private let initial: State
+    private var state: State
+    private var escaped: Bool = false
+    private var octet: UInt8 = 0
+    private var eoln: Bool = true
+    private var crc: Crc32
+
+    public init(payloadOnly: Bool = false) {
+        self.initial = payloadOnly ? .payload : .expectYBegin
+        self.state = self.initial
+        self.crc = Crc32(initialValue: -1)
+        reset()
+    }
+
+    public var checksum: Int32 {
+        crc.checksum
+    }
+
+    public var encoding: ContentEncoding {
+        .default
+    }
+
+    public func clone() -> any MimeDecoder {
+        let clone = YDecoder(payloadOnly: initial == .payload)
+        clone.crc = crc.clone()
+        clone.escaped = escaped
+        clone.state = state
+        clone.octet = octet
+        clone.eoln = eoln
+        return clone
+    }
+
+    public func estimateOutputLength(_ inputLength: Int) -> Int {
+        inputLength
+    }
+
+    public func decode(_ input: [UInt8]?, startIndex: Int, length: Int, output: inout [UInt8]?) throws -> Int {
+        try validateArguments(input, startIndex: startIndex, length: length, output: output)
+        guard let input = input else { throw MimeCodingError.inputNil }
+        guard var outputBuffer = output else { throw MimeCodingError.outputNil }
+
+        let end = startIndex + length
+        var index = startIndex
+        var outIndex = 0
+
+        if state != .payload {
+            index = scanYBeginMarker(input, startIndex: index, end: end)
+            if index >= end {
+                output = outputBuffer
+                return 0
+            }
+        }
+
+        if state == .ended {
+            output = outputBuffer
+            return 0
+        }
+
+        while index < end {
+            let byte = input[index]
+            index += 1
+            octet = byte
+
+            if octet == 0x0D {
+                escaped = false
+                continue
+            }
+
+            if octet == 0x0A {
+                escaped = false
+                eoln = true
+                continue
+            }
+
+            if escaped {
+                if eoln && octet == 0x79 {
+                    state = .ended
+                    break
+                }
+                escaped = false
+                eoln = false
+                octet &-= 64
+            } else if octet == 0x3D {
+                escaped = true
+                continue
+            } else {
+                eoln = false
+            }
+
+            octet &-= 42
+            _ = crc.update(octet)
+            outputBuffer[outIndex] = octet
+            outIndex += 1
+        }
+
+        output = outputBuffer
+        return outIndex
+    }
+
+    public func reset() {
+        octet = 0x0A
+        state = initial
+        escaped = false
+        eoln = true
+        crc.reset()
+    }
+
+    private func scanYBeginMarker(_ input: [UInt8], startIndex: Int, end: Int) -> Int {
+        var index = startIndex
+
+        while index < end {
+            if state == .ended {
+                return end
+            }
+            if state == .expectYBegin {
+                if octet != 0x0A {
+                    while index < end && input[index] != 0x0A { index += 1 }
+                    if index == end {
+                        octet = input[end - 1]
+                        break
+                    }
+                    octet = input[index]
+                    index += 1
+                    if index == end { break }
+                }
+
+                octet = input[index]
+                index += 1
+                if octet != 0x3D { continue }
+                state = .yBeginEqual
+                if index == end { break }
+            }
+
+            if state == .yBeginEqual {
+                octet = input[index]
+                index += 1
+                if octet != 0x79 { state = .expectYBegin; continue }
+                state = .yBeginEqualY
+                if index == end { break }
+            }
+
+            if state == .yBeginEqualY {
+                octet = input[index]
+                index += 1
+                if octet != 0x62 { state = .expectYBegin; continue }
+                state = .yBeginEqualYB
+                if index == end { break }
+            }
+
+            if state == .yBeginEqualYB {
+                octet = input[index]
+                index += 1
+                if octet != 0x65 { state = .expectYBegin; continue }
+                state = .yBeginEqualYBe
+                if index == end { break }
+            }
+
+            if state == .yBeginEqualYBe {
+                octet = input[index]
+                index += 1
+                if octet != 0x67 { state = .expectYBegin; continue }
+                state = .yBeginEqualYBeg
+                if index == end { break }
+            }
+
+            if state == .yBeginEqualYBeg {
+                octet = input[index]
+                index += 1
+                if octet != 0x69 { state = .expectYBegin; continue }
+                state = .yBeginEqualYBegi
+                if index == end { break }
+            }
+
+            if state == .yBeginEqualYBegi {
+                octet = input[index]
+                index += 1
+                if octet != 0x6E { state = .expectYBegin; continue }
+                state = .yBeginEqualYBegin
+                if index == end { break }
+            }
+
+            if state == .yBeginEqualYBegin {
+                octet = input[index]
+                index += 1
+                if octet != 0x20 { state = .expectYBegin; continue }
+                state = .expectYBeginNewLine
+                if index == end { break }
+            }
+
+            if state == .expectYBeginNewLine {
+                while index < end && input[index] != 0x0A { index += 1 }
+                if index == end {
+                    octet = input[end - 1]
+                    break
+                }
+                state = .expectYPartOrPayload
+                octet = input[index]
+                index += 1
+                if index == end { break }
+            }
+
+            if state == .expectYPartOrPayload {
+                if index >= end { break }
+                if input[index] != 0x3D {
+                    state = .payload
+                    escaped = false
+                    eoln = true
+                    break
+                }
+
+                state = .yPartEqual
+                octet = input[index]
+                index += 1
+                escaped = true
+                if index == end { break }
+            }
+
+            if state == .yPartEqual {
+                if index >= end { break }
+                if input[index] != 0x79 {
+                    state = .payload
+                    escaped = false
+                    eoln = true
+                    return index
+                }
+
+                state = .yPartEqualY
+                octet = input[index]
+                index += 1
+                if index == end { break }
+            }
+
+            if state == .yPartEqualY {
+                if index >= end { break }
+                if input[index] == 0x65 {
+                    state = .ended
+                    return index
+                }
+
+                if input[index] != 0x70 {
+                    state = .expectYBeginNewLine
+                    continue
+                }
+
+                state = .yPartEqualYP
+                octet = input[index]
+                index += 1
+                if index == end { break }
+            }
+
+            if state == .yPartEqualYP {
+                if index >= end { break }
+                if input[index] != 0x61 {
+                    state = .expectYBeginNewLine
+                    continue
+                }
+
+                state = .yPartEqualYPa
+                octet = input[index]
+                index += 1
+                if index == end { break }
+            }
+
+            if state == .yPartEqualYPa {
+                if index >= end { break }
+                if input[index] != 0x72 {
+                    state = .expectYBeginNewLine
+                    continue
+                }
+
+                state = .yPartEqualYPar
+                octet = input[index]
+                index += 1
+                if index == end { break }
+            }
+
+            if state == .yPartEqualYPar {
+                if index >= end { break }
+                if input[index] != 0x74 {
+                    state = .expectYBeginNewLine
+                    continue
+                }
+
+                state = .yPartEqualYPart
+                octet = input[index]
+                index += 1
+                if index == end { break }
+            }
+
+            if state == .yPartEqualYPart {
+                if index >= end { break }
+                if input[index] != 0x20 {
+                    state = .expectYBeginNewLine
+                    continue
+                }
+
+                state = .expectYPartNewLine
+                octet = input[index]
+                index += 1
+                if index == end { break }
+            }
+
+            if state == .expectYPartNewLine {
+                while index < end && input[index] != 0x0A { index += 1 }
+                if index == end {
+                    octet = input[end - 1]
+                    break
+                }
+                state = .payload
+                octet = input[index]
+                index += 1
+                escaped = false
+                eoln = true
+                break
+            }
+        }
+
+        return index
+    }
+
+    private func validateArguments(_ input: [UInt8]?, startIndex: Int, length: Int, output: [UInt8]?) throws {
+        guard let input = input else { throw MimeCodingError.inputNil }
+        if startIndex < 0 || startIndex > input.count { throw MimeCodingError.startIndexOutOfRange }
+        if length < 0 || length > (input.count - startIndex) { throw MimeCodingError.lengthOutOfRange }
+        guard let output = output else { throw MimeCodingError.outputNil }
+        if output.count < estimateOutputLength(length) { throw MimeCodingError.outputTooSmall }
+    }
+}
