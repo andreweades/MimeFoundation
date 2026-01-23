@@ -30,7 +30,7 @@ Notes:
 ## Utils
 - ✅ ByteArrayBuilderTests
 - 🟡 CharsetUtilsTests
-- ⬜️ DateParserTests
+- ✅ DateParserTests
 - 🟡 MimeUtilsTests
 - ✅ OptimizedOrdinalComparerTests
 - ✅ PackedByteArrayTests
@@ -42,14 +42,14 @@ Notes:
 ## Addressing
 - ✅ DomainListTests
 - ✅ MailboxAddressTests
-- 🟡 GroupAddressTests (missing argument-exception coverage)
+- ✅ GroupAddressTests
 - ✅ InternetAddressListTests
 - ✅ InternetAddressTests
-- ⬜️ InternetAddressConverterTests
-- ⬜️ InternetAddressListConverterTests
+- ✅ InternetAddressConverterTests
+- ✅ InternetAddressListConverterTests
 
 ## Headers
-- 🟡 HeaderTests
+- 🟡 HeaderTests (missing list header/disposition option coverage)
 - 🟡 HeaderListTests
 - ✅ HeaderListCollectionTests
 
@@ -61,14 +61,14 @@ Notes:
 - ⬜️ AssortedTests
 
 ## Parameters & Types
-- 🟡 ParameterTests (argument + basic coverage)
-- 🟡 ParameterListTests (argument + basic coverage)
-- ⬜️ ContentTypeTests
-- ⬜️ ContentDispositionTests
+- ✅ ParameterTests
+- ✅ ParameterListTests
+- 🟡 ContentTypeTests
+- ✅ ContentDispositionTests
 - ⬜️ MimeTypeTests
 
 ## MIME Entities
-- ⬜️ MimePartTests
+- 🟡 MimePartTests (basic properties/prepare/md5; pending transcoding/write/load)
 - ✅ MimeContentTests
 - ⬜️ MessagePartTests
 - ⬜️ TextPartTests
@@ -98,17 +98,17 @@ Notes:
 - ⬜️ MimeReaderTests
 
 ## IO / Streams
-- ⬜️ BoundStreamTests
-- ⬜️ CanReadWriteSeekStream
-- ⬜️ ChainedStreamTests
-- ⬜️ FilteredStreamTests
-- ⬜️ MeasuringStreamTests
-- ⬜️ MemoryBlockStreamTests
-- ⬜️ ReadOneByteStream
-- ⬜️ TimeoutStream
-- ⬜️ DecoderFilterTests
-- ⬜️ EncoderFilterTests
-- ⬜️ FilterTests
+- ✅ BoundStreamTests
+- ✅ CanReadWriteSeekStream
+- ✅ ChainedStreamTests
+- ✅ FilteredStreamTests
+- ✅ MeasuringStreamTests
+- ✅ MemoryBlockStreamTests
+- ✅ ReadOneByteStream
+- ✅ TimeoutStream
+- ✅ DecoderFilterTests
+- ✅ EncoderFilterTests
+- 🟡 FilterTests (missing BestEncoding/Charset/OpenPGP/PGP block coverage)
 
 ## Text Converters
 - ⬜️ FlowedToHtmlTests
