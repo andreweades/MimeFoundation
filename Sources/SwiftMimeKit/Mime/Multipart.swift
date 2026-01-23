@@ -16,7 +16,7 @@ public enum MultipartError: Error, Equatable {
     case invalidMaxLineLength
 }
 
-public final class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
+open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
     public typealias Element = MimeEntity
     public typealias Index = Int
 
@@ -103,17 +103,7 @@ public final class Multipart: MimeEntity, RandomAccessCollection, MutableCollect
             throw MultipartError.nilArgs
         }
         try self.init(subtype)
-        for obj in args {
-            guard let obj else { continue }
-            if tryInit(obj) {
-                continue
-            }
-            if let entity = obj as? MimeEntity {
-                try add(entity)
-                continue
-            }
-            throw MultipartError.invalidArgument
-        }
+        try applyArgs(args)
     }
 
     public convenience init() {
@@ -211,6 +201,35 @@ public final class Multipart: MimeEntity, RandomAccessCollection, MutableCollect
                 try multipart.prepare(constraint, maxLineLength: maxLineLength)
             }
         }
+    }
+
+    open override func accept(_ visitor: MimeVisitor?) throws {
+        guard let visitor else {
+            throw MimeEntityError.nilVisitor
+        }
+        visitor.visit(self)
+    }
+
+    open func tryGetValue(_ format: TextFormat, body: inout TextPart?) -> Bool {
+        for index in 0..<count {
+            if let multipart = children[index] as? Multipart {
+                if multipart.tryGetValue(format, body: &body) {
+                    return true
+                }
+                break
+            }
+
+            if let text = children[index] as? TextPart, !text.isAttachment {
+                if text.isFormat(format) {
+                    body = text
+                    return true
+                }
+                break
+            }
+        }
+
+        body = nil
+        return false
     }
 
     public override func writeTo(_ options: FormatOptions?, _ stream: MimeStream?) throws {
@@ -316,5 +335,19 @@ public final class Multipart: MimeEntity, RandomAccessCollection, MutableCollect
             return true
         }
         return false
+    }
+
+    internal func applyArgs(_ args: [Any?]) throws {
+        for obj in args {
+            guard let obj else { continue }
+            if tryInit(obj) {
+                continue
+            }
+            if let entity = obj as? MimeEntity {
+                try add(entity)
+                continue
+            }
+            throw MultipartError.invalidArgument
+        }
     }
 }

@@ -22,6 +22,10 @@ public protocol MimeVisitor {
     func visit(_ part: TextPart)
     func visit(_ part: MessagePart)
     func visit(_ part: TextRfc822Headers)
+    func visit(_ multipart: Multipart)
+    func visit(_ multipart: MultipartAlternative)
+    func visit(_ multipart: MultipartRelated)
+    func visit(_ multipart: MultipartReport)
 }
 
 public extension MimeVisitor {
@@ -30,6 +34,10 @@ public extension MimeVisitor {
     func visit(_ part: TextPart) {}
     func visit(_ part: MessagePart) {}
     func visit(_ part: TextRfc822Headers) {}
+    func visit(_ multipart: Multipart) {}
+    func visit(_ multipart: MultipartAlternative) {}
+    func visit(_ multipart: MultipartRelated) {}
+    func visit(_ multipart: MultipartReport) {}
 }
 
 open class MimeEntity {

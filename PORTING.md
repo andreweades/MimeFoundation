@@ -74,9 +74,9 @@ Notes:
 - ✅ TextPartTests
 - ✅ TextRfc822HeadersTests
 - ✅ MultipartTests
-- ⬜️ MultipartAlternativeTests
-- ⬜️ MultipartRelatedTests
-- ⬜️ MultipartReportTests
+- ✅ MultipartAlternativeTests
+- ✅ MultipartRelatedTests
+- ✅ MultipartReportTests
 
 ## Message Layer
 - 🟡 MimeMessageTests
