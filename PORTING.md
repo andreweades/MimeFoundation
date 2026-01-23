@@ -29,12 +29,12 @@ Notes:
 
 ## Utils
 - ✅ ByteArrayBuilderTests
-- 🟡 CharsetUtilsTests
+- ✅ CharsetUtilsTests
 - ✅ DateParserTests
-- 🟡 MimeUtilsTests
+- ✅ MimeUtilsTests
 - ✅ OptimizedOrdinalComparerTests
 - ✅ PackedByteArrayTests
-- 🟡 ParseUtilsTests
+- ✅ ParseUtilsTests
 - ⬜️ Rfc2047Tests
 - ⬜️ StringBuilderExtensionTests
 - ✅ ValueStringBuilderTests

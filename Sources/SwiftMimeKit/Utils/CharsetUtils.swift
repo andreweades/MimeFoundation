@@ -9,12 +9,14 @@ import Foundation
 public enum CharsetError: Error, Equatable {
     case invalidSequence
     case unsupportedEncoding
+    case invalidArgument
 }
 
 public enum CharsetUtils {
     public static let utf8: String.Encoding = .utf8
     public static let latin1: String.Encoding = .isoLatin1
     public static let ascii: String.Encoding = .ascii
+
 
     public static func getBytes(_ string: String, encoding: String.Encoding = .utf8) -> [UInt8] {
         Array(string.data(using: encoding) ?? Data())
@@ -47,7 +49,13 @@ public enum CharsetUtils {
             return .ascii
         case "iso-8859-1", "latin1", "iso-ir-100":
             return .isoLatin1
+        case "gb18030", "gb18030-0":
+            return encodingFromCodepage(54936)
         default:
+            let codepage = parseCodePage(normalized)
+            if codepage > 0, let encoding = encodingFromCodepage(codepage) {
+                return encoding
+            }
             let cfEncoding = CFStringConvertIANACharSetNameToEncoding(normalized as CFString)
             if cfEncoding == kCFStringEncodingInvalidId {
                 return nil
@@ -55,6 +63,13 @@ public enum CharsetUtils {
             let nsEncoding = CFStringConvertEncodingToNSStringEncoding(cfEncoding)
             return String.Encoding(rawValue: nsEncoding)
         }
+    }
+
+    public static func getEncoding(codepage: Int) -> String.Encoding? {
+        if codepage <= 0 {
+            return nil
+        }
+        return encodingFromCodepage(codepage)
     }
 
     public static func getEncodingOrDefault(_ charset: String, fallback: String.Encoding) -> String.Encoding {
@@ -85,6 +100,22 @@ public enum CharsetUtils {
     }
 
     public static func getMimeCharset(_ encoding: String.Encoding) -> String {
+        let codepage = getCodepage(encoding)
+        switch codepage {
+        case 932:
+            return "shift_jis"
+        case 949:
+            return "euc-kr"
+        case 50220, 50221, 50222:
+            return "iso-2022-jp"
+        case 50225:
+            return "euc-kr"
+        case 54936:
+            return "gb18030"
+        default:
+            break
+        }
+
         let cfEncoding = CFStringConvertNSStringEncodingToEncoding(encoding.rawValue)
         if let name = CFStringConvertEncodingToIANACharSetName(cfEncoding) {
             return (name as String).lowercased()
@@ -101,12 +132,14 @@ public enum CharsetUtils {
         }
     }
 
+
     public static func getMimeCharset(_ charset: String) -> String {
         if let encoding = getEncoding(charset) {
             return getMimeCharset(encoding)
         }
         return charset.lowercased()
     }
+
 
     public static func getCodepage(_ encoding: String.Encoding) -> Int {
         let cfEncoding = CFStringConvertNSStringEncodingToEncoding(encoding.rawValue)
@@ -127,6 +160,95 @@ public enum CharsetUtils {
         }
     }
 
+
+    public static func parseCodePage(_ charset: String) -> Int {
+        let trimmed = charset.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return -1
+        }
+
+        var normalized = trimmed.lowercased()
+        normalized = normalized.replacingOccurrences(of: "_", with: "-")
+
+        if normalized == "latin1" {
+            return 28591
+        }
+
+        if normalized.hasPrefix("windows") {
+            var suffix = normalized.dropFirst("windows".count)
+            if suffix.isEmpty {
+                return -1
+            }
+            if suffix.hasPrefix("-cp") {
+                suffix = suffix.dropFirst(3)
+            } else if suffix.hasPrefix("-") {
+                suffix = suffix.dropFirst(1)
+            } else {
+                return -1
+            }
+            guard let codepage = Int(suffix) else {
+                return -1
+            }
+            return codepage
+        }
+
+        if normalized.hasPrefix("cp") {
+            let suffix = normalized.dropFirst(2)
+            if suffix.isEmpty {
+                return -1
+            }
+            let digits = suffix.hasPrefix("-") ? suffix.dropFirst() : suffix
+            guard let codepage = Int(digits) else {
+                return -1
+            }
+            return codepage
+        }
+
+        if normalized.hasPrefix("iso") {
+            var suffix = normalized.dropFirst(3)
+            if suffix.hasPrefix("-") {
+                suffix = suffix.dropFirst()
+            }
+
+            let components = suffix.split(separator: "-")
+            guard let isoNumber = components.first, let isoValue = Int(isoNumber) else {
+                return -1
+            }
+
+            if isoValue == 10646 {
+                return 1201
+            }
+
+            if isoValue == 8859 {
+                guard components.count == 2, let variant = Int(components[1]) else {
+                    return -1
+                }
+                if variant <= 0 || (variant > 9 && variant < 13) || variant > 15 {
+                    return -1
+                }
+                return 28590 + variant
+            }
+
+            if isoValue == 2022 {
+                guard components.count == 2 else {
+                    return -1
+                }
+                switch components[1] {
+                case "jp":
+                    return 50220
+                case "kr":
+                    return 50225
+                default:
+                    return -1
+                }
+            }
+
+            return -1
+        }
+
+        return -1
+    }
+
     public static func convertToUnicode(_ options: ParserOptions, _ bytes: [UInt8], start: Int, length: Int) -> String {
         if let value = tryGetString(bytes, start: start, length: length, encoding: .utf8) {
             return value
@@ -138,5 +260,14 @@ public enum CharsetUtils {
             return value
         }
         return String(decoding: bytes[start..<(start + length)], as: UTF8.self)
+    }
+
+    private static func encodingFromCodepage(_ codepage: Int) -> String.Encoding? {
+        let cfEncoding = CFStringConvertWindowsCodepageToEncoding(UInt32(codepage))
+        if cfEncoding == kCFStringEncodingInvalidId {
+            return nil
+        }
+        let nsEncoding = CFStringConvertEncodingToNSStringEncoding(cfEncoding)
+        return String.Encoding(rawValue: nsEncoding)
     }
 }
