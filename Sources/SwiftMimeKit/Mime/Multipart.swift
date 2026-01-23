@@ -234,9 +234,9 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
 
     public override func writeTo(_ options: FormatOptions?, _ stream: MimeStream?) throws {
         try super.writeTo(options, stream)
-        guard let options, let stream else {
-            return
-        }
+    }
+
+    internal override func writeBody(_ options: FormatOptions, stream: MimeStream) throws {
         guard let boundary = contentType.boundary else {
             return
         }

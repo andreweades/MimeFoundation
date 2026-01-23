@@ -18,10 +18,15 @@ public enum MimeEntityError: Error, Equatable {
 }
 
 public protocol MimeVisitor {
+    func visit(_ message: MimeMessage)
     func visit(_ entity: MimeEntity)
     func visit(_ part: MimePart)
     func visit(_ part: TextPart)
     func visit(_ part: MessagePart)
+    func visit(_ part: MessageDeliveryStatus)
+    func visit(_ part: MessageDispositionNotification)
+    func visit(_ part: MessageFeedbackReport)
+    func visit(_ part: MessagePartial)
     func visit(_ part: TextRfc822Headers)
     func visit(_ multipart: Multipart)
     func visit(_ multipart: MultipartAlternative)
@@ -30,10 +35,15 @@ public protocol MimeVisitor {
 }
 
 public extension MimeVisitor {
+    func visit(_ message: MimeMessage) {}
     func visit(_ entity: MimeEntity) {}
     func visit(_ part: MimePart) {}
     func visit(_ part: TextPart) {}
     func visit(_ part: MessagePart) {}
+    func visit(_ part: MessageDeliveryStatus) {}
+    func visit(_ part: MessageDispositionNotification) {}
+    func visit(_ part: MessageFeedbackReport) {}
+    func visit(_ part: MessagePartial) {}
     func visit(_ part: TextRfc822Headers) {}
     func visit(_ multipart: Multipart) {}
     func visit(_ multipart: MultipartAlternative) {}
@@ -270,6 +280,7 @@ open class MimeEntity {
             throw MimeEntityError.nilStream
         }
         try writeHeaders(options, stream: stream)
+        try writeBody(options, stream: stream)
     }
 
     public func writeTo(_ options: FormatOptions?, _ filePath: String?) throws {
@@ -405,6 +416,10 @@ open class MimeEntity {
         text.append(options.newLine)
         let bytes = Array(text.utf8)
         try stream.write(bytes, offset: 0, count: bytes.count)
+    }
+
+    internal func writeBody(_ options: FormatOptions, stream: MimeStream) throws {
+        // Default: no body for base entity.
     }
 
     private static func trimHeaderValue(_ encoded: String, newLine: String) -> String {

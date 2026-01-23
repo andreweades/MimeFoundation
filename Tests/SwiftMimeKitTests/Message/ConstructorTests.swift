@@ -101,3 +101,26 @@ func multipartAlternativeConstructor() throws {
     #expect((multipart[0] as? TextPart)?.text == "Just a short message to say hello!")
     #expect((multipart[1] as? TextPart)?.text == "<html><head></head><body><strong>Just a short message to say hello!</strong></body></html>")
 }
+
+@Test("MimePart content object")
+func mimePartContentObject() throws {
+    let data = Array("abcd".utf8)
+
+    let content = try MimeContent(MemoryStream(data, writable: false), encoding: .binary)
+    let part = try MimePart("application", "octet-stream", content)
+
+    let checksum = try part.computeContentMd5()
+    #expect(checksum.isEmpty == false)
+    #expect(part.content?.encoding == .binary)
+}
+
+@Test("MimePart stream")
+func mimePartStream() throws {
+    let data = Array("abcd".utf8)
+    let part = try MimePart("application", "octet-stream", MemoryStream(data, writable: false))
+
+    let buffer = MemoryStream()
+    try part.content?.decodeTo(buffer)
+    #expect(part.content?.encoding == .default)
+    #expect(buffer.toByteArray() == data)
+}

@@ -57,7 +57,7 @@ Notes:
 - ✅ FormatOptionsTests
 - ✅ ParserOptionsTests
 - 🟡 ArgumentExceptionTests
-- ⬜️ ExceptionTests
+- 🟡 ExceptionTests
 - 🟡 AssortedTests
 
 ## Parameters & Types
@@ -79,18 +79,18 @@ Notes:
 - ✅ MultipartReportTests
 
 ## Message Layer
-- 🟡 MimeMessageTests
-- 🟡 ConstructorTests
+- ✅ MimeMessageTests
+- ✅ ConstructorTests
 - ✅ BodyBuilderTests
 - ✅ AttachmentCollectionTests
 - ✅ MessageIdListTests
-- ⬜️ MessageDeliveryStatusTests
-- ⬜️ MessageDispositionNotificiationTests
-- ⬜️ MessageFeedbackReportTests
-- ⬜️ MessagePartialTests
-- ⬜️ MimeIteratorTests
-- ⬜️ MimeVisitorTests
-- ⬜️ MimeAnonymizerTests
+- ✅ MessageDeliveryStatusTests
+- ✅ MessageDispositionNotificationTests
+- ✅ MessageFeedbackReportTests
+- ✅ MessagePartialTests
+- ✅ MimeIteratorTests
+- ✅ MimeVisitorTests
+- ✅ MimeAnonymizerTests
 
 ## Parser/Reader
 - ⬜️ MimeParserTests

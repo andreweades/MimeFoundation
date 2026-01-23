@@ -132,7 +132,24 @@ public final class MimeMessage {
         guard let stream else {
             throw MimeMessageError.nilStream
         }
-        let headersText = headers.toString(options, encode: true)
+        let combinedHeaders = HeaderList()
+        for header in headers {
+            combinedHeaders.add(header.clone())
+        }
+        if let body {
+            for header in body.headers where header.field.lowercased().hasPrefix("content-") {
+                if header.id != .unknown {
+                    if combinedHeaders.contains(header.id) {
+                        continue
+                    }
+                } else if combinedHeaders.contains(field: header.field) {
+                    continue
+                }
+                combinedHeaders.add(header.clone())
+            }
+        }
+
+        let headersText = combinedHeaders.toString(options, encode: true)
         if !headersText.isEmpty {
             let headerBytes = Array(headersText.utf8)
             try stream.write(headerBytes, offset: 0, count: headerBytes.count)
@@ -142,8 +159,15 @@ public final class MimeMessage {
         try stream.write(newLineBytes, offset: 0, count: newLineBytes.count)
 
         if let body {
-            try body.writeTo(options, stream)
+            try body.writeBody(options, stream: stream)
         }
+    }
+
+    public func accept(_ visitor: MimeVisitor?) throws {
+        guard let visitor else {
+            throw MimeEntityError.nilVisitor
+        }
+        visitor.visit(self)
     }
 
     public static func load(_ stream: MimeStream?) throws -> MimeMessage {
@@ -172,7 +196,11 @@ public final class MimeMessage {
         message.syncFromHeaders()
 
         if !bodyBytes.isEmpty {
-            message.body = try parseEntity(options, bodyBytes)
+            let entityHeaders = HeaderList()
+            for header in headerList where header.field.lowercased().hasPrefix("content-") {
+                entityHeaders.add(header.clone())
+            }
+            message.body = try parseEntity(options, entityHeaders, bodyBytes)
         }
 
         return message
@@ -180,16 +208,22 @@ public final class MimeMessage {
 
     internal static func parseEntity(_ options: ParserOptions, _ bytes: [UInt8]) throws -> MimeEntity? {
         let (headers, bodyBytes) = parseHeaders(bytes)
-        guard !headers.isEmpty else {
+        if headers.isEmpty && bodyBytes.isEmpty {
             return nil
         }
+        return try parseEntity(options, headers, bodyBytes)
+    }
 
+    internal static func parseEntity(_ options: ParserOptions, _ headers: HeaderList, _ bodyBytes: [UInt8]) throws -> MimeEntity? {
         var contentType: ContentType? = nil
         if let contentTypeValue = headers[.contentType] {
             var parsed: ContentType? = nil
             if ContentType.tryParse(contentTypeValue, contentType: &parsed) {
                 contentType = parsed
             }
+        }
+        if contentType == nil {
+            contentType = try ContentType("text", "plain")
         }
 
         let mediaType = contentType?.mediaType.lowercased() ?? ""
@@ -213,8 +247,14 @@ public final class MimeMessage {
                 multipart.headers.add(header)
             }
             if let boundary = multipart.contentType.boundary, !bodyBytes.isEmpty {
-                let parts = splitMultipartBody(bodyBytes, boundary: boundary)
-                for partBytes in parts {
+                let split = splitMultipartBody(bodyBytes, boundary: boundary)
+                if let preamble = split.preamble {
+                    multipart.preamble = preamble
+                }
+                if let epilogue = split.epilogue {
+                    multipart.epilogue = epilogue
+                }
+                for partBytes in split.parts {
                     if let child = try parseEntity(options, partBytes) {
                         try multipart.add(child)
                     }
@@ -233,6 +273,83 @@ public final class MimeMessage {
                     message.headers.add(header)
                 }
                 part.message = message
+            }
+            entity = part
+        case ("message", "delivery-status"):
+            let resolvedContentType: ContentType
+            if let contentType {
+                resolvedContentType = contentType
+            } else {
+                resolvedContentType = try ContentType("message", "delivery-status")
+            }
+            let part = (customEntity as? MessageDeliveryStatus) ?? MessageDeliveryStatus(resolvedContentType)
+            if let contentType {
+                part.contentType = contentType
+            }
+            for header in headers {
+                part.headers.add(header)
+            }
+            if !bodyBytes.isEmpty {
+                let encoding = part.contentTransferEncoding
+                let decoded = decodeContentBytes(bodyBytes, encoding: encoding)
+                part.content = try MimeContent(MemoryStream(decoded, writable: false), encoding: .default)
+            }
+            entity = part
+        case ("message", "disposition-notification"):
+            let resolvedContentType: ContentType
+            if let contentType {
+                resolvedContentType = contentType
+            } else {
+                resolvedContentType = try ContentType("message", "disposition-notification")
+            }
+            let part = (customEntity as? MessageDispositionNotification) ?? MessageDispositionNotification(resolvedContentType)
+            if let contentType {
+                part.contentType = contentType
+            }
+            for header in headers {
+                part.headers.add(header)
+            }
+            if !bodyBytes.isEmpty {
+                let encoding = part.contentTransferEncoding
+                let decoded = decodeContentBytes(bodyBytes, encoding: encoding)
+                part.content = try MimeContent(MemoryStream(decoded, writable: false), encoding: .default)
+            }
+            entity = part
+        case ("message", "feedback-report"):
+            let resolvedContentType: ContentType
+            if let contentType {
+                resolvedContentType = contentType
+            } else {
+                resolvedContentType = try ContentType("message", "feedback-report")
+            }
+            let part = (customEntity as? MessageFeedbackReport) ?? MessageFeedbackReport(resolvedContentType)
+            if let contentType {
+                part.contentType = contentType
+            }
+            for header in headers {
+                part.headers.add(header)
+            }
+            if !bodyBytes.isEmpty {
+                let encoding = part.contentTransferEncoding
+                let decoded = decodeContentBytes(bodyBytes, encoding: encoding)
+                part.content = try MimeContent(MemoryStream(decoded, writable: false), encoding: .default)
+            }
+            entity = part
+        case ("message", "partial"):
+            let resolvedContentType: ContentType
+            if let contentType {
+                resolvedContentType = contentType
+            } else {
+                resolvedContentType = try ContentType("message", "partial")
+            }
+            let part = (customEntity as? MessagePartial) ?? MessagePartial(resolvedContentType)
+            for header in headers {
+                part.headers.add(header)
+            }
+            if !bodyBytes.isEmpty {
+                let encoding = part.contentTransferEncoding
+                let decoded = decodeContentBytes(bodyBytes, encoding: encoding)
+                part.content = try MimeContent(MemoryStream(decoded, writable: false), encoding: .default)
             }
             entity = part
         case ("message", _):
@@ -279,7 +396,7 @@ public final class MimeMessage {
     internal static func parseHeaders(_ bytes: [UInt8]) -> (HeaderList, [UInt8]) {
         let separator = findHeaderBodySeparator(bytes)
         let headerBytes: [UInt8]
-        let bodyBytes: [UInt8]
+        var bodyBytes: [UInt8]
 
         if let separator {
             headerBytes = Array(bytes[0..<separator.headerEnd])
@@ -307,19 +424,13 @@ public final class MimeMessage {
             }
             if line.first == " " || line.first == "\t" {
                 if currentField != nil {
-                    let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty {
-                        if !currentValue.isEmpty {
-                            currentValue.append(" ")
-                        }
-                        currentValue.append(trimmed)
-                    }
+                    currentValue.append(line)
                 }
                 continue
             }
 
-            if let field = currentField {
-                headerList.add(Header(field: field, value: currentValue))
+            if let field = currentField, let header = try? Header(validating: field, value: currentValue) {
+                headerList.add(header)
             }
 
             guard let colon = line.firstIndex(of: ":") else {
@@ -335,8 +446,12 @@ public final class MimeMessage {
             currentValue = String(value)
         }
 
-        if let field = currentField {
-            headerList.add(Header(field: field, value: currentValue))
+        if let field = currentField, let header = try? Header(validating: field, value: currentValue) {
+            headerList.add(header)
+        }
+
+        if separator == nil && headerList.isEmpty {
+            bodyBytes = bytes
         }
 
         return (headerList, bodyBytes)
@@ -355,9 +470,9 @@ public final class MimeMessage {
         }
     }
 
-    private static func splitMultipartBody(_ bytes: [UInt8], boundary: String) -> [[UInt8]] {
+    private static func splitMultipartBody(_ bytes: [UInt8], boundary: String) -> (preamble: String?, parts: [[UInt8]], epilogue: String?) {
         guard let text = String(data: Data(bytes), encoding: .isoLatin1) else {
-            return []
+            return (nil, [], nil)
         }
         let normalized = text
             .replacingOccurrences(of: "\r\n", with: "\n")
@@ -366,7 +481,10 @@ public final class MimeMessage {
         let endBoundaryLine = boundaryLine + "--"
         var parts: [[UInt8]] = []
         var current: [String] = []
+        var preambleLines: [String] = []
+        var epilogueLines: [String] = []
         var inPart = false
+        var inEpilogue = false
 
         let lines = normalized.split(separator: "\n", omittingEmptySubsequences: false)
         for rawLine in lines {
@@ -385,15 +503,29 @@ public final class MimeMessage {
                 if inPart {
                     let partText = current.joined(separator: "\n")
                     parts.append(Array(partText.utf8))
+                    current.removeAll(keepingCapacity: true)
                 }
-                break
+                inPart = false
+                inEpilogue = true
+                continue
             }
-            if inPart {
+            if inEpilogue {
+                epilogueLines.append(line)
+            } else if inPart {
                 current.append(line)
+            } else {
+                preambleLines.append(line)
             }
         }
 
-        return parts
+        if inPart && !current.isEmpty {
+            let partText = current.joined(separator: "\n")
+            parts.append(Array(partText.utf8))
+        }
+
+        let preamble = preambleLines.isEmpty ? nil : preambleLines.joined(separator: "\n")
+        let epilogue = epilogueLines.isEmpty ? nil : epilogueLines.joined(separator: "\n")
+        return (preamble, parts, epilogue)
     }
 
     private static func decodeContentBytes(_ bytes: [UInt8], encoding: ContentEncoding) -> [UInt8] {

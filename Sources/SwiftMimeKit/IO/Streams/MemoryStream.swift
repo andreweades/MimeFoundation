@@ -50,6 +50,9 @@ public final class MemoryStream: ResizableStream {
             throw StreamError.notSupported
         }
         guard offset >= 0, count >= 0, offset + count <= buffer.count else {
+            print("MemoryStream.write invalidArgument offset=\(offset) count=\(count) buffer.count=\(buffer.count)")
+            let symbols = Thread.callStackSymbols.prefix(12).joined(separator: "\n")
+            print("MemoryStream.write call stack:\n\(symbols)")
             throw StreamError.invalidArgument
         }
         if currentPosition >= storage.count {
@@ -70,6 +73,7 @@ public final class MemoryStream: ResizableStream {
             throw StreamError.notSupported
         }
         guard offset >= 0, count >= 0, offset + count <= buffer.count else {
+            print("MemoryStream.write invalidArgument offset=\(offset) count=\(count) buffer.count=\(buffer.count)")
             throw StreamError.invalidArgument
         }
         let requiredLength = currentPosition + count

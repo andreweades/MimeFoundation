@@ -317,36 +317,32 @@ open class MimePart: MimeEntity {
     }
 
     open override func writeTo(_ options: FormatOptions?, _ stream: MimeStream?) throws {
-        guard let options else {
-            throw MimeEntityError.nilOptions
-        }
-        guard let stream else {
-            throw MimeEntityError.nilStream
-        }
-        try writeHeaders(options, stream: stream)
-        if let content {
-            let source = try content.open()
-            var buffer = [UInt8](repeating: 0, count: 4096)
-            if contentTransferEncoding == .base64 || contentTransferEncoding == .quotedPrintable || contentTransferEncoding == .uuEncode {
-                let filtered = try FilteredStream(stream)
-                let filter = EncoderFilter.create(contentTransferEncoding)
-                _ = try filtered.add(filter)
-                while true {
-                    let read = try source.read(&buffer, offset: 0, count: buffer.count)
-                    if read == 0 {
-                        break
-                    }
-                    try filtered.write(buffer, offset: 0, count: read)
+        try super.writeTo(options, stream)
+    }
+
+    internal override func writeBody(_ options: FormatOptions, stream: MimeStream) throws {
+        guard let content else { return }
+        let source = try content.open()
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        if contentTransferEncoding == .base64 || contentTransferEncoding == .quotedPrintable || contentTransferEncoding == .uuEncode {
+            let filtered = try FilteredStream(stream)
+            let filter = EncoderFilter.create(contentTransferEncoding)
+            _ = try filtered.add(filter)
+            while true {
+                let read = try source.read(&buffer, offset: 0, count: buffer.count)
+                if read == 0 {
+                    break
                 }
-                try filtered.flush()
-            } else {
-                while true {
-                    let read = try source.read(&buffer, offset: 0, count: buffer.count)
-                    if read == 0 {
-                        break
-                    }
-                    try stream.write(buffer, offset: 0, count: read)
+                try filtered.write(buffer, offset: 0, count: read)
+            }
+            try filtered.flush()
+        } else {
+            while true {
+                let read = try source.read(&buffer, offset: 0, count: buffer.count)
+                if read == 0 {
+                    break
                 }
+                try stream.write(buffer, offset: 0, count: read)
             }
         }
     }

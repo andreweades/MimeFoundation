@@ -55,9 +55,9 @@ open class MessagePart: MimeEntity {
 
     public override func writeTo(_ options: FormatOptions?, _ stream: MimeStream?) throws {
         try super.writeTo(options, stream)
-        guard let options, let stream else {
-            return
-        }
+    }
+
+    internal override func writeBody(_ options: FormatOptions, stream: MimeStream) throws {
         if let message {
             try message.writeTo(options, stream)
         }

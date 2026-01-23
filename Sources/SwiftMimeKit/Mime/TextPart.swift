@@ -273,21 +273,16 @@ open class TextPart: MimePart {
     }
 
     public override func writeTo(_ options: FormatOptions?, _ stream: MimeStream?) throws {
-        guard let options else {
-            throw MimeEntityError.nilOptions
-        }
-        guard let stream else {
-            throw MimeEntityError.nilStream
-        }
+        try super.writeTo(options, stream)
+    }
 
+    internal override func writeBody(_ options: FormatOptions, stream: MimeStream) throws {
         if contentTransferEncoding == .base64 || contentTransferEncoding == .quotedPrintable || contentTransferEncoding == .uuEncode {
-            try super.writeTo(options, stream)
+            try super.writeBody(options, stream: stream)
             return
         }
 
-        try writeHeaders(options, stream: stream)
         guard let content else { return }
-
         let data = try readAllBytes(content: content)
         if options.newLine == "\n" {
             let normalized = TextPart.normalizeNewLines(data)

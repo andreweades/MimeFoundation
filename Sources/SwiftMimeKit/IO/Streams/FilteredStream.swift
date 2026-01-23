@@ -97,6 +97,7 @@ public final class FilteredStream: MimeStream {
             throw StreamError.notSupported
         }
         guard offset >= 0, count >= 0, offset + count <= buffer.count else {
+            print("FilteredStream.write invalidArgument offset=\(offset) count=\(count) buffer.count=\(buffer.count)")
             throw StreamError.invalidArgument
         }
         if count == 0 {
@@ -149,6 +150,7 @@ public final class FilteredStream: MimeStream {
             throw StreamError.notSupported
         }
         guard offset >= 0, count >= 0, offset + count <= buffer.count else {
+            print("FilteredStream.write invalidArgument offset=\(offset) count=\(count) buffer.count=\(buffer.count)")
             throw StreamError.invalidArgument
         }
         if count == 0 {
