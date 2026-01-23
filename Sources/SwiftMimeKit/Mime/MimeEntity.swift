@@ -19,6 +19,17 @@ public enum MimeEntityError: Error, Equatable {
 public protocol MimeVisitor {
     func visit(_ entity: MimeEntity)
     func visit(_ part: MimePart)
+    func visit(_ part: TextPart)
+    func visit(_ part: MessagePart)
+    func visit(_ part: TextRfc822Headers)
+}
+
+public extension MimeVisitor {
+    func visit(_ entity: MimeEntity) {}
+    func visit(_ part: MimePart) {}
+    func visit(_ part: TextPart) {}
+    func visit(_ part: MessagePart) {}
+    func visit(_ part: TextRfc822Headers) {}
 }
 
 open class MimeEntity {

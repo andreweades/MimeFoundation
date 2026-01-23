@@ -53,6 +53,16 @@ open class MessagePart: MimeEntity {
         visitor.visit(self)
     }
 
+    public override func writeTo(_ options: FormatOptions?, _ stream: MimeStream?) throws {
+        try super.writeTo(options, stream)
+        guard let options, let stream else {
+            return
+        }
+        if let message {
+            try message.writeTo(options, stream)
+        }
+    }
+
     private func applyArgs(_ args: [Any?]) throws {
         var message: MimeMessage?
 

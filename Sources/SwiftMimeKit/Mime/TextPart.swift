@@ -255,6 +255,13 @@ public final class TextPart: MimePart {
         contentType.charset = CharsetUtils.getMimeCharset(encoding)
     }
 
+    public override func accept(_ visitor: MimeVisitor?) throws {
+        guard let visitor else {
+            throw MimeEntityError.nilVisitor
+        }
+        visitor.visit(self)
+    }
+
     public func getText(_ charset: String?) throws -> String {
         guard let charset else {
             throw TextPartError.nilCharset

@@ -72,14 +72,14 @@ Notes:
 - ✅ MimeContentTests
 - ✅ MessagePartTests
 - ✅ TextPartTests
-- ⬜️ TextRfc822HeadersTests
-- ⬜️ MultipartTests
+- ✅ TextRfc822HeadersTests
+- ✅ MultipartTests
 - ⬜️ MultipartAlternativeTests
 - ⬜️ MultipartRelatedTests
 - ⬜️ MultipartReportTests
 
 ## Message Layer
-- ⬜️ MimeMessageTests
+- 🟡 MimeMessageTests
 - ⬜️ ConstructorTests
 - ⬜️ BodyBuilderTests
 - ⬜️ AttachmentCollectionTests
