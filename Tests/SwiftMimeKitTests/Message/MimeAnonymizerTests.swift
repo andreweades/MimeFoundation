@@ -10,22 +10,6 @@ private func normalizeNewLines(_ text: String) -> String {
     text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
 }
 
-private func debugDiff(_ actual: String, _ expected: String, label: String) {
-    let a = Array(actual.utf8)
-    let e = Array(expected.utf8)
-    let limit = min(a.count, e.count)
-    var idx = 0
-    while idx < limit, a[idx] == e[idx] {
-        idx += 1
-    }
-    print("[diff \(label)] idx=\(idx) actual.count=\(a.count) expected.count=\(e.count)")
-    let start = max(0, idx - 20)
-    let aEnd = min(a.count, idx + 20)
-    let eEnd = min(e.count, idx + 20)
-    print("[diff \(label)] actual bytes:", a[start..<aEnd])
-    print("[diff \(label)] expected bytes:", e[start..<eEnd])
-}
-
 private func expectedAnonymizedFileName(from fileName: String) -> String {
     let base = (fileName as NSString).deletingPathExtension
     return base + ".anonymized.eml"
@@ -54,9 +38,6 @@ private func assertAnonymizeMessage(_ fileName: String) throws {
     let expectedData = try TestHelper.loadData(relativePath: "messages/\(expectedName)")
     let expected = normalizeNewLines(String(decoding: expectedData, as: UTF8.self))
 
-    if actual != expected {
-        debugDiff(actual, expected, label: "message \(fileName)")
-    }
     #expect(actual == expected)
 }
 
@@ -83,9 +64,6 @@ private func assertAnonymizeEntity(_ fileName: String) throws {
     let expectedData = try TestHelper.loadData(relativePath: "messages/\(expectedName)")
     let expected = normalizeNewLines(String(decoding: expectedData, as: UTF8.self))
 
-    if actual != expected {
-        debugDiff(actual, expected, label: "entity \(fileName)")
-    }
     #expect(actual == expected)
 }
 
@@ -369,6 +347,7 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 xxxx
 
 ------=_NextPart_000_003F_01CE98CE.6E826F90--
+
 """
 
     let message = MimeMessage()
@@ -403,9 +382,6 @@ xxxx
     try anonymizer.anonymize(message, memory)
     let actual = normalizeNewLines(String(decoding: memory.toByteArray(), as: UTF8.self))
     let expectedNormalized = normalizeNewLines(expected)
-    if actual != expectedNormalized {
-        debugDiff(actual, expectedNormalized, label: "generated message")
-    }
     #expect(actual == expectedNormalized)
 }
 
@@ -443,12 +419,7 @@ xxxx xx xx xxxxxxx xxxxxxxxx
     let memory = MemoryStream()
     try anonymizer.anonymize(message, memory)
     let actual = normalizeNewLines(String(decoding: memory.toByteArray(), as: UTF8.self))
-    let trailing = actual.reversed().prefix { $0 == "\n" }.count
-    print("generated message without body trailing newlines:", trailing)
     let expectedNormalized = normalizeNewLines(expected)
-    let expectedTrailing = expectedNormalized.reversed().prefix { $0 == "\n" }.count
-    print("generated message without body expected trailing newlines:", expectedTrailing)
-    debugDiff(actual, expectedNormalized, label: "generated no body")
     #expect(actual == expectedNormalized)
 }
 
@@ -484,11 +455,6 @@ In-Reply-To: <xx.x@xxxxxxx.xxx>
     let memory = MemoryStream()
     try anonymizer.anonymize(message, memory)
     let actual = normalizeNewLines(String(decoding: memory.toByteArray(), as: UTF8.self))
-    let trailing = actual.reversed().prefix { $0 == "\n" }.count
-    print("preserve headers trailing newlines:", trailing)
     let expectedNormalized = normalizeNewLines(expected)
-    let expectedTrailing = expectedNormalized.reversed().prefix { $0 == "\n" }.count
-    print("preserve headers expected trailing newlines:", expectedTrailing)
-    debugDiff(actual, expectedNormalized, label: "preserve headers")
     #expect(actual == expectedNormalized)
 }

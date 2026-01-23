@@ -146,6 +146,9 @@ public final class MessageDeliveryStatus: MimePart {
         guard !lines.isEmpty else {
             return HeaderList()
         }
+        if !lines.contains(where: { $0.contains(":") }) {
+            return HeaderList()
+        }
         var text = lines.joined(separator: "\n")
         text.append("\n\n")
         let bytes = Array(text.utf8)
