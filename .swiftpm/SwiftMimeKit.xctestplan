@@ -1,0 +1,25 @@
+{
+  "configurations" : [
+    {
+      "id" : "2A996FBF-5C92-4EF2-BBDF-48DBD1FB8D49",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "SwiftMimeKitTests",
+        "name" : "SwiftMimeKitTests"
+      }
+    }
+  ],
+  "version" : 1
+}

@@ -35,8 +35,8 @@ Notes:
 - ✅ OptimizedOrdinalComparerTests
 - ✅ PackedByteArrayTests
 - ✅ ParseUtilsTests
-- ⬜️ Rfc2047Tests
-- ⬜️ StringBuilderExtensionTests
+- ✅ Rfc2047Tests
+- ✅ StringBuilderExtensionTests
 - ✅ ValueStringBuilderTests
 
 ## Addressing
@@ -63,7 +63,7 @@ Notes:
 ## Parameters & Types
 - ✅ ParameterTests
 - ✅ ParameterListTests
-- 🟡 ContentTypeTests
+- ✅ ContentTypeTests
 - ✅ ContentDispositionTests
 - ✅ MimeTypeTests
 

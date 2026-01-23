@@ -49,6 +49,22 @@ public enum CharsetUtils {
             return .ascii
         case "iso-8859-1", "latin1", "iso-ir-100":
             return .isoLatin1
+        case "big5", "big-5":
+            return encodingFromCodepage(950)
+        case "koi8-r", "koi8r":
+            return encodingFromCodepage(20866)
+        case "koi8-u", "koi8u":
+            return encodingFromCodepage(21866)
+        case "euc-cn", "euc_cn":
+            return encodingFromCodepage(51936)
+        case "euc-kr", "euc_kr", "euckr", "ks_c_5601-1987", "ks_c_5601-1989":
+            return encodingFromCodepage(51949)
+        case "gb2312", "gb2312-80", "gbk":
+            return encodingFromCodepage(936)
+        case "euc-jp", "euc_jp":
+            return encodingFromCodepage(51932)
+        case "shift_jis", "shift-jis", "sjis", "x-sjis", "windows-31j":
+            return encodingFromCodepage(932)
         case "gb18030", "gb18030-0":
             return encodingFromCodepage(54936)
         default:
@@ -160,6 +176,41 @@ public enum CharsetUtils {
         }
     }
 
+    public static func getCodePage(_ charset: String) -> Int {
+        let trimmed = charset.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return -1
+        }
+
+        let normalized = trimmed.lowercased()
+        if normalized.hasPrefix("iso-8859-") {
+            let suffix = normalized.dropFirst("iso-8859-".count)
+            if let variant = Int(suffix) {
+                if variant == 11 {
+                    return 874
+                }
+                if variant == 10 || variant == 12 || variant == 14 {
+                    return -1
+                }
+            }
+        }
+        let parsed = parseCodePage(normalized)
+        if parsed != -1 {
+            return encodingFromCodepage(parsed) != nil ? parsed : -1
+        }
+
+        let cfEncoding = CFStringConvertIANACharSetNameToEncoding(normalized as CFString)
+        if cfEncoding == kCFStringEncodingInvalidId {
+            return -1
+        }
+
+        let codepage = CFStringConvertEncodingToWindowsCodepage(cfEncoding)
+        if codepage == kCFStringEncodingInvalidId || codepage == 0 {
+            return -1
+        }
+        return Int(codepage)
+    }
+
 
     public static func parseCodePage(_ charset: String) -> Int {
         let trimmed = charset.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -223,7 +274,10 @@ public enum CharsetUtils {
                 guard components.count == 2, let variant = Int(components[1]) else {
                     return -1
                 }
-                if variant <= 0 || (variant > 9 && variant < 13) || variant > 15 {
+                if variant == 11 {
+                    return 874
+                }
+                if variant <= 0 || variant == 10 || variant == 12 || variant == 14 || variant > 15 {
                     return -1
                 }
                 return 28590 + variant

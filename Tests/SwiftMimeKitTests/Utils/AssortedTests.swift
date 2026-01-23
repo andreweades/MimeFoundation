@@ -120,3 +120,41 @@ func assortedInvalidMessageIds() {
     let noDomain = MimeUtils.enumerateReferences("<local-part>").first
     #expect(noDomain == "local-part")
 }
+
+@Test("Assorted: CharsetUtils getCodePage")
+func assortedCharsetUtilsGetCodePage() {
+    for i in 1...15 {
+        let expected: Int
+        switch i {
+        case 11:
+            expected = 874
+        case 10, 12, 14:
+            expected = -1
+        default:
+            expected = 28590 + i
+        }
+
+        let name = "iso-8859-\(i)"
+        let codepage = CharsetUtils.getCodePage(name)
+        #expect(codepage == expected)
+    }
+
+    for i in 0..<10 {
+        let expected = (i < 9) ? (1250 + i) : -1
+
+        let name = "windows-125\(i)"
+        #expect(CharsetUtils.getCodePage(name) == expected)
+
+        let nameCp = "windows-cp125\(i)"
+        #expect(CharsetUtils.getCodePage(nameCp) == expected)
+
+        let nameShort = "cp125\(i)"
+        #expect(CharsetUtils.getCodePage(nameShort) == expected)
+    }
+
+    let ibmPages = [850, 852, 855, 857, 860, 861, 862, 863]
+    for ibm in ibmPages {
+        let name = "ibm-\(ibm)"
+        #expect(CharsetUtils.getCodePage(name) == ibm)
+    }
+}

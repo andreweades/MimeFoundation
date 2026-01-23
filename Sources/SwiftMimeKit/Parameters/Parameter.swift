@@ -336,7 +336,7 @@ public final class Parameter: Equatable, CustomStringConvertible {
         index: inout Int,
         maxLength: Int
     ) -> (encoded: Bool, value: String) {
-        let remaining = units.count - index
+        var length = units.count - index
         var requiresCharset = false
         var adjustedMax = maxLength
 
@@ -354,17 +354,18 @@ public final class Parameter: Equatable, CustomStringConvertible {
             }
         }
 
-        var length = min(maxLength, remaining)
+        length = min(adjustedMax, length)
         let hex = HexEncoder()
 
         while length > 0 {
             let substring = stringFromUtf16(units, startIndex: index, length: length)
             let bytes = CharsetUtils.getBytes(substring, encoding: encoding)
+            let count = bytes.count
 
-            if bytes.count > adjustedMax && length > 1 {
-                let ratio = Int(round(Double(bytes.count) / Double(length)))
+            if count > adjustedMax && length > 1 {
+                let ratio = Int(round(Double(count) / Double(length)))
                 if ratio > 1 {
-                    length -= max((bytes.count - adjustedMax) / ratio, 1)
+                    length -= max((count - adjustedMax) / ratio, 1)
                 } else {
                     length -= 1
                 }
@@ -372,41 +373,54 @@ public final class Parameter: Equatable, CustomStringConvertible {
             }
 
             if !requiresCharset {
-                let method = getEncodeMethod(options, bytes, length: bytes.count)
-                switch method {
-                case .quote:
-                    let quoted = MimeUtils.quote(substring)
+                let method = getEncodeMethod(options, bytes, length: count)
+                if method == .quote {
+                    let value = MimeUtils.quote(String(bytes: bytes, encoding: .utf8) ?? substring)
                     index += length
-                    return (false, quoted)
-                case .none:
+                    return (false, value)
+                }
+                if method == .none {
+                    let value = String(bytes: bytes, encoding: .utf8) ?? substring
                     index += length
-                    return (false, substring)
-                default:
-                    break
+                    return (false, value)
                 }
             }
 
-            let outputLength = hex.estimateOutputLength(bytes.count)
+            let outputLength = hex.estimateOutputLength(count)
             var output: [UInt8]? = Array(repeating: 0, count: outputLength)
-            let written = (try? hex.encode(bytes, startIndex: 0, length: bytes.count, output: &output)) ?? 0
+            let written = (try? hex.encode(bytes, startIndex: 0, length: count, output: &output)) ?? 0
             let encoded = String(bytes: output?.prefix(written) ?? [], encoding: .ascii) ?? ""
+            let encodedCount = encoded.count
 
-            let encodedCount = encoded.utf16.count
-            if length > 1 && encodedCount > adjustedMax {
-                let ratio = Int(round(Double(bytes.count) / Double(length)))
+            if length > 1 && encodedCount > 3 && encodedCount > adjustedMax {
+                var x = 0
+                let bytes = Array(encoded.utf8)
+                var idx = bytes.count - 1
+                let limit = adjustedMax
+                while idx >= 0 && idx >= limit {
+                    if bytes[idx] == UInt8(ascii: "%") {
+                        x -= 1
+                    } else {
+                        x += 1
+                    }
+                    idx -= 1
+                }
+                let ratio = Int(round(Double(count) / Double(length)))
                 if ratio > 1 {
-                    length -= max((encodedCount - adjustedMax) / ratio, 1)
+                    length -= max(x / ratio, 1)
                 } else {
                     length -= 1
                 }
                 continue
             }
 
-            index += length
             if requiresCharset {
                 isFirstValue = false
+                index += length
                 return (true, "\(charset)''\(encoded)")
             }
+
+            index += length
             return (true, encoded)
         }
 
@@ -436,7 +450,12 @@ public final class Parameter: Equatable, CustomStringConvertible {
                 var output: [UInt8]? = Array(repeating: 0, count: outputLength)
                 let written = (try? hex.encode(bytes, startIndex: 0, length: bytes.count, output: &output)) ?? 0
                 let encoded = String(bytes: output?.prefix(written) ?? [], encoding: .ascii) ?? ""
-                next = (true, encoded)
+                if isFirstValue {
+                    next = (true, "\(charset)''\(encoded)")
+                    isFirstValue = false
+                } else {
+                    next = (true, encoded)
+                }
                 index = priorIndex + 1
             }
             let isEncoded = next.encoded
