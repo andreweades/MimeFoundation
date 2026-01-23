@@ -80,10 +80,10 @@ Notes:
 
 ## Message Layer
 - 🟡 MimeMessageTests
-- ⬜️ ConstructorTests
+- 🟡 ConstructorTests
 - ⬜️ BodyBuilderTests
 - ⬜️ AttachmentCollectionTests
-- ⬜️ MessageIdListTests
+- ✅ MessageIdListTests
 - ⬜️ MessageDeliveryStatusTests
 - ⬜️ MessageDispositionNotificiationTests
 - ⬜️ MessageFeedbackReportTests

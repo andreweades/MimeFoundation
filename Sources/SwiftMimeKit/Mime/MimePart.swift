@@ -16,6 +16,9 @@ public enum MimePartError: Error, Equatable {
     case invalidContentTransferEncoding
     case nilContent
     case cryptoUnavailable
+    case nilArgs
+    case duplicateContent
+    case invalidArgument
 }
 
 open class MimePart: MimeEntity {
@@ -161,7 +164,14 @@ open class MimePart: MimeEntity {
         try self.init(mediaType, mediaSubtype, args: args)
     }
 
-    private convenience init(_ mediaType: String, _ mediaSubtype: String, args: [Any]) throws {
+    public convenience init(_ mediaType: String, _ mediaSubtype: String, args: [Any?]?) throws {
+        guard let args else {
+            throw MimePartError.nilArgs
+        }
+        try self.init(mediaType, mediaSubtype, args: args)
+    }
+
+    private convenience init(_ mediaType: String, _ mediaSubtype: String, args: [Any?]) throws {
         guard !mediaType.isEmpty else {
             throw MimePartError.nilMediaType
         }
@@ -170,8 +180,30 @@ open class MimePart: MimeEntity {
         }
         let contentType = try ContentType(mediaType, mediaSubtype)
         self.init(contentType)
+        var content: MimeContent?
         for arg in args {
-            _ = tryInit(arg)
+            guard let arg else { continue }
+            if tryInit(arg) {
+                continue
+            }
+            if let mimeContent = arg as? MimeContent {
+                if content != nil {
+                    throw MimePartError.duplicateContent
+                }
+                content = mimeContent
+                continue
+            }
+            if let stream = arg as? MimeStream {
+                if content != nil {
+                    throw MimePartError.duplicateContent
+                }
+                content = try MimeContent(stream)
+                continue
+            }
+            throw MimePartError.invalidArgument
+        }
+        if let content {
+            self.content = content
         }
     }
 

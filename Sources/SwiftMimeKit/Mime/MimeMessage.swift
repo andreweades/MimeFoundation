@@ -8,6 +8,9 @@ import Foundation
 public enum MimeMessageError: Error, Equatable {
     case invalidMaxLineLength
     case nilStream
+    case nilArgs
+    case duplicateBody
+    case invalidArgument
 }
 
 public final class MimeMessage {
@@ -15,13 +18,25 @@ public final class MimeMessage {
     public var body: MimeEntity?
     public let from: InternetAddressList
     public let to: InternetAddressList
+    public let cc: InternetAddressList
+
+    private var subjectStorage: String?
+    private var dateStorage: DateTimeOffset?
+    private var isUpdatingHeaders = false
+
     public var subject: String? {
-        didSet {
-            if let subject, !subject.isEmpty {
-                headers[.subject] = subject
-            } else {
-                headers.removeAll(.subject)
-            }
+        get { subjectStorage }
+        set {
+            subjectStorage = newValue
+            updateSubjectHeader()
+        }
+    }
+
+    public var date: DateTimeOffset? {
+        get { dateStorage }
+        set {
+            dateStorage = newValue
+            updateDateHeader()
         }
     }
 
@@ -29,12 +44,71 @@ public final class MimeMessage {
         self.headers = HeaderList()
         self.from = InternetAddressList()
         self.to = InternetAddressList()
+        self.cc = InternetAddressList()
 
         from.changed = { [weak self] _ in
             self?.updateAddressHeader(.from, list: self?.from)
         }
         to.changed = { [weak self] _ in
             self?.updateAddressHeader(.to, list: self?.to)
+        }
+        cc.changed = { [weak self] _ in
+            self?.updateAddressHeader(.cc, list: self?.cc)
+        }
+
+        headers.changed = { [weak self] action, header in
+            self?.headersChanged(action, header: header)
+        }
+    }
+
+    public convenience init(_ args: Any?...) throws {
+        try self.init(args: args)
+    }
+
+    public convenience init(args: [Any?]?) throws {
+        self.init()
+        guard let args else {
+            throw MimeMessageError.nilArgs
+        }
+        var body: MimeEntity?
+        for obj in args {
+            guard let obj else { continue }
+            if let header = obj as? Header {
+                if !header.field.hasPrefix("Content-") && !header.field.hasPrefix("content-") {
+                    headers.add(header)
+                }
+                continue
+            }
+            if let headerList = obj as? [Header] {
+                for header in headerList where !header.field.lowercased().hasPrefix("content-") {
+                    headers.add(header)
+                }
+                continue
+            }
+            if let entity = obj as? MimeEntity {
+                if body != nil {
+                    throw MimeMessageError.duplicateBody
+                }
+                body = entity
+                continue
+            }
+            throw MimeMessageError.invalidArgument
+        }
+
+        if let body {
+            self.body = body
+        }
+
+        syncFromHeaders()
+
+        if headers[.from] == nil {
+            headers[.from] = ""
+        }
+        if headers[.date] == nil {
+            date = DateTimeOffset.now()
+        }
+        if headers[.subject] == nil {
+            subject = ""
         }
     }
 
@@ -87,17 +161,7 @@ public final class MimeMessage {
             message.headers.add(header)
         }
 
-        if let subject = message.headers[.subject] {
-            message.subject = subject
-        }
-
-        if let fromHeader = message.headers[.from] {
-            message.from.addRange(parseAddressList(fromHeader))
-        }
-
-        if let toHeader = message.headers[.to] {
-            message.to.addRange(parseAddressList(toHeader))
-        }
+        message.syncFromHeaders()
 
         if !bodyBytes.isEmpty {
             message.body = try parseEntity(bodyBytes)
@@ -279,10 +343,108 @@ public final class MimeMessage {
 
     private func updateAddressHeader(_ id: HeaderId, list: InternetAddressList?) {
         guard let list else { return }
+        guard !isUpdatingHeaders else { return }
+        isUpdatingHeaders = true
         if list.count == 0 {
             headers.removeAll(id)
         } else {
             headers[id] = list.toString(.default, encode: true)
+        }
+        isUpdatingHeaders = false
+    }
+
+    private func updateSubjectHeader() {
+        guard !isUpdatingHeaders else { return }
+        isUpdatingHeaders = true
+        if let subjectStorage {
+            headers[.subject] = subjectStorage
+        } else {
+            headers.removeAll(.subject)
+        }
+        isUpdatingHeaders = false
+    }
+
+    private func updateDateHeader() {
+        guard !isUpdatingHeaders else { return }
+        isUpdatingHeaders = true
+        if let dateStorage {
+            headers[.date] = DateUtils.formatDate(dateStorage)
+        } else {
+            headers.removeAll(.date)
+        }
+        isUpdatingHeaders = false
+    }
+
+    private func headersChanged(_ action: HeaderListChangedAction, header: Header?) {
+        guard !isUpdatingHeaders else { return }
+        switch action {
+        case .cleared:
+            syncFromHeaders()
+        case .added, .changed, .removed:
+            break
+        }
+        guard let header else { return }
+        switch header.id {
+        case .from:
+            updateAddressList(from, addresses: addressesFromHeaders(.from))
+        case .to:
+            updateAddressList(to, addresses: addressesFromHeaders(.to))
+        case .cc:
+            updateAddressList(cc, addresses: addressesFromHeaders(.cc))
+        case .subject:
+            subjectStorage = headers[.subject]
+        case .date:
+            var parsed: DateTimeOffset? = nil
+            if let value = headers[.date], DateUtils.tryParse(value, date: &parsed) {
+                dateStorage = parsed
+            } else {
+                dateStorage = nil
+            }
+        default:
+            break
+        }
+    }
+
+    private func updateAddressList(_ list: InternetAddressList, value: String?) {
+        let saved = list.changed
+        list.changed = nil
+        list.clear()
+        if let value {
+            for address in MimeMessage.parseAddressList(value) {
+                list.add(address)
+            }
+        }
+        list.changed = saved
+    }
+
+    private func updateAddressList(_ list: InternetAddressList, addresses: [InternetAddress]) {
+        let saved = list.changed
+        list.changed = nil
+        list.clear()
+        for address in addresses {
+            list.add(address)
+        }
+        list.changed = saved
+    }
+
+    private func addressesFromHeaders(_ id: HeaderId) -> [InternetAddress] {
+        var addresses: [InternetAddress] = []
+        for header in headers where header.id == id {
+            addresses.append(contentsOf: MimeMessage.parseAddressList(header.value))
+        }
+        return addresses
+    }
+
+    private func syncFromHeaders() {
+        updateAddressList(from, addresses: addressesFromHeaders(.from))
+        updateAddressList(to, addresses: addressesFromHeaders(.to))
+        updateAddressList(cc, addresses: addressesFromHeaders(.cc))
+        subjectStorage = headers[.subject]
+        var parsed: DateTimeOffset? = nil
+        if let value = headers[.date], DateUtils.tryParse(value, date: &parsed) {
+            dateStorage = parsed
+        } else {
+            dateStorage = nil
         }
     }
 }

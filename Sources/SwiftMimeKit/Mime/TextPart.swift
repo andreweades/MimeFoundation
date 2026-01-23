@@ -56,6 +56,16 @@ public final class TextPart: MimePart {
         try self.init(subtype, args: args)
     }
 
+    @available(*, unavailable, message: "Use TextPart(subtype:args:) or TextPart(format:) for text parts.")
+    public convenience init(_ mediaType: String, _ mediaSubtype: String, _ args: Any...) throws {
+        fatalError("Use TextPart(subtype:args:) instead.")
+    }
+
+    public convenience init(_ subtype: String, _ text: String) {
+        self.init(subtype)
+        _ = try? setText(.utf8, text)
+    }
+
     public convenience init(_ subtype: String, args: [Any?]?) throws {
         guard let args else {
             throw TextPartError.nilArgs
