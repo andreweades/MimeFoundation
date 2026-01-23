@@ -283,9 +283,8 @@ public final class MimeAnonymizer {
             print("MimeAnonymizer.anonymizeMessage headers error: \(type(of: error)) \(error)")
             throw error
         }
-        try stream.write(options.newLineBytes, offset: 0, count: options.newLineBytes.count)
-
         if let body = message.body {
+            try stream.write(options.newLineBytes, offset: 0, count: options.newLineBytes.count)
             do {
                 try anonymizeEntity(options, body, stream, contentOnly: true)
             } catch {
@@ -311,7 +310,7 @@ public final class MimeAnonymizer {
         if let multipart = entity as? Multipart {
             let boundaryBytes = options.newLineBytes
             let boundaryMarker = Self.generateBoundaryMarker(boundary: multipart.boundary, newLine: boundaryBytes)
-            let endMarker = Self.generateEndBoundaryMarker(boundary: multipart.boundary, newLine: multipart.epilogue == nil ? boundaryBytes : [])
+            let endMarker = Self.generateEndBoundaryMarker(boundary: multipart.boundary, newLine: boundaryBytes)
 
             if let preamble = multipart.preamble {
                 do {
@@ -404,6 +403,9 @@ public final class MimeAnonymizer {
             merged.add(header.clone())
         }
         if let body {
+            if headers[.mimeVersion] == nil && !body.headers.isEmpty {
+                merged.add(Header(.mimeVersion, value: "1.0"))
+            }
             for header in body.headers where header.field.lowercased().hasPrefix("content-") {
                 if header.id != .unknown {
                     if merged.contains(header.id) {
@@ -413,9 +415,6 @@ public final class MimeAnonymizer {
                     continue
                 }
                 merged.add(header.clone())
-            }
-            if headers[.mimeVersion] == nil && !body.headers.isEmpty {
-                merged.add(Header(.mimeVersion, value: "1.0"))
             }
         }
         return merged

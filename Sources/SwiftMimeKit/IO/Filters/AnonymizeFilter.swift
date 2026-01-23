@@ -14,14 +14,15 @@ public final class AnonymizeFilter: MimeFilterBase {
 
         let endIndex = startIndex + length
         var index = startIndex
+        var outIndex = 0
         while index < endIndex {
             let byte = input[index]
-            output[outputIndex] = ByteClassification.isWhitespace(byte) ? byte : UInt8(ascii: "x")
-            outputIndex += 1
+            output[outIndex] = ByteClassification.isWhitespace(byte) ? byte : UInt8(ascii: "x")
+            outIndex += 1
             index += 1
         }
 
-        outputLength = length
+        outputLength = outIndex
         return output
     }
 }

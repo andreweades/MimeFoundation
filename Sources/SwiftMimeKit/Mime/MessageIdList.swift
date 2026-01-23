@@ -10,7 +10,7 @@ public enum MessageIdListError: Error, Equatable {
     case indexOutOfRange
 }
 
-public final class MessageIdList: RandomAccessCollection, MutableCollection {
+public final class MessageIdList: RandomAccessCollection, MutableCollection, CustomStringConvertible {
     public typealias Element = String
     public typealias Index = Int
 
@@ -27,19 +27,28 @@ public final class MessageIdList: RandomAccessCollection, MutableCollection {
 
     public subscript(position: Int) -> String {
         get { items[position] }
-        set { items[position] = newValue }
+        set {
+            let normalized = MessageIdList.normalize(newValue)
+            if items[position] == normalized {
+                return
+            }
+            items[position] = normalized
+            onChanged()
+        }
     }
 
     public var count: Int { items.count }
 
     public func add(_ id: String?) throws {
         guard let id else { throw MessageIdListError.nilId }
-        items.append(id)
+        items.append(MessageIdList.normalize(id))
+        onChanged()
     }
 
     public func addRange(_ ids: [String]?) throws {
         guard let ids else { throw MessageIdListError.nilArray }
-        items.append(contentsOf: ids)
+        items.append(contentsOf: ids.map { MessageIdList.normalize($0) })
+        onChanged()
     }
 
     public func contains(_ id: String?) throws -> Bool {
@@ -61,13 +70,19 @@ public final class MessageIdList: RandomAccessCollection, MutableCollection {
     public func insert(_ id: String?, at index: Int) throws {
         guard let id else { throw MessageIdListError.nilId }
         guard index >= 0 && index <= items.count else { throw MessageIdListError.indexOutOfRange }
-        items.insert(id, at: index)
+        items.insert(MessageIdList.normalize(id), at: index)
+        onChanged()
     }
 
     public func setItem(at index: Int, _ id: String?) throws {
         guard let id else { throw MessageIdListError.nilId }
         guard index >= 0 && index < items.count else { throw MessageIdListError.indexOutOfRange }
-        items[index] = id
+        let normalized = MessageIdList.normalize(id)
+        if items[index] == normalized {
+            return
+        }
+        items[index] = normalized
+        onChanged()
     }
 
     @discardableResult
@@ -75,21 +90,56 @@ public final class MessageIdList: RandomAccessCollection, MutableCollection {
         guard let id else { throw MessageIdListError.nilId }
         guard let index = items.firstIndex(of: id) else { return false }
         items.remove(at: index)
+        onChanged()
         return true
     }
 
     public func remove(at index: Int) throws {
         guard index >= 0 && index < items.count else { throw MessageIdListError.indexOutOfRange }
         items.remove(at: index)
+        onChanged()
     }
 
     public func clear() {
         items.removeAll(keepingCapacity: true)
+        onChanged()
     }
 
     public func clone() -> MessageIdList {
         let clone = MessageIdList()
         clone.items = items
         return clone
+    }
+
+    public func toString() -> String {
+        var builder = ""
+        for (index, item) in items.enumerated() {
+            if index > 0 {
+                builder.append(" ")
+            }
+            builder.append("<")
+            builder.append(item)
+            builder.append(">")
+        }
+        return builder
+    }
+
+    public var description: String {
+        toString()
+    }
+
+    internal var changed: ((MessageIdList) -> Void)?
+
+    private func onChanged() {
+        changed?(self)
+    }
+
+    private static func normalize(_ value: String) -> String {
+        guard value.count >= 2, value.first == "<", value.last == ">" else {
+            return value
+        }
+        let start = value.index(after: value.startIndex)
+        let end = value.index(before: value.endIndex)
+        return String(value[start..<end])
     }
 }

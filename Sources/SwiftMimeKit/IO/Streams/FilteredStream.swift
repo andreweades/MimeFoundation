@@ -168,6 +168,9 @@ public final class FilteredStream: MimeStream {
 
         for filter in filters {
             outputBuffer = filter.filter(outputBuffer, startIndex: outputIndex, length: outputLength, outputIndex: &outputIndex, outputLength: &outputLength)
+            if outputIndex < 0 || outputLength < 0 || outputIndex + outputLength > outputBuffer.count {
+                print("FilteredStream.write invalid filter output: \(type(of: filter)) outputIndex=\(outputIndex) outputLength=\(outputLength) buffer.count=\(outputBuffer.count)")
+            }
         }
 
         if outputLength > 0 {
