@@ -345,6 +345,33 @@ enum Rfc2047 {
         String(bytes: encodePhrase(options, encoding, phrase, startIndex: 0, count: phrase.count), encoding: .ascii) ?? ""
     }
 
+    static func encodeComment(_ options: FormatOptions, _ encoding: String.Encoding, _ text: String, startIndex: Int, count: Int) -> String {
+        guard startIndex >= 0, count >= 0, startIndex + count <= text.count else {
+            return ""
+        }
+        let start = text.index(text.startIndex, offsetBy: startIndex)
+        let end = text.index(start, offsetBy: count)
+        let substring = String(text[start..<end])
+        if substring.isEmpty {
+            return "()"
+        }
+        if !containsNonAsciiOrControl(substring) {
+            return "(\(substring))"
+        }
+        let selectedEncoding = selectEncoding(options, userEncoding: encoding, text: substring)
+        let bytes = CharsetUtils.getBytes(substring, encoding: selectedEncoding)
+        let encodingChoice = chooseEncodedWordEncoding(bytes, encoding: selectedEncoding, mode: .text)
+        let encoded: String
+        if encodingChoice == .base64 {
+            let segments = splitCommentBase64Segments(options: options, encoding: selectedEncoding, text: substring)
+            let encodedWords = segments.map { renderSegment($0, needsEncoding: true, encoding: selectedEncoding, mode: .text) }
+            encoded = encodedWords.joined(separator: options.newLine + " ")
+        } else {
+            encoded = encodeRun(options, userEncoding: selectedEncoding, text: substring, mode: .text)
+        }
+        return "(\(encoded))"
+    }
+
     private static func renderSegment(_ segment: String, needsEncoding: Bool, encoding: String.Encoding, mode: QEncodeMode) -> String {
         guard !segment.isEmpty else {
             return ""
@@ -482,6 +509,59 @@ enum Rfc2047 {
             return encodedWords[0]
         }
         return encodedWords.joined(separator: options.newLine + " ")
+    }
+
+    private static func splitCommentBase64Segments(options: FormatOptions, encoding: String.Encoding, text: String) -> [String] {
+        let maxEncodedWordLength = max(1, options.maxLineLength - 2)
+        let charset = CharsetUtils.getMimeCharset(encoding)
+        let maxPayload = max(4, maxEncodedWordLength - (charset.count + 7))
+        let maxBytes = max(1, (maxPayload / 4) * 3)
+        var segments: [String] = []
+
+        var words: [(leadingWhitespaceStart: String.Index, wordStart: String.Index, wordEnd: String.Index)] = []
+        var index = text.startIndex
+        while index < text.endIndex {
+            let whitespaceStart = index
+            while index < text.endIndex, text[index].isWhitespace {
+                index = text.index(after: index)
+            }
+            if index >= text.endIndex {
+                break
+            }
+            let wordStart = index
+            while index < text.endIndex, !text[index].isWhitespace {
+                index = text.index(after: index)
+            }
+            let wordEnd = index
+            words.append((leadingWhitespaceStart: whitespaceStart, wordStart: wordStart, wordEnd: wordEnd))
+        }
+
+        guard let first = words.first else {
+            return [text]
+        }
+
+        var segmentStart = first.wordStart
+        var segmentEnd = first.wordEnd
+
+        func byteCount(_ range: Range<String.Index>) -> Int {
+            let substring = String(text[range])
+            return substring.lengthOfBytes(using: encoding)
+        }
+
+        for word in words.dropFirst() {
+            let candidateRange = segmentStart..<word.wordEnd
+            let candidateBytes = byteCount(candidateRange)
+            if candidateBytes <= maxBytes || segmentStart == word.wordStart {
+                segmentEnd = word.wordEnd
+            } else {
+                segments.append(String(text[segmentStart..<segmentEnd]))
+                segmentStart = word.leadingWhitespaceStart
+                segmentEnd = word.wordEnd
+            }
+        }
+
+        segments.append(String(text[segmentStart..<segmentEnd]))
+        return segments
     }
 
     private static func encodeBase64Segments(_ text: String, encoding: String.Encoding, maxPayload: Int) -> [String] {

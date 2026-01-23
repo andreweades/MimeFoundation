@@ -165,6 +165,10 @@ public final class Header: CustomStringConvertible, Equatable {
                 return Header.reformatContentDisposition(options: self.options, format: options, encoding: .utf8, field: field, rawValue: rawValueStorage)
             case .contentType:
                 return Header.reformatContentType(options: self.options, format: options, encoding: .utf8, field: field, rawValue: rawValueStorage)
+            case .dispositionNotificationOptions:
+                return Header.encodeDispositionNotificationOptions(format: options, encoding: .utf8, field: field, value: value)
+            case .listArchive, .listHelp, .listOwner, .listPost, .listSubscribe, .listUnsubscribe:
+                return Header.encodeMailingListCommandHeader(options: self.options, format: options, encoding: .utf8, field: field, value: value)
             case .arcAuthenticationResults, .authenticationResults:
                 return rawValueStorage
             case .dkimSignature, .arcMessageSignature, .arcSeal:
@@ -414,6 +418,184 @@ extension Header {
             return Array(encoded.utf8)
         }
         return encodeUnstructuredHeader(options: options, format: format, encoding: encoding, field: field, value: value)
+    }
+
+    private static func encodeDispositionNotificationOptions(format: FormatOptions, encoding: String.Encoding, field: String, value: String) -> [UInt8] {
+        var encoded = ValueStringBuilder(initialCapacity: value.count)
+        var lineLength = field.count + 1
+        var index = value.startIndex
+
+        while index < value.endIndex {
+            var parameter = ValueStringBuilder(initialCapacity: 128)
+
+            while index < value.endIndex && Header.isWhiteSpace(value[index]) {
+                index = value.index(after: index)
+            }
+
+            while index < value.endIndex && value[index] != ";" {
+                if !Header.isWhiteSpace(value[index]) {
+                    parameter.append(value[index])
+                }
+                index = value.index(after: index)
+            }
+
+            if index < value.endIndex && value[index] == ";" {
+                parameter.append(";")
+                index = value.index(after: index)
+            }
+
+            if lineLength + parameter.length + 1 > format.maxLineLength && encoded.length > 0 {
+                encoded.append(format.newLine)
+                encoded.append("\t")
+                lineLength = 1
+            } else {
+                encoded.append(" ")
+                lineLength += 1
+            }
+
+            encoded.append(parameter.asString())
+            lineLength += parameter.length
+        }
+
+        encoded.append(format.newLine)
+        return Array(encoded.toString().data(using: encoding) ?? Data())
+    }
+
+    private static func isMailingListCommandSpecial(_ ch: Character) -> Bool {
+        ch == "<" || ch == "(" || ch == ","
+    }
+
+    private static func appendWord(format: FormatOptions, builder: inout ValueStringBuilder, lineLength: inout Int, word: String) {
+        if lineLength + word.count + 1 <= format.maxLineLength {
+            builder.append(" ")
+            lineLength += 1
+            builder.append(word)
+            lineLength += word.count
+        } else if word.count + 1 <= format.maxLineLength {
+            builder.append(format.newLine)
+            builder.append(" ")
+            builder.append(word)
+            lineLength = word.count + 1
+        } else {
+            var remaining = word.count
+            var startIndex = word.startIndex
+            while remaining > 0 {
+                let available = max(format.maxLineLength - (lineLength + 1), 1)
+                let length = min(remaining, available)
+                let endIndex = word.index(startIndex, offsetBy: length)
+                builder.append(" ")
+                lineLength += 1
+                builder.append(String(word[startIndex..<endIndex]))
+                lineLength += length
+                remaining -= length
+                startIndex = endIndex
+                if remaining > 0 {
+                    builder.append(format.newLine)
+                    lineLength = 0
+                }
+            }
+        }
+    }
+
+    private static func appendComment(format: FormatOptions, encoding: String.Encoding, builder: inout ValueStringBuilder, lineLength: inout Int, value: String, startIndex: String.Index, endIndex: String.Index) {
+        let raw = String(value[startIndex..<endIndex])
+        let commentText: String
+
+        if format.international {
+            commentText = raw
+        } else {
+            let startOffset = value.distance(from: value.startIndex, to: startIndex)
+            let length = value.distance(from: startIndex, to: endIndex)
+            commentText = Rfc2047.encodeComment(format, encoding, value, startIndex: startOffset + 1, count: max(0, length - 2))
+        }
+
+        if lineLength + commentText.count + 1 <= format.maxLineLength {
+            builder.append(" ")
+            lineLength += 1
+            builder.append(commentText)
+            lineLength += commentText.count
+        } else if commentText.count + 1 <= format.maxLineLength {
+            builder.append(format.newLine)
+            builder.append(" ")
+            builder.append(commentText)
+            lineLength = commentText.count + 1
+        } else {
+            var index = commentText.startIndex
+            while index < commentText.endIndex {
+                let slice = commentText[index...]
+                let nextWhitespace = slice.firstIndex(where: { Header.isWhiteSpace($0) }) ?? commentText.endIndex
+                let word = String(commentText[index..<nextWhitespace])
+                appendWord(format: format, builder: &builder, lineLength: &lineLength, word: word)
+                index = nextWhitespace
+                while index < commentText.endIndex && Header.isWhiteSpace(commentText[index]) {
+                    index = commentText.index(after: index)
+                }
+            }
+        }
+    }
+
+    private static func encodeMailingListCommandHeader(options: ParserOptions, format: FormatOptions, encoding: String.Encoding, field: String, value: String) -> [UInt8] {
+        var encoded = ValueStringBuilder(initialCapacity: value.count + 8)
+        var lineLength = field.count + 1
+        var index = value.startIndex
+
+        while index < value.endIndex {
+            while index < value.endIndex && Header.isWhiteSpace(value[index]) {
+                index = value.index(after: index)
+            }
+
+            if index >= value.endIndex {
+                break
+            }
+
+            let startIndex = index
+            let ch = value[index]
+
+            if ch == "<" {
+                while index < value.endIndex && value[index] != ">" {
+                    index = value.index(after: index)
+                }
+                if index < value.endIndex {
+                    index = value.index(after: index)
+                    let url = String(value[startIndex..<index])
+                    if lineLength + url.count + 1 < format.maxLineLength {
+                        encoded.append(" ")
+                        lineLength += 1
+                    } else {
+                        encoded.append(format.newLine)
+                        encoded.append(" ")
+                        lineLength = 1
+                    }
+                    encoded.append(url)
+                    lineLength += url.count
+                    continue
+                }
+            } else if ch == "(" {
+                var cursor = value.distance(from: value.startIndex, to: index)
+                if ParseUtils.skipComment(value, index: &cursor, endIndex: value.count) {
+                    let end = value.index(value.startIndex, offsetBy: cursor)
+                    appendComment(format: format, encoding: encoding, builder: &encoded, lineLength: &lineLength, value: value, startIndex: startIndex, endIndex: end)
+                    index = end
+                    continue
+                }
+            } else if ch == "," {
+                while index < value.endIndex && (value[index] == "," || Header.isWhiteSpace(value[index])) {
+                    index = value.index(after: index)
+                }
+                encoded.append(",")
+                lineLength += 1
+                continue
+            }
+
+            while index < value.endIndex && !Header.isWhiteSpace(value[index]) && !isMailingListCommandSpecial(value[index]) {
+                index = value.index(after: index)
+            }
+            let word = String(value[startIndex..<index])
+            appendWord(format: format, builder: &encoded, lineLength: &lineLength, word: word)
+        }
+
+        encoded.append(format.newLine)
+        return Array(encoded.toString().data(using: encoding) ?? Data())
     }
 
     private static func encodeReceivedHeader(options: ParserOptions, format: FormatOptions, encoding: String.Encoding, field: String, value: String) -> [UInt8] {
@@ -792,10 +974,14 @@ extension Header {
             return encodeContentDisposition(options: options, format: format, encoding: encoding, field: field, value: value)
         case .contentType:
             return encodeContentType(options: options, format: format, encoding: encoding, field: field, value: value)
+        case .dispositionNotificationOptions:
+            return encodeDispositionNotificationOptions(format: format, encoding: encoding, field: field, value: value)
         case .arcAuthenticationResults, .authenticationResults:
             return encodeAuthenticationResultsHeader(format: format, encoding: encoding, field: field, value: value)
         case .dkimSignature, .arcMessageSignature, .arcSeal:
             return encodeDkimOrArcSignatureHeader(format: format, encoding: encoding, field: field, value: value)
+        case .listArchive, .listHelp, .listOwner, .listPost, .listSubscribe, .listUnsubscribe:
+            return encodeMailingListCommandHeader(options: options, format: format, encoding: encoding, field: field, value: value)
         default:
             return encodeUnstructuredHeader(options: options, format: format, encoding: encoding, field: field, value: value)
         }

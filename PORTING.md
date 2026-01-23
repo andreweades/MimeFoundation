@@ -49,13 +49,13 @@ Notes:
 - ✅ InternetAddressListConverterTests
 
 ## Headers
-- 🟡 HeaderTests (missing list header/disposition option coverage)
-- 🟡 HeaderListTests
+- ✅ HeaderTests
+- ✅ HeaderListTests
 - ✅ HeaderListCollectionTests
 
 ## Format/Parser
-- ⬜️ FormatOptionsTests
-- ⬜️ ParserOptionsTests
+- ✅ FormatOptionsTests
+- ✅ ParserOptionsTests
 - ⬜️ ArgumentExceptionTests
 - ⬜️ ExceptionTests
 - ⬜️ AssortedTests
@@ -68,7 +68,7 @@ Notes:
 - ⬜️ MimeTypeTests
 
 ## MIME Entities
-- 🟡 MimePartTests (basic properties/prepare/md5; pending transcoding/write/load)
+- ✅ MimePartTests
 - ✅ MimeContentTests
 - ✅ MessagePartTests
 - ✅ TextPartTests
@@ -81,8 +81,8 @@ Notes:
 ## Message Layer
 - 🟡 MimeMessageTests
 - 🟡 ConstructorTests
-- ⬜️ BodyBuilderTests
-- ⬜️ AttachmentCollectionTests
+- ✅ BodyBuilderTests
+- ✅ AttachmentCollectionTests
 - ✅ MessageIdListTests
 - ⬜️ MessageDeliveryStatusTests
 - ⬜️ MessageDispositionNotificiationTests

@@ -327,12 +327,26 @@ open class MimePart: MimeEntity {
         if let content {
             let source = try content.open()
             var buffer = [UInt8](repeating: 0, count: 4096)
-            while true {
-                let read = try source.read(&buffer, offset: 0, count: buffer.count)
-                if read == 0 {
-                    break
+            if contentTransferEncoding == .base64 || contentTransferEncoding == .quotedPrintable || contentTransferEncoding == .uuEncode {
+                let filtered = try FilteredStream(stream)
+                let filter = EncoderFilter.create(contentTransferEncoding)
+                _ = try filtered.add(filter)
+                while true {
+                    let read = try source.read(&buffer, offset: 0, count: buffer.count)
+                    if read == 0 {
+                        break
+                    }
+                    try filtered.write(buffer, offset: 0, count: read)
                 }
-                try stream.write(buffer, offset: 0, count: read)
+                try filtered.flush()
+            } else {
+                while true {
+                    let read = try source.read(&buffer, offset: 0, count: buffer.count)
+                    if read == 0 {
+                        break
+                    }
+                    try stream.write(buffer, offset: 0, count: read)
+                }
             }
         }
     }

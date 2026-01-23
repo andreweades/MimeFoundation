@@ -76,7 +76,33 @@ public final class MimeContent {
     }
 
     public func decodeTo(_ destination: MimeStream?, cancellationToken: CancellationToken? = nil) throws {
-        try writeTo(destination, cancellationToken: cancellationToken)
+        guard let destination else {
+            throw MimeContentError.nilDestination
+        }
+        try checkDisposed()
+        guard let source = stream else {
+            throw MimeContentError.disposed
+        }
+        if cancellationToken?.isCancelled == true {
+            throw OperationCanceledError()
+        }
+        _ = try source.seek(0, origin: .begin)
+
+        let filtered = try FilteredStream(source)
+        let filter = DecoderFilter.create(encoding)
+        _ = try filtered.add(filter)
+
+        var buffer = [UInt8](repeating: 0, count: MimeContent.bufferLength)
+        while true {
+            if cancellationToken?.isCancelled == true {
+                throw OperationCanceledError()
+            }
+            let read = try filtered.read(&buffer, offset: 0, count: buffer.count)
+            if read == 0 {
+                break
+            }
+            try destination.write(buffer, offset: 0, count: read)
+        }
     }
 
     public func decodeToAsync(_ destination: MimeStream?, cancellationToken: CancellationToken? = nil) async throws {

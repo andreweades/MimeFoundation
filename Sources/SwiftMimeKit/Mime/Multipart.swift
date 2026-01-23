@@ -252,6 +252,10 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
             let boundaryBytes = Array(boundaryLine.utf8)
             try stream.write(boundaryBytes, offset: 0, count: boundaryBytes.count)
             try part.writeTo(options, stream)
+            if shouldWriteNewLine(after: part) {
+                let newLineBytes = Array(newLine.utf8)
+                try stream.write(newLineBytes, offset: 0, count: newLineBytes.count)
+            }
         }
 
         if writeEndBoundaryStorage {
@@ -321,6 +325,19 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
     private static func generateBoundary() -> String {
         let uuid = UUID().uuidString.replacingOccurrences(of: "-", with: "")
         return "=-\(uuid)"
+    }
+
+    private func shouldWriteNewLine(after part: MimeEntity) -> Bool {
+        if let mimePart = part as? MimePart {
+            return mimePart.content != nil
+        }
+        if let messagePart = part as? MessagePart {
+            return messagePart.message?.body != nil
+        }
+        if let multipart = part as? Multipart {
+            return multipart.writeEndBoundary
+        }
+        return true
     }
 
     private func tryInit(_ obj: Any) -> Bool {

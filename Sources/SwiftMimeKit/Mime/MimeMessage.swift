@@ -151,10 +151,18 @@ public final class MimeMessage {
             throw MimeMessageError.nilStream
         }
         let bytes = try readAllBytes(from: stream)
-        return try parse(bytes)
+        return try parse(.default, bytes)
     }
 
-    private static func parse(_ bytes: [UInt8]) throws -> MimeMessage {
+    public static func load(_ options: ParserOptions, _ stream: MimeStream?) throws -> MimeMessage {
+        guard let stream else {
+            throw MimeMessageError.nilStream
+        }
+        let bytes = try readAllBytes(from: stream)
+        return try parse(options, bytes)
+    }
+
+    private static func parse(_ options: ParserOptions, _ bytes: [UInt8]) throws -> MimeMessage {
         let (headerList, bodyBytes) = parseHeaders(bytes)
         let message = MimeMessage()
         for header in headerList {
@@ -164,13 +172,13 @@ public final class MimeMessage {
         message.syncFromHeaders()
 
         if !bodyBytes.isEmpty {
-            message.body = try parseEntity(bodyBytes)
+            message.body = try parseEntity(options, bodyBytes)
         }
 
         return message
     }
 
-    private static func parseEntity(_ bytes: [UInt8]) throws -> MimeEntity? {
+    internal static func parseEntity(_ options: ParserOptions, _ bytes: [UInt8]) throws -> MimeEntity? {
         let (headers, bodyBytes) = parseHeaders(bytes)
         guard !headers.isEmpty else {
             return nil
@@ -186,12 +194,38 @@ public final class MimeMessage {
 
         let mediaType = contentType?.mediaType.lowercased() ?? ""
         let mediaSubtype = contentType?.mediaSubtype.lowercased() ?? ""
+        let customEntity = contentType.flatMap { options.makeEntity(for: $0) }
 
         let entity: MimeEntity
         switch (mediaType, mediaSubtype) {
-        case ("text", "rfc822-headers"):
-            let part = TextRfc822Headers()
-            entity = part
+        case ("multipart", _):
+            let subtype = mediaSubtype.isEmpty ? "mixed" : mediaSubtype
+            let multipart: Multipart
+            if let custom = customEntity as? Multipart {
+                multipart = custom
+            } else {
+                multipart = try createMultipart(subtype: subtype)
+            }
+            if let contentType {
+                multipart.contentType = contentType
+            }
+            for header in headers {
+                multipart.headers.add(header)
+            }
+            if let boundary = multipart.contentType.boundary, !bodyBytes.isEmpty {
+                let parts = splitMultipartBody(bodyBytes, boundary: boundary)
+                for partBytes in parts {
+                    if let child = try parseEntity(options, partBytes) {
+                        try multipart.add(child)
+                    }
+                }
+            }
+            entity = multipart
+        case ("text", "rfc822-headers"), ("message", "global-headers"):
+            let part = (customEntity as? TextRfc822Headers) ?? TextRfc822Headers()
+            for header in headers {
+                part.headers.add(header)
+            }
             if !bodyBytes.isEmpty {
                 let (messageHeaders, _) = parseHeaders(bodyBytes)
                 let message = MimeMessage()
@@ -200,39 +234,49 @@ public final class MimeMessage {
                 }
                 part.message = message
             }
-        case ("message", _):
-            let part = MessagePart(mediaSubtype.isEmpty ? "rfc822" : mediaSubtype)
             entity = part
-            if !bodyBytes.isEmpty {
-                part.message = try parse(bodyBytes)
+        case ("message", _):
+            let part = (customEntity as? MessagePart) ?? MessagePart(mediaSubtype.isEmpty ? "rfc822" : mediaSubtype)
+            for header in headers {
+                part.headers.add(header)
             }
-        case ("text", _):
+            if !bodyBytes.isEmpty {
+                part.message = try parse(options, bodyBytes)
+            }
+            entity = part
+        case ("text", _), ("application", "rtf"):
             let subtype = mediaSubtype.isEmpty ? "plain" : mediaSubtype
-            let part = TextPart(subtype)
+            let part = (customEntity as? TextPart) ?? TextPart(subtype)
             if let contentType {
                 part.contentType = contentType
             }
+            for header in headers {
+                part.headers.add(header)
+            }
             if !bodyBytes.isEmpty {
-                part.content = try MimeContent(MemoryStream(bodyBytes, writable: false))
+                let encoding = part.contentTransferEncoding
+                let decoded = decodeContentBytes(bodyBytes, encoding: encoding)
+                part.content = try MimeContent(MemoryStream(decoded, writable: false), encoding: .default)
             }
             entity = part
         default:
             let fallback = try ContentType("application", "octet-stream")
-            let part = MimePart(contentType ?? fallback)
+            let part = (customEntity as? MimePart) ?? MimePart(contentType ?? fallback)
+            for header in headers {
+                part.headers.add(header)
+            }
             if !bodyBytes.isEmpty {
-                part.content = try MimeContent(MemoryStream(bodyBytes, writable: false))
+                let encoding = part.contentTransferEncoding
+                let decoded = decodeContentBytes(bodyBytes, encoding: encoding)
+                part.content = try MimeContent(MemoryStream(decoded, writable: false), encoding: .default)
             }
             entity = part
-        }
-
-        for header in headers {
-            entity.headers.add(header)
         }
 
         return entity
     }
 
-    private static func parseHeaders(_ bytes: [UInt8]) -> (HeaderList, [UInt8]) {
+    internal static func parseHeaders(_ bytes: [UInt8]) -> (HeaderList, [UInt8]) {
         let separator = findHeaderBodySeparator(bytes)
         let headerBytes: [UInt8]
         let bodyBytes: [UInt8]
@@ -296,6 +340,82 @@ public final class MimeMessage {
         }
 
         return (headerList, bodyBytes)
+    }
+
+    private static func createMultipart(subtype: String) throws -> Multipart {
+        switch subtype.lowercased() {
+        case "alternative":
+            return MultipartAlternative()
+        case "related":
+            return MultipartRelated()
+        case "report":
+            return MultipartReport()
+        default:
+            return try Multipart(subtype)
+        }
+    }
+
+    private static func splitMultipartBody(_ bytes: [UInt8], boundary: String) -> [[UInt8]] {
+        guard let text = String(data: Data(bytes), encoding: .isoLatin1) else {
+            return []
+        }
+        let normalized = text
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        let boundaryLine = "--" + boundary
+        let endBoundaryLine = boundaryLine + "--"
+        var parts: [[UInt8]] = []
+        var current: [String] = []
+        var inPart = false
+
+        let lines = normalized.split(separator: "\n", omittingEmptySubsequences: false)
+        for rawLine in lines {
+            let line = String(rawLine)
+            if line == boundaryLine {
+                if inPart {
+                    let partText = current.joined(separator: "\n")
+                    parts.append(Array(partText.utf8))
+                    current.removeAll(keepingCapacity: true)
+                } else {
+                    inPart = true
+                }
+                continue
+            }
+            if line == endBoundaryLine {
+                if inPart {
+                    let partText = current.joined(separator: "\n")
+                    parts.append(Array(partText.utf8))
+                }
+                break
+            }
+            if inPart {
+                current.append(line)
+            }
+        }
+
+        return parts
+    }
+
+    private static func decodeContentBytes(_ bytes: [UInt8], encoding: ContentEncoding) -> [UInt8] {
+        switch encoding {
+        case .base64, .quotedPrintable, .uuEncode:
+            let source = MemoryStream(bytes, writable: false)
+            let filtered = try? FilteredStream(source)
+            let filter = DecoderFilter.create(encoding)
+            _ = try? filtered?.add(filter)
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            var output: [UInt8] = []
+            while true {
+                let read = (try? filtered?.read(&buffer, offset: 0, count: buffer.count)) ?? 0
+                if read == 0 {
+                    break
+                }
+                output.append(contentsOf: buffer[0..<read])
+            }
+            return output
+        default:
+            return bytes
+        }
     }
 
     private static func findHeaderBodySeparator(_ bytes: [UInt8]) -> (headerEnd: Int, bodyStart: Int)? {

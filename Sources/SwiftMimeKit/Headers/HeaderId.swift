@@ -50,6 +50,14 @@ public enum HeaderId: Int, Sendable, CaseIterable {
     case comments
     case dispositionNotificationTo
     case dispositionNotificationOptions
+    case listArchive
+    case listHelp
+    case listId
+    case listOwner
+    case listPost
+    case listSubscribe
+    case listUnsubscribe
+    case listUnsubscribePost
     case arcAuthenticationResults
     case authenticationResults
     case arcMessageSignature
@@ -146,6 +154,22 @@ public extension HeaderId {
             return "Disposition-Notification-To"
         case .dispositionNotificationOptions:
             return "Disposition-Notification-Options"
+        case .listArchive:
+            return "List-Archive"
+        case .listHelp:
+            return "List-Help"
+        case .listId:
+            return "List-Id"
+        case .listOwner:
+            return "List-Owner"
+        case .listPost:
+            return "List-Post"
+        case .listSubscribe:
+            return "List-Subscribe"
+        case .listUnsubscribe:
+            return "List-Unsubscribe"
+        case .listUnsubscribePost:
+            return "List-Unsubscribe-Post"
         case .arcAuthenticationResults:
             return "ARC-Authentication-Results"
         case .authenticationResults:

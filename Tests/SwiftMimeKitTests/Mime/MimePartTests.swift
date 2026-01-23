@@ -321,3 +321,146 @@ func mimePartPrepare() throws {
     try part.prepare(.sevenBit)
     #expect(part.contentTransferEncoding == .base64)
 }
+
+@Test("MimePart transcoding")
+func mimePartTranscoding() throws {
+    let expected = try TestHelper.loadData(relativePath: "images/girl.jpg")
+    var part = try MimePart("image", "jpeg")
+    part.content = try MimeContent(MemoryStream(expected, writable: false))
+    part.contentTransferEncoding = .base64
+    part.fileName = "girl.jpg"
+
+    let output = MemoryStream()
+    try part.writeTo(output)
+    output.position = 0
+
+    part = try MimeEntity.load(output) as! MimePart
+
+    part.contentTransferEncoding = .uuEncode
+    let output2 = MemoryStream()
+    try part.writeTo(output2)
+    output2.position = 0
+
+    part = try MimeEntity.load(output2) as! MimePart
+
+    let decoded = MemoryStream()
+    try part.content?.decodeTo(decoded)
+    let actual = decoded.toByteArray()
+
+    #expect(actual.count == expected.count)
+    for index in expected.indices {
+        #expect(actual[index] == expected[index])
+    }
+}
+
+@Test("MimePart transcoding async")
+func mimePartTranscodingAsync() async throws {
+    let expected = try TestHelper.loadData(relativePath: "images/girl.jpg")
+    var part = try MimePart("image", "jpeg")
+    part.content = try MimeContent(MemoryStream(expected, writable: false))
+    part.contentTransferEncoding = .base64
+    part.fileName = "girl.jpg"
+
+    let output = MemoryStream()
+    try await part.writeToAsync(output)
+    output.position = 0
+
+    part = try await MimeEntity.loadAsync(output) as! MimePart
+
+    part.contentTransferEncoding = .uuEncode
+    let output2 = MemoryStream()
+    try await part.writeToAsync(output2)
+    output2.position = 0
+
+    part = try await MimeEntity.loadAsync(output2) as! MimePart
+
+    let decoded = MemoryStream()
+    try part.content?.decodeTo(decoded)
+    let actual = decoded.toByteArray()
+
+    #expect(actual.count == expected.count)
+    for index in expected.indices {
+        #expect(actual[index] == expected[index])
+    }
+}
+
+@Test("MimePart writeTo preserves content")
+func mimePartWriteTo() throws {
+    let builder = BodyBuilder()
+    let bytes = Array("content".utf8)
+    _ = try builder.attachments.add("filename", MemoryStream(bytes, writable: false))
+    builder.textBody = "This is the text body."
+
+    let body = try builder.toMessageBody()
+    let stream = MemoryStream()
+    var options = FormatOptions.default
+    options.newLineFormat = .dos
+    try body.writeTo(options, stream)
+
+    stream.position = 0
+    let multipart = try MimeEntity.load(stream) as! Multipart
+    let part = multipart[1] as! MimePart
+    let contentStream = try part.content?.open()
+    var buffer = [UInt8](repeating: 0, count: 1024)
+    let read = try contentStream?.read(&buffer, offset: 0, count: buffer.count) ?? 0
+    let content = String(decoding: buffer[0..<read], as: UTF8.self)
+    #expect(content == "content")
+}
+
+@Test("MimePart writeTo async preserves content")
+func mimePartWriteToAsync() async throws {
+    let builder = BodyBuilder()
+    let bytes = Array("content".utf8)
+    _ = try builder.attachments.add("filename", MemoryStream(bytes, writable: false))
+    builder.textBody = "This is the text body."
+
+    let body = try builder.toMessageBody()
+    let stream = MemoryStream()
+    var options = FormatOptions.default
+    options.newLineFormat = .dos
+    try await body.writeToAsync(options, stream)
+
+    stream.position = 0
+    let multipart = try MimeEntity.load(stream) as! Multipart
+    let part = multipart[1] as! MimePart
+    let contentStream = try part.content?.open()
+    var buffer = [UInt8](repeating: 0, count: 1024)
+    let read = try contentStream?.read(&buffer, offset: 0, count: buffer.count) ?? 0
+    let content = String(decoding: buffer[0..<read], as: UTF8.self)
+    #expect(content == "content")
+}
+
+@Test("MimePart writeTo file newlines")
+func mimePartWriteToFile() throws {
+    let fileUrl = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+    let text = "content\r\n"
+    let body = TextPart("plain")
+    body.text = text
+
+    var options = FormatOptions.default
+    options.newLineFormat = .dos
+    try body.writeTo(options, fileUrl.path)
+    let data = try Data(contentsOf: fileUrl)
+    let textData = String(decoding: data, as: UTF8.self)
+    let snippet = String(textData.suffix(text.count))
+    #expect(snippet == text)
+
+    options.newLineFormat = .unix
+    try body.writeTo(options, fileUrl.path)
+    let dataUnix = try Data(contentsOf: fileUrl)
+    let textUnix = String(decoding: dataUnix, as: UTF8.self)
+    let expected = text.replacingOccurrences(of: "\r\n", with: "\n")
+    let snippetUnix = String(textUnix.suffix(expected.count))
+    #expect(snippetUnix == expected)
+}
+
+@Test("MimePart load http response")
+func mimePartLoadHttpResponse() throws {
+    let text = "This is some text and stuff.\n"
+    let contentType = try ContentType("text", "plain")
+    let data = Array(text.utf8)
+    let entity = try MimeEntity.load(contentType, MemoryStream(data, writable: false))
+    let part = entity as? TextPart
+    #expect(part != nil)
+    #expect(part?.text == text)
+}

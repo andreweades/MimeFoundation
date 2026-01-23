@@ -16,7 +16,7 @@ public enum TextPartError: Error, Equatable {
     case invalidArgument
 }
 
-public final class TextPart: MimePart {
+open class TextPart: MimePart {
     private var textStorage: String?
     private var textLoaded = false
 
@@ -270,6 +270,50 @@ public final class TextPart: MimePart {
             throw MimeEntityError.nilVisitor
         }
         visitor.visit(self)
+    }
+
+    public override func writeTo(_ options: FormatOptions?, _ stream: MimeStream?) throws {
+        guard let options else {
+            throw MimeEntityError.nilOptions
+        }
+        guard let stream else {
+            throw MimeEntityError.nilStream
+        }
+
+        if contentTransferEncoding == .base64 || contentTransferEncoding == .quotedPrintable || contentTransferEncoding == .uuEncode {
+            try super.writeTo(options, stream)
+            return
+        }
+
+        try writeHeaders(options, stream: stream)
+        guard let content else { return }
+
+        let data = try readAllBytes(content: content)
+        if options.newLine == "\n" {
+            let normalized = TextPart.normalizeNewLines(data)
+            try stream.write(normalized, offset: 0, count: normalized.count)
+        } else {
+            try stream.write(data, offset: 0, count: data.count)
+        }
+    }
+
+    private static func normalizeNewLines(_ bytes: [UInt8]) -> [UInt8] {
+        var output: [UInt8] = []
+        output.reserveCapacity(bytes.count)
+        var index = 0
+        while index < bytes.count {
+            let byte = bytes[index]
+            if byte == 0x0D {
+                if index + 1 < bytes.count, bytes[index + 1] == 0x0A {
+                    output.append(0x0A)
+                    index += 2
+                    continue
+                }
+            }
+            output.append(byte)
+            index += 1
+        }
+        return output
     }
 
     public func getText(_ charset: String?) throws -> String {
