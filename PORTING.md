@@ -70,8 +70,8 @@ Notes:
 ## MIME Entities
 - 🟡 MimePartTests (basic properties/prepare/md5; pending transcoding/write/load)
 - ✅ MimeContentTests
-- ⬜️ MessagePartTests
-- ⬜️ TextPartTests
+- ✅ MessagePartTests
+- ✅ TextPartTests
 - ⬜️ TextRfc822HeadersTests
 - ⬜️ MultipartTests
 - ⬜️ MultipartAlternativeTests

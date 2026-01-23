@@ -133,6 +133,13 @@ open class MimeEntity {
         }
     }
 
+    open func accept(_ visitor: MimeVisitor?) throws {
+        guard let visitor else {
+            throw MimeEntityError.nilVisitor
+        }
+        visitor.visit(self)
+    }
+
     public init(_ contentType: ContentType) {
         self.options = .default
         self.headers = HeaderList()
@@ -229,13 +236,6 @@ open class MimeEntity {
 
     internal func removeHeader(_ id: HeaderId) {
         headers.removeAll(id)
-    }
-
-    open func accept(_ visitor: MimeVisitor?) throws {
-        guard let visitor else {
-            throw MimeEntityError.nilVisitor
-        }
-        visitor.visit(self)
     }
 
     public func writeTo(_ stream: MimeStream?) throws {
