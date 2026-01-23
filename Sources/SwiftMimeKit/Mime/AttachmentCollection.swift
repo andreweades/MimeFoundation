@@ -22,10 +22,12 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
 
     private var attachments: [MimeEntity]
     private let linkedResources: Bool
+    private let mimeTypes: MimeTypeRegistry
 
-    public init(_ linkedResources: Bool = false) {
+    public init(_ linkedResources: Bool = false, mimeTypes: MimeTypeRegistry = .default) {
         self.attachments = []
         self.linkedResources = linkedResources
+        self.mimeTypes = mimeTypes
     }
 
     public var startIndex: Int { attachments.startIndex }
@@ -60,7 +62,7 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
 
     public func add(_ fileName: String?) throws -> MimeEntity {
         let fileName = try validateFileName(fileName)
-        let contentType = mimeType(for: fileName)
+        let contentType = contentType(for: fileName)
         let data = try readFileBytes(fileName)
         let attachment = try createAttachment(contentType: contentType, autoDetected: true, path: fileName, data: data)
         return append(attachment)
@@ -81,7 +83,7 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
         guard let data else {
             throw AttachmentCollectionError.nilData
         }
-        let contentType = mimeType(for: fileName)
+        let contentType = contentType(for: fileName)
         let attachment = try createAttachment(contentType: contentType, autoDetected: true, path: fileName, data: data)
         return append(attachment)
     }
@@ -104,7 +106,7 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
             throw AttachmentCollectionError.nilStream
         }
         let data = try readAllBytes(from: stream)
-        let contentType = mimeType(for: fileName)
+        let contentType = contentType(for: fileName)
         let attachment = try createAttachment(contentType: contentType, autoDetected: true, path: fileName, data: data)
         return append(attachment)
     }
@@ -303,24 +305,16 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
         return url.lastPathComponent
     }
 
-    private func mimeType(for path: String) -> ContentType {
-        let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
-        switch ext {
-        case "txt":
-            return try! ContentType("text", "plain")
-        case "html", "htm":
-            return try! ContentType("text", "html")
-        case "jpg", "jpeg":
-            return try! ContentType("image", "jpeg")
-        case "gif":
-            return try! ContentType("image", "gif")
-        case "png":
-            return try! ContentType("image", "png")
-        case "eml":
-            return try! ContentType("message", "rfc822")
-        default:
-            return try! ContentType("application", "octet-stream")
+    private func contentType(for path: String) -> ContentType {
+        let mimeType = mimeTypes.mimeType(for: path)
+        if let slashIndex = mimeType.firstIndex(of: "/") {
+            let type = String(mimeType[..<slashIndex])
+            let subtype = String(mimeType[mimeType.index(after: slashIndex)...])
+            if let contentType = try? ContentType(type, subtype) {
+                return contentType
+            }
         }
+        return try! ContentType("application", "octet-stream")
     }
 
     private func looksLikeMessage(_ data: [UInt8]) -> Bool {

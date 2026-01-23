@@ -13,15 +13,17 @@ public enum BodyBuilderError: Error, Equatable {
 public final class BodyBuilder {
     public private(set) var attachments: AttachmentCollection
     public private(set) var linkedResources: AttachmentCollection
+    public let mimeTypes: MimeTypeRegistry
 
     public var textBody: String?
     public var htmlBody: String?
 
     private var bodyEncodingStorage: String.Encoding
 
-    public init() {
-        self.attachments = AttachmentCollection()
-        self.linkedResources = AttachmentCollection(true)
+    public init(mimeTypes: MimeTypeRegistry = .default) {
+        self.mimeTypes = mimeTypes
+        self.attachments = AttachmentCollection(false, mimeTypes: mimeTypes)
+        self.linkedResources = AttachmentCollection(true, mimeTypes: mimeTypes)
         self.bodyEncodingStorage = .utf8
     }
 
