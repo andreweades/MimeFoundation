@@ -56,6 +56,12 @@ enum Rfc2047 {
         return result
     }
 
+    private struct EncodedWordPayload {
+        let charset: String
+        let encodingChar: Character
+        let payload: [UInt8]
+    }
+
     private static func decode(_ options: ParserOptions, _ input: [UInt8], startIndex: Int, count: Int, ignoreWhitespaceBetweenEncodedWords: Bool, codepageCounts: inout [Int: Int]) -> String {
         guard count > 0, startIndex >= 0, startIndex + count <= input.count else {
             return ""
@@ -66,6 +72,53 @@ enum Rfc2047 {
         let endIndex = startIndex + count
         var pendingWhitespace = ""
         var lastWasEncoded = false
+        var pendingEncoded: EncodedWordPayload? = nil
+
+        func decodePayload(_ word: EncodedWordPayload) -> String {
+            let decodedBytes: [UInt8]
+            switch word.encodingChar.lowercased() {
+            case "q":
+                let decoder = QuotedPrintableDecoder(rfc2047: true)
+                let outputLength = decoder.estimateOutputLength(word.payload.count)
+                let outputBuffer = Array(repeating: UInt8(0), count: outputLength)
+                var outputOptional: [UInt8]? = outputBuffer
+                let written = (try? decoder.decode(word.payload, startIndex: 0, length: word.payload.count, output: &outputOptional)) ?? 0
+                decodedBytes = Array(outputOptional?.prefix(written) ?? [])
+            case "b":
+                let decoder = Base64Decoder()
+                let outputLength = decoder.estimateOutputLength(word.payload.count)
+                let outputBuffer = Array(repeating: UInt8(0), count: outputLength)
+                var outputOptional: [UInt8]? = outputBuffer
+                let written = (try? decoder.decode(word.payload, startIndex: 0, length: word.payload.count, output: &outputOptional)) ?? 0
+                decodedBytes = Array(outputOptional?.prefix(written) ?? [])
+            default:
+                decodedBytes = word.payload
+            }
+
+            let encoding = CharsetUtils.getEncoding(word.charset) ?? options.charsetEncoding
+            if let decoded = String(data: Data(decodedBytes), encoding: encoding) {
+                let codepage = CharsetUtils.getCodepage(encoding)
+                codepageCounts[codepage, default: 0] += decodedBytes.count
+                return decoded
+            }
+            if let decoded = String(data: Data(decodedBytes), encoding: options.charsetEncoding) {
+                let codepage = CharsetUtils.getCodepage(options.charsetEncoding)
+                codepageCounts[codepage, default: 0] += decodedBytes.count
+                return decoded
+            }
+            if let decoded = String(data: Data(decodedBytes), encoding: .isoLatin1) {
+                let codepage = CharsetUtils.getCodepage(.isoLatin1)
+                codepageCounts[codepage, default: 0] += decodedBytes.count
+                return decoded
+            }
+            return String(decoding: decodedBytes, as: UTF8.self)
+        }
+
+        func flushPendingEncoded() {
+            guard let pending = pendingEncoded else { return }
+            output.append(decodePayload(pending))
+            pendingEncoded = nil
+        }
 
         while index < endIndex {
             let byte = input[index]
@@ -82,16 +135,31 @@ enum Rfc2047 {
                 continue
             }
 
-            if let decoded = tryDecodeEncodedWord(options, input, index: index, endIndex: endIndex, consumed: &index, codepageCounts: &codepageCounts) {
+            if let decoded = tryDecodeEncodedWord(options, input, index: index, endIndex: endIndex, consumed: &index) {
                 if !pendingWhitespace.isEmpty {
                     if !lastWasEncoded || !ignoreWhitespaceBetweenEncodedWords {
                         output.append(pendingWhitespace)
                     }
                     pendingWhitespace = ""
                 }
-                output.append(decoded)
+                if let pending = pendingEncoded {
+                    if pending.charset.caseInsensitiveCompare(decoded.charset) == .orderedSame &&
+                        pending.encodingChar.lowercased() == decoded.encodingChar.lowercased() {
+                        let merged = EncodedWordPayload(charset: pending.charset, encodingChar: pending.encodingChar, payload: pending.payload + decoded.payload)
+                        pendingEncoded = merged
+                    } else {
+                        output.append(decodePayload(pending))
+                        pendingEncoded = decoded
+                    }
+                } else {
+                    pendingEncoded = decoded
+                }
                 lastWasEncoded = true
                 continue
+            }
+
+            if pendingEncoded != nil {
+                flushPendingEncoded()
             }
 
             if !pendingWhitespace.isEmpty {
@@ -123,6 +191,10 @@ enum Rfc2047 {
             lastWasEncoded = false
         }
 
+        if pendingEncoded != nil {
+            flushPendingEncoded()
+        }
+
         if !pendingWhitespace.isEmpty {
             output.append(pendingWhitespace)
         }
@@ -130,7 +202,7 @@ enum Rfc2047 {
         return output.asString()
     }
 
-    private static func tryDecodeEncodedWord(_ options: ParserOptions, _ input: [UInt8], index: Int, endIndex: Int, consumed: inout Int, codepageCounts: inout [Int: Int]) -> String? {
+    private static func tryDecodeEncodedWord(_ options: ParserOptions, _ input: [UInt8], index: Int, endIndex: Int, consumed: inout Int) -> EncodedWordPayload? {
         guard index + 2 < endIndex, input[index] == 0x3D, input[index + 1] == 0x3F else {
             return nil
         }
@@ -176,59 +248,9 @@ enum Rfc2047 {
         }
 
         let encodingChar = Character(UnicodeScalar(encodingByte))
-        let decodedBytes: [UInt8]
         let payload = Array(input[encodedTextStart..<encodedTextEnd])
-
-        switch encodingChar.lowercased() {
-        case "q":
-            let decoder = QuotedPrintableDecoder(rfc2047: true)
-            let outputLength = decoder.estimateOutputLength(payload.count)
-            let output = Array(repeating: UInt8(0), count: outputLength)
-            var outputOptional: [UInt8]? = output
-            do {
-                let written = try decoder.decode(payload, startIndex: 0, length: payload.count, output: &outputOptional)
-                decodedBytes = Array(outputOptional?[0..<written] ?? [])
-            } catch {
-                return nil
-            }
-        case "b":
-            let decoder = Base64Decoder()
-            let outputLength = decoder.estimateOutputLength(payload.count)
-            let output = Array(repeating: UInt8(0), count: outputLength)
-            var outputOptional: [UInt8]? = output
-            do {
-                let written = try decoder.decode(payload, startIndex: 0, length: payload.count, output: &outputOptional)
-                decodedBytes = Array(outputOptional?[0..<written] ?? [])
-            } catch {
-                return nil
-            }
-        default:
-            return nil
-        }
-
-        let encoding = CharsetUtils.getEncoding(charset) ?? options.charsetEncoding
-        if let decoded = String(data: Data(decodedBytes), encoding: encoding) {
-            let codepage = CharsetUtils.getCodepage(encoding)
-            codepageCounts[codepage, default: 0] += decodedBytes.count
-            consumed = cursor
-            return decoded
-        }
-
-        if let decoded = String(data: Data(decodedBytes), encoding: options.charsetEncoding) {
-            let codepage = CharsetUtils.getCodepage(options.charsetEncoding)
-            codepageCounts[codepage, default: 0] += decodedBytes.count
-            consumed = cursor
-            return decoded
-        }
-
-        if let decoded = String(data: Data(decodedBytes), encoding: .isoLatin1) {
-            let codepage = CharsetUtils.getCodepage(.isoLatin1)
-            codepageCounts[codepage, default: 0] += decodedBytes.count
-            consumed = cursor
-            return decoded
-        }
-
-        return nil
+        consumed = cursor
+        return EncodedWordPayload(charset: charset, encodingChar: encodingChar, payload: payload)
     }
 
     static func encodePhrase(_ encoding: String.Encoding, _ phrase: String) -> [UInt8] {

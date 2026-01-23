@@ -289,3 +289,90 @@ func contentTypeParse() {
     try? expected.parameters.add("charset", "utf-8")
     assertParse(text, expected)
 }
+
+@Test("ContentType breaking of long parameter values")
+func contentTypeBreakingOfLongParamValues() throws {
+    let expected = " text/plain; charset=iso-8859-1;\n\tname*0=\"this is a really really long filename that should force MimeKit to b\";\n\tname*1=\"reak it apart - yay!.html\"\n"
+    var format = FormatOptions.default
+    format.newLineFormat = .unix
+
+    let type = try ContentType("text", "plain")
+    try type.parameters.add("charset", "iso-8859-1")
+    try type.parameters.add("name", "this is a really really long filename that should force MimeKit to break it apart - yay!.html")
+
+    let encoded = type.encode(format, .utf8)
+    #expect(encoded == expected)
+}
+
+@Test("ContentType breaking of long parameter values RFC2047")
+func contentTypeBreakingOfLongParamValues2047() throws {
+    let expected = " text/plain; charset=iso-8859-1; name=\"=?us-ascii?q?this_is_?=\n\t=?us-ascii?q?a_really_really_long_filename_that_should_force_MimeKit_to_?=\n\t=?us-ascii?q?break_it_apart_-_yay!=2Ehtml?=\"\n"
+    var format = FormatOptions.default
+    format.parameterEncodingMethod = .rfc2047
+    format.newLineFormat = .unix
+
+    let type = try ContentType("text", "plain")
+    try type.parameters.add("charset", "iso-8859-1")
+    try type.parameters.add("name", "this is a really really long filename that should force MimeKit to break it apart - yay!.html")
+
+    let encoded = type.encode(format, .utf8)
+    #expect(encoded == expected)
+}
+
+@Test("ContentType encoding of parameter values")
+func contentTypeEncodingOfParamValues() throws {
+    let expected = " text/plain; charset=iso-8859-1;\n\tname*=iso-8859-1''Kristoffer%20Br%E5nemyr\n"
+    var format = FormatOptions.default
+    format.newLineFormat = .unix
+
+    let type = try ContentType("text", "plain")
+    try type.parameters.add("charset", "iso-8859-1")
+    try type.parameters.add("name", "Kristoffer Brånemyr")
+
+    let encoded = type.encode(format, .utf8)
+    #expect(encoded == expected)
+}
+
+@Test("ContentType encoding of parameter values RFC2047")
+func contentTypeEncodingOfParamValues2047() throws {
+    let expected = " text/plain; charset=iso-8859-1;\n\tname=\"=?iso-8859-1?q?Kristoffer_Br=E5nemyr?=\"\n"
+    var format = FormatOptions.default
+    format.parameterEncodingMethod = .rfc2047
+    format.newLineFormat = .unix
+
+    let type = try ContentType("text", "plain")
+    try type.parameters.add("charset", "iso-8859-1")
+    try type.parameters.add("name", "Kristoffer Brånemyr")
+
+    let encoded = type.encode(format, .utf8)
+    #expect(encoded == expected)
+}
+
+@Test("ContentType encoding of long parameter values")
+func contentTypeEncodingOfLongParamValues() throws {
+    let expected = " text/plain; charset=utf-8;\n\tname*0*=iso-8859-1''%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5;\n\tname*1*=%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5%E5\n"
+    var format = FormatOptions.default
+    format.newLineFormat = .unix
+
+    let type = try ContentType("text", "plain")
+    try type.parameters.add("charset", "utf-8")
+    try type.parameters.add("name", String(repeating: "å", count: 40))
+
+    let encoded = type.encode(format, .utf8)
+    #expect(encoded == expected)
+}
+
+@Test("ContentType encoding of long parameter values RFC2047")
+func contentTypeEncodingOfLongParamValues2047() throws {
+    let expected = " text/plain; charset=utf-8; name=\"=?iso-8859-1?b?5eXl5eXl?=\n\t=?iso-8859-1?b?5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5Q==?=\"\n"
+    var format = FormatOptions.default
+    format.parameterEncodingMethod = .rfc2047
+    format.newLineFormat = .unix
+
+    let type = try ContentType("text", "plain")
+    try type.parameters.add("charset", "utf-8")
+    try type.parameters.add("name", String(repeating: "å", count: 40))
+
+    let encoded = type.encode(format, .utf8)
+    #expect(encoded == expected)
+}

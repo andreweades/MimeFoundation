@@ -133,7 +133,7 @@ enum MimeUtils {
                 index = value.index(after: index)
             }
             let token = value[start..<index].trimmingCharacters(in: CharacterSet(charactersIn: "<> \t\r\n"))
-            if !token.isEmpty {
+            if !token.isEmpty, token.contains("@") {
                 references.append(String(token))
             }
         }

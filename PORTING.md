@@ -56,16 +56,16 @@ Notes:
 ## Format/Parser
 - ✅ FormatOptionsTests
 - ✅ ParserOptionsTests
-- ⬜️ ArgumentExceptionTests
+- 🟡 ArgumentExceptionTests
 - ⬜️ ExceptionTests
-- ⬜️ AssortedTests
+- 🟡 AssortedTests
 
 ## Parameters & Types
 - ✅ ParameterTests
 - ✅ ParameterListTests
 - 🟡 ContentTypeTests
 - ✅ ContentDispositionTests
-- ⬜️ MimeTypeTests
+- ✅ MimeTypeTests
 
 ## MIME Entities
 - ✅ MimePartTests
