@@ -2,44 +2,66 @@
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
+import Foundation
 
-let package = Package(
-    name: "MimeFoundation",
-    platforms: [
+let isModernMacOS: Bool = {
+    #if os(macOS)
+    if #available(macOS 13, *) {
+        return true
+    }
+    #endif
+    return false
+}()
+
+// Check if we are running on a modern OS (macOS 13+ or newer) AND the user has explicitly enabled benchmarks.
+// This guards consumers of the library from inheriting the higher platform requirements (macOS 13)
+// just because they happen to be developing on a modern Mac.
+let includeBenchmarks = isModernMacOS && (ProcessInfo.processInfo.environment["MIME_BENCHMARKS"] == "1")
+
+var dependencies: [Package.Dependency] = [
+    .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0"),
+]
+
+var targets: [Target] = [
+    .target(
+        name: "MimeFoundation",
+        dependencies: [
+            .product(name: "Crypto", package: "swift-crypto"),
+            .product(name: "_CryptoExtras", package: "swift-crypto")
+        ]
+    ),
+    .testTarget(
+        name: "MimeFoundationTests",
+        dependencies: ["MimeFoundation"],
+        resources: [
+            .copy("TestData")
+        ]
+    ),
+]
+
+// Default supported platforms (Baseline)
+var platforms: [SupportedPlatform] = [
+    .macOS(.v10_15),
+    .iOS(.v13),
+    .tvOS(.v13),
+    .watchOS(.v6),
+    .macCatalyst(.v13)
+]
+
+if includeBenchmarks {
+    // Raise platform requirements to match package-benchmark
+    platforms = [
         .macOS(.v13),
         .iOS(.v16),
         .tvOS(.v13),
         .watchOS(.v6),
         .macCatalyst(.v13)
-    ],
-    products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
-        .library(
-            name: "MimeFoundation",
-            targets: ["MimeFoundation"]
-        ),
-    ],
-    dependencies: [
-        .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0"),
+    ]
+    
+    dependencies.append(
         .package(url: "https://github.com/ordo-one/package-benchmark", from: "1.22.0")
-    ],
-    targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
-        .target(
-            name: "MimeFoundation",
-            dependencies: [
-                .product(name: "Crypto", package: "swift-crypto"),
-                .product(name: "_CryptoExtras", package: "swift-crypto")
-            ]
-        ),
-        .testTarget(
-            name: "MimeFoundationTests",
-            dependencies: ["MimeFoundation"],
-            resources: [
-                .copy("TestData")
-            ]
-        ),
+    )
+    targets.append(
         .executableTarget(
             name: "MimeBenchmarks",
             dependencies: [
@@ -50,6 +72,19 @@ let package = Package(
             plugins: [
                 .plugin(name: "BenchmarkPlugin", package: "package-benchmark")
             ]
+        )
+    )
+}
+
+let package = Package(
+    name: "MimeFoundation",
+    platforms: platforms,
+    products: [
+        .library(
+            name: "MimeFoundation",
+            targets: ["MimeFoundation"]
         ),
-    ]
+    ],
+    dependencies: dependencies,
+    targets: targets
 )
