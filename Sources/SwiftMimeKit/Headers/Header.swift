@@ -142,6 +142,14 @@ public final class Header: CustomStringConvertible, Equatable {
     }
 
     public func toString(_ options: FormatOptions = .default, encode: Bool = false) -> String {
+        if isInvalid {
+            let bytes = rawField + rawValueStorage
+            var text = String(bytes: bytes, encoding: .ascii) ?? ""
+            while text.hasSuffix("\n") || text.hasSuffix("\r") {
+                text.removeLast()
+            }
+            return text
+        }
         if encode {
             var raw = getRawValue(options)
             if raw.last == 0x0A {

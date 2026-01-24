@@ -238,6 +238,14 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
 
     internal override func writeBody(_ options: FormatOptions, stream: MimeStream) throws {
         guard let boundary = contentType.boundary else {
+            if let preamble = preambleStorage {
+                let bytes = Array(preamble.utf8)
+                try stream.write(bytes, offset: 0, count: bytes.count)
+            }
+            if let epilogue = epilogueStorage {
+                let bytes = Array(epilogue.utf8)
+                try stream.write(bytes, offset: 0, count: bytes.count)
+            }
             return
         }
 

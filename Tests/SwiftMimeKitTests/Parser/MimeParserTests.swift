@@ -1227,3 +1227,59 @@ This is the message body.
     let expectedDos = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
     try await assertSerializationAsync(messageDos, .dos, ensureTrailingNewline(expectedDos, newline: "\r\n"))
 }
+
+@Test("MimeParser issue 991 mbox offsets")
+func mimeParserIssue991() throws {
+    let (memory, expectedOffsets) = createIssue991Mbox()
+    let parser = try MimeParser(memory, .mbox)
+    var index = 0
+
+    while !parser.isEndOfStream {
+        let message = try parser.parseMessage()
+        #expect(parser.position == expectedOffsets[index])
+        #expect(message.messageId == "1234567890.\(index)@example.org")
+        index += 1
+    }
+}
+
+@Test("MimeParser issue 991 mbox offsets async")
+func mimeParserIssue991Async() async throws {
+    let (memory, expectedOffsets) = createIssue991Mbox()
+    let parser = try MimeParser(memory, .mbox)
+    var index = 0
+
+    while !parser.isEndOfStream {
+        let message = try await parser.parseMessageAsync()
+        #expect(parser.position == expectedOffsets[index])
+        #expect(message.messageId == "1234567890.\(index)@example.org")
+        index += 1
+    }
+}
+
+@Test("MimeParser mbox with lines exceeding max SMTP line length")
+func mimeParserMboxWithLinesExceedingMaxSmtpLineLength() throws {
+    let (memory, expectedOffsets) = createMboxWithLinesExceedingMaxSmtpLineLength()
+    let parser = try MimeParser(memory, .mbox)
+    var index = 0
+
+    while !parser.isEndOfStream {
+        let message = try parser.parseMessage()
+        #expect(parser.position == expectedOffsets[index])
+        #expect(message.messageId == "1234567890.\(index)@example.org")
+        index += 1
+    }
+}
+
+@Test("MimeParser mbox with lines exceeding max SMTP line length async")
+func mimeParserMboxWithLinesExceedingMaxSmtpLineLengthAsync() async throws {
+    let (memory, expectedOffsets) = createMboxWithLinesExceedingMaxSmtpLineLength()
+    let parser = try MimeParser(memory, .mbox)
+    var index = 0
+
+    while !parser.isEndOfStream {
+        let message = try await parser.parseMessageAsync()
+        #expect(parser.position == expectedOffsets[index])
+        #expect(message.messageId == "1234567890.\(index)@example.org")
+        index += 1
+    }
+}

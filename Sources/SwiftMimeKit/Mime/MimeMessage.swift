@@ -449,7 +449,7 @@ public final class MimeMessage {
                 multipart.contentType = contentType
             }
             applyHeaders(multipart)
-            if let boundary = multipart.contentType.boundary, !bodyBytes.isEmpty {
+            if let boundary = multipart.contentType.boundary, !boundary.isEmpty, !bodyBytes.isEmpty {
                 let split = splitMultipartBody(bodyBytes, boundary: boundary)
                 if let preamble = split.preamble {
                     multipart.preamble = preamble
@@ -461,6 +461,10 @@ public final class MimeMessage {
                     if let child = try parseEntity(options, partBytes) {
                         try multipart.add(child)
                     }
+                }
+            } else if !bodyBytes.isEmpty {
+                if let preamble = String(data: Data(bodyBytes), encoding: .isoLatin1) {
+                    multipart.preamble = preamble
                 }
             }
             entity = multipart
@@ -689,7 +693,6 @@ public final class MimeMessage {
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
         let boundaryLine = "--" + boundary
-        let endBoundaryLine = boundaryLine + "--"
         var parts: [[UInt8]] = []
         var current: [String] = []
         var preambleLines: [String] = []
@@ -698,21 +701,33 @@ public final class MimeMessage {
         var inEpilogue = false
         var pendingEmptyPart = false
 
+        func isEndBoundaryLine(_ line: String) -> Bool {
+            guard line.hasPrefix(boundaryLine) else {
+                return false
+            }
+            let remainder = line.dropFirst(boundaryLine.count)
+            guard remainder.hasPrefix("--") else {
+                return false
+            }
+            let trailing = remainder.dropFirst(2)
+            return trailing.allSatisfy { $0 == " " || $0 == "\t" }
+        }
+
+        func isBoundaryLine(_ line: String) -> Bool {
+            guard line.hasPrefix(boundaryLine) else {
+                return false
+            }
+            let remainder = line.dropFirst(boundaryLine.count)
+            if remainder.hasPrefix("--") {
+                return false
+            }
+            return remainder.allSatisfy { $0 == " " || $0 == "\t" || $0 == "-" }
+        }
+
         let lines = normalized.split(separator: "\n", omittingEmptySubsequences: false)
         for rawLine in lines {
             let line = String(rawLine)
-            if line == boundaryLine {
-                if inPart {
-                    let partText = current.joined(separator: "\n")
-                    parts.append(Array(partText.utf8))
-                    current.removeAll(keepingCapacity: true)
-                } else {
-                    inPart = true
-                }
-                pendingEmptyPart = true
-                continue
-            }
-            if line == endBoundaryLine {
+            if isEndBoundaryLine(line) {
                 if inPart {
                     let partText = current.joined(separator: "\n")
                     parts.append(Array(partText.utf8))
@@ -721,6 +736,17 @@ public final class MimeMessage {
                 inPart = false
                 inEpilogue = true
                 pendingEmptyPart = false
+                continue
+            }
+            if isBoundaryLine(line) {
+                if inPart {
+                    let partText = current.joined(separator: "\n")
+                    parts.append(Array(partText.utf8))
+                    current.removeAll(keepingCapacity: true)
+                } else {
+                    inPart = true
+                }
+                pendingEmptyPart = true
                 continue
             }
             if inEpilogue {
