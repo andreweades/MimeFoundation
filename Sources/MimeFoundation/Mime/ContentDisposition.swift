@@ -314,81 +314,35 @@ public final class ContentDisposition {
         return true
     }
 
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, length: Int, disposition: inout ContentDisposition?) -> Bool {
-        guard startIndex >= 0, length >= 0, startIndex + length <= buffer.count else {
-            disposition = nil
-            return false
-        }
-        var index = startIndex
-        return (try? tryParse(options, buffer, index: &index, endIndex: startIndex + length, throwOnError: false, disposition: &disposition)) ?? false
-    }
+    // MARK: - Swift-Idiomatic Parsing Initializers
 
-    public static func tryParse(_ buffer: [UInt8], startIndex: Int, length: Int, disposition: inout ContentDisposition?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: startIndex, length: length, disposition: &disposition)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, disposition: inout ContentDisposition?) -> Bool {
-        tryParse(options, buffer, startIndex: startIndex, length: buffer.count - startIndex, disposition: &disposition)
-    }
-
-    public static func tryParse(_ buffer: [UInt8], startIndex: Int, disposition: inout ContentDisposition?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: startIndex, disposition: &disposition)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], disposition: inout ContentDisposition?) -> Bool {
-        tryParse(options, buffer, startIndex: 0, length: buffer.count, disposition: &disposition)
-    }
-
-    public static func tryParse(_ buffer: [UInt8], disposition: inout ContentDisposition?) -> Bool {
-        tryParse(ParserOptions.default, buffer, disposition: &disposition)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ text: String, disposition: inout ContentDisposition?) -> Bool {
+    /// Throwing initializer - throws ParseException on failure.
+    /// Use `try?` for optional behavior: `let cd = try? ContentDisposition(parsing: text)`
+    public convenience init(parsing text: String, options: ParserOptions = .default) throws {
         let buffer = Array(text.utf8)
-        return tryParse(options, buffer, startIndex: 0, length: buffer.count, disposition: &disposition)
+        try self.init(parsing: buffer, options: options)
     }
 
-    public static func tryParse(_ text: String, disposition: inout ContentDisposition?) -> Bool {
-        tryParse(ParserOptions.default, text, disposition: &disposition)
-    }
+    /// Throwing initializer - throws ParseException on failure.
+    /// Use `try?` for optional behavior: `let cd = try? ContentDisposition(parsing: buffer)`
+    public convenience init(parsing buffer: [UInt8], options: ParserOptions = .default) throws {
+        var result: ContentDisposition? = nil
+        var index = 0
 
-    public static func parse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, length: Int) throws -> ContentDisposition {
-        var index = startIndex
-        var disposition: ContentDisposition? = nil
-        let endIndex = startIndex + length
-        if try tryParse(options, buffer, index: &index, endIndex: endIndex, throwOnError: true, disposition: &disposition), let disposition {
-            return disposition
+        // First try with throwOnError: false to allow lenient parsing
+        if !(try Self.tryParse(options, buffer, index: &index, endIndex: buffer.count,
+                              throwOnError: false, disposition: &result)) {
+            // If that fails, try with throwOnError: true to get the proper exception
+            index = 0
+            _ = try Self.tryParse(options, buffer, index: &index, endIndex: buffer.count,
+                                  throwOnError: true, disposition: &result)
         }
-        throw ParseException("Failed to parse content disposition.", tokenIndex: startIndex, errorIndex: index)
-    }
 
-    public static func parse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int) throws -> ContentDisposition {
-        try parse(options, buffer, startIndex: startIndex, length: buffer.count - startIndex)
-    }
-
-    public static func parse(_ buffer: [UInt8], startIndex: Int, length: Int) throws -> ContentDisposition {
-        try parse(ParserOptions.default, buffer, startIndex: startIndex, length: length)
-    }
-
-    public static func parse(_ buffer: [UInt8], startIndex: Int) throws -> ContentDisposition {
-        try parse(ParserOptions.default, buffer, startIndex: startIndex)
-    }
-
-    public static func parse(_ options: ParserOptions, _ buffer: [UInt8]) throws -> ContentDisposition {
-        try parse(options, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public static func parse(_ buffer: [UInt8]) throws -> ContentDisposition {
-        try parse(ParserOptions.default, buffer)
-    }
-
-    public static func parse(_ options: ParserOptions, _ text: String) throws -> ContentDisposition {
-        let buffer = Array(text.utf8)
-        return try parse(options, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public static func parse(_ text: String) throws -> ContentDisposition {
-        try parse(ParserOptions.default, text)
+        guard let parsed = result else {
+            throw ParseException("Failed to parse content disposition.", tokenIndex: 0, errorIndex: index)
+        }
+        try self.init(parsed.disposition)
+        self.parameters = parsed.parameters
     }
 
     private static func validateDisposition(_ value: String) throws {

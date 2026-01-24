@@ -731,36 +731,29 @@ public final class AuthenticationResults {
         return try tryParseMethods(text, index: &index, endIndex: endIndex, throwOnError: throwOnError, authres: parsed)
     }
 
-    public static func tryParse(_ buffer: [UInt8], startIndex: Int, length: Int, authres: inout AuthenticationResults?) -> Bool {
-        guard startIndex >= 0, length >= 0, startIndex + length <= buffer.count else {
-            authres = nil
-            return false
-        }
+    // MARK: - Swift-Idiomatic Parsing Initializers
 
-        var index = startIndex
-        return (try? tryParse(buffer, index: &index, endIndex: startIndex + length, throwOnError: false, authres: &authres)) ?? false
+    /// Throwing initializer - throws ParseException on failure.
+    /// Use `try?` for optional behavior: `let ar = try? AuthenticationResults(parsing: text)`
+    public convenience init(parsing text: String) throws {
+        let buffer = Array(text.utf8)
+        try self.init(parsing: buffer)
     }
 
-    public static func tryParse(_ buffer: [UInt8], authres: inout AuthenticationResults?) -> Bool {
-        var index = 0
-        return (try? tryParse(buffer, index: &index, endIndex: buffer.count, throwOnError: false, authres: &authres)) ?? false
-    }
-
-    public static func parse(_ buffer: [UInt8], startIndex: Int, length: Int) throws -> AuthenticationResults {
-        guard startIndex >= 0, length >= 0, startIndex + length <= buffer.count else {
-            throw AuthenticationResultsError.invalidRange
-        }
-
-        var index = startIndex
+    /// Throwing initializer - throws ParseException on failure.
+    /// Use `try?` for optional behavior: `let ar = try? AuthenticationResults(parsing: buffer)`
+    public convenience init(parsing buffer: [UInt8]) throws {
         var authres: AuthenticationResults? = nil
-        if try tryParse(buffer, index: &index, endIndex: startIndex + length, throwOnError: true, authres: &authres), let authres {
-            return authres
+        var index = 0
+        if try Self.tryParse(buffer, index: &index, endIndex: buffer.count, throwOnError: true, authres: &authres), let parsed = authres {
+            self.init()
+            self.authenticationServiceIdentifier = parsed.authenticationServiceIdentifier
+            self.instance = parsed.instance
+            self.version = parsed.version
+            self.results = parsed.results
+        } else {
+            throw ParseException("Failed to parse authentication results.", tokenIndex: 0, errorIndex: index)
         }
-        throw ParseException("Failed to parse authentication results.", tokenIndex: startIndex, errorIndex: index)
-    }
-
-    public static func parse(_ buffer: [UInt8]) throws -> AuthenticationResults {
-        try parse(buffer, startIndex: 0, length: buffer.count)
     }
 }
 

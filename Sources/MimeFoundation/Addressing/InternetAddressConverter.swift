@@ -25,7 +25,7 @@ public struct InternetAddressConverter: Sendable {
         guard let text = value as? String else {
             throw ConverterError.notSupported
         }
-        return try InternetAddress.parse(options, text)
+        return try InternetAddress.parsed(from: text, options: options)
     }
 
     public func convertTo(_ value: Any, destinationType: Any.Type) throws -> Any {
@@ -39,8 +39,7 @@ public struct InternetAddressConverter: Sendable {
         guard let text = value as? String else {
             return false
         }
-        var address: InternetAddress? = nil
-        return InternetAddress.tryParse(options, text, address: &address)
+        return (try? InternetAddress.parsed(from: text, options: options)) != nil
     }
 
     public static func register(_ options: ParserOptions? = nil) async throws {

@@ -52,8 +52,7 @@ public struct ParserOptions: Sendable {
         guard !trimmed.isEmpty else {
             throw Error.invalidMimeType
         }
-        var parsed: ContentType?
-        guard ContentType.tryParse(trimmed, contentType: &parsed), let contentType = parsed else {
+        guard let contentType = try? ContentType(parsing: trimmed) else {
             throw Error.invalidMimeType
         }
         let key = contentType.mimeType.lowercased()

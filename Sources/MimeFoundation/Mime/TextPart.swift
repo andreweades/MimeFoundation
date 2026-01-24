@@ -422,9 +422,7 @@ open class TextPart: MimePart {
                 }
             case "content":
                 if charset == nil {
-                    var parsed: ContentType?
-                    if ContentType.tryParse(value, contentType: &parsed),
-                       let parsed,
+                    if let parsed = try? ContentType(parsing: value),
                        let param = parsed.charset,
                        !param.isEmpty {
                         charset = param.trimmingCharacters(in: .whitespacesAndNewlines)

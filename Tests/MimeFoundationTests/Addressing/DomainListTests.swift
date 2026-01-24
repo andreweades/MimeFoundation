@@ -51,26 +51,23 @@ struct DomainListTests {
 
     @Test
     func testParseEmpty() {
-        var route: DomainList? = nil
-        #expect(DomainList.tryParse("", route: &route) == false)
+        #expect((try? DomainList(parsing: "")) == nil)
     }
 
     @Test
     func testParseWhiteSpace() {
-        var route: DomainList? = nil
-        #expect(DomainList.tryParse(" \t\r\n", route: &route) == false)
+        #expect((try? DomainList(parsing: " \t\r\n")) == nil)
     }
 
     @Test
     func testParseAt() {
-        var route: DomainList? = nil
-        #expect(DomainList.tryParse("@", route: &route) == false)
+        #expect((try? DomainList(parsing: "@")) == nil)
     }
 
     @Test
     func testParseEmptyDomains() {
-        var route: DomainList? = nil
-        #expect(DomainList.tryParse("@domain1,,@domain2", route: &route) == true)
+        let route = try? DomainList(parsing: "@domain1,,@domain2")
+        #expect(route != nil)
         #expect(route?.count == 2)
         #expect(route?[0] == "domain1")
         #expect(route?[1] == "domain2")

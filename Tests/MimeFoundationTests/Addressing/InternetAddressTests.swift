@@ -7,67 +7,39 @@ import MimeFoundation
 
 private func assertAddressParseFailure(_ text: String, result: Bool, tokenIndex: Int, errorIndex: Int) {
     let buffer = text.isEmpty ? [UInt8](repeating: 0, count: 1) : CharsetUtils.getBytes(text, encoding: .utf8)
-    var address: InternetAddress? = nil
 
-    #expect(InternetAddress.tryParse(text, address: &address) == result)
-    #expect(InternetAddress.tryParse(buffer, address: &address) == result)
-    #expect(InternetAddress.tryParse(buffer, startIndex: 0, address: &address) == result)
-    #expect(InternetAddress.tryParse(buffer, startIndex: 0, length: buffer.count, address: &address) == result)
+    #expect(((try? InternetAddress.parsed(from: text)) != nil) == result)
+    #expect(((try? InternetAddress.parsed(from: buffer)) != nil) == result)
 
-    do {
-        _ = try InternetAddress.parse(text)
-        #expect(Bool(false))
-    } catch let error as ParseException {
-        #expect(error.tokenIndex == tokenIndex)
-        #expect(error.errorIndex == errorIndex)
-    } catch {
-        #expect(Bool(false))
-    }
+    // Only check for exceptions when parsing is expected to fail
+    if !result {
+        do {
+            _ = try InternetAddress.parsed(from: text)
+            #expect(Bool(false))
+        } catch let error as ParseException {
+            #expect(error.tokenIndex == tokenIndex)
+            #expect(error.errorIndex == errorIndex)
+        } catch {
+            #expect(Bool(false))
+        }
 
-    do {
-        _ = try InternetAddress.parse(buffer)
-        #expect(Bool(false))
-    } catch let error as ParseException {
-        #expect(error.tokenIndex == tokenIndex)
-        #expect(error.errorIndex == errorIndex)
-    } catch {
-        #expect(Bool(false))
-    }
-
-    do {
-        _ = try InternetAddress.parse(buffer, startIndex: 0)
-        #expect(Bool(false))
-    } catch let error as ParseException {
-        #expect(error.tokenIndex == tokenIndex)
-        #expect(error.errorIndex == errorIndex)
-    } catch {
-        #expect(Bool(false))
-    }
-
-    do {
-        _ = try InternetAddress.parse(buffer, startIndex: 0, length: buffer.count)
-        #expect(Bool(false))
-    } catch let error as ParseException {
-        #expect(error.tokenIndex == tokenIndex)
-        #expect(error.errorIndex == errorIndex)
-    } catch {
-        #expect(Bool(false))
+        do {
+            _ = try InternetAddress.parsed(from: buffer)
+            #expect(Bool(false))
+        } catch let error as ParseException {
+            #expect(error.tokenIndex == tokenIndex)
+            #expect(error.errorIndex == errorIndex)
+        } catch {
+            #expect(Bool(false))
+        }
     }
 }
 
 private func assertAddressParse(_ text: String) {
     let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-    var address: InternetAddress? = nil
 
-    #expect(InternetAddress.tryParse(text, address: &address))
-    #expect(InternetAddress.tryParse(buffer, address: &address))
-    #expect(InternetAddress.tryParse(buffer, startIndex: 0, address: &address))
-    #expect(InternetAddress.tryParse(buffer, startIndex: 0, length: buffer.count, address: &address))
-
-    #expect((try? InternetAddress.parse(text)) != nil)
-    #expect((try? InternetAddress.parse(buffer)) != nil)
-    #expect((try? InternetAddress.parse(buffer, startIndex: 0)) != nil)
-    #expect((try? InternetAddress.parse(buffer, startIndex: 0, length: buffer.count)) != nil)
+    #expect((try? InternetAddress.parsed(from: text)) != nil)
+    #expect((try? InternetAddress.parsed(from: buffer)) != nil)
 }
 
 @Test("InternetAddress parse empty")
@@ -197,7 +169,7 @@ func internetAddressParseAddrspecNoDomainWithIncompleteComment() {
 func internetAddressParseAddrspecNoDomainWithComment() {
     let text = "jeff (Jeffrey Stedfast)"
     assertAddressParse(text)
-    let mailbox = try? MailboxAddress.parse(text)
+    let mailbox = try? MailboxAddress(parsing: text)
     #expect(mailbox?.name == "Jeffrey Stedfast")
     #expect(mailbox?.address == "jeff")
 }
@@ -222,7 +194,7 @@ func internetAddressParseMailboxWithUnquotedCommaInName() {
     let text = "Worthington, Warren <warren@worthington.com>"
     assertAddressParse(text)
 
-    let addr = try? InternetAddress.parse(text)
+    let addr = try? InternetAddress.parsed(from: text)
     #expect(addr?.name == "Worthington, Warren")
 
     var options = ParserOptions.default
@@ -230,7 +202,7 @@ func internetAddressParseMailboxWithUnquotedCommaInName() {
     options.allowAddressesWithoutDomain = false
 
     do {
-        _ = try InternetAddress.parse(options, text)
+        _ = try InternetAddress.parsed(from: text, options: options)
         #expect(Bool(false))
     } catch let error as ParseException {
         #expect(error.tokenIndex == 0)
@@ -249,8 +221,7 @@ func internetAddressStrictDisallowUnquotedCommas() {
     options.allowUnquotedCommasInAddresses = false
     options.rfc2047ComplianceMode = .strict
 
-    var list: InternetAddressList? = nil
-    #expect(InternetAddressList.tryParse(options, input, addresses: &list) == false)
+    #expect((try? InternetAddressList(parsing: input, options: options)) == nil)
 }
 
 @Test("InternetAddress parse mailbox with open angle space")

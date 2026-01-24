@@ -280,87 +280,28 @@ public final class InternetAddressList: RandomAccessCollection, MutableCollectio
         return true
     }
 
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, length: Int, addresses: inout InternetAddressList?) -> Bool {
-        let endIndex = startIndex + length
-        guard startIndex >= 0, length >= 0, endIndex <= buffer.count else {
-            addresses = nil
-            return false
+    // MARK: - Swift-Idiomatic Parsing Initializers
+
+    /// Throwing initializer - throws ParseException on failure.
+    /// Use `try?` for optional behavior: `let list = try? InternetAddressList(parsing: text)`
+    public convenience init(parsing text: String, options: ParserOptions = .default) throws {
+        let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
+        try self.init(parsing: buffer, options: options)
+    }
+
+    /// Throwing initializer - throws ParseException on failure.
+    /// Use `try?` for optional behavior: `let list = try? InternetAddressList(parsing: buffer)`
+    public convenience init(parsing buffer: [UInt8], options: ParserOptions = .default) throws {
+        var result: InternetAddressList? = nil
+        var index = 0
+        if !Self.tryParse(.tryParse, options, buffer, index: &index, endIndex: buffer.count,
+                          isGroup: false, groupDepth: 0, addresses: &result) {
+            throw ParseException("Invalid address list.", tokenIndex: 0, errorIndex: index)
         }
-        var index = startIndex
-        var list: InternetAddressList? = nil
-        if !tryParse(.tryParse, options, buffer, index: &index, endIndex: endIndex, isGroup: false, groupDepth: 0, addresses: &list) {
-            addresses = nil
-            return false
+        if let result {
+            self.init(Array(result))
+        } else {
+            self.init()
         }
-        addresses = list
-        return true
-    }
-
-    public static func tryParse(_ buffer: [UInt8], addresses: inout InternetAddressList?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count, addresses: &addresses)
-    }
-
-    public static func tryParse(_ buffer: [UInt8], startIndex: Int, addresses: inout InternetAddressList?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: startIndex, length: buffer.count - startIndex, addresses: &addresses)
-    }
-
-    public static func tryParse(_ buffer: [UInt8], startIndex: Int, length: Int, addresses: inout InternetAddressList?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: startIndex, length: length, addresses: &addresses)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, addresses: inout InternetAddressList?) -> Bool {
-        tryParse(options, buffer, startIndex: startIndex, length: buffer.count - startIndex, addresses: &addresses)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], addresses: inout InternetAddressList?) -> Bool {
-        tryParse(options, buffer, startIndex: 0, length: buffer.count, addresses: &addresses)
-    }
-
-    public static func tryParse(_ text: String, addresses: inout InternetAddressList?) -> Bool {
-        let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return tryParse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count, addresses: &addresses)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ text: String, addresses: inout InternetAddressList?) -> Bool {
-        let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return tryParse(options, buffer, startIndex: 0, length: buffer.count, addresses: &addresses)
-    }
-
-    public static func parse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, length: Int) throws -> InternetAddressList {
-        var list: InternetAddressList? = nil
-        if !tryParse(options, buffer, startIndex: startIndex, length: length, addresses: &list) {
-            throw ParseException("Invalid address list.", tokenIndex: startIndex, errorIndex: startIndex)
-        }
-        return list ?? InternetAddressList()
-    }
-
-    public static func parse(_ buffer: [UInt8], startIndex: Int, length: Int) throws -> InternetAddressList {
-        try parse(ParserOptions.default, buffer, startIndex: startIndex, length: length)
-    }
-
-    public static func parse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int) throws -> InternetAddressList {
-        try parse(options, buffer, startIndex: startIndex, length: buffer.count - startIndex)
-    }
-
-    public static func parse(_ buffer: [UInt8], startIndex: Int) throws -> InternetAddressList {
-        try parse(ParserOptions.default, buffer, startIndex: startIndex, length: buffer.count - startIndex)
-    }
-
-    public static func parse(_ options: ParserOptions, _ buffer: [UInt8]) throws -> InternetAddressList {
-        try parse(options, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public static func parse(_ buffer: [UInt8]) throws -> InternetAddressList {
-        try parse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public static func parse(_ options: ParserOptions, _ text: String) throws -> InternetAddressList {
-        let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return try parse(options, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public static func parse(_ text: String) throws -> InternetAddressList {
-        let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return try parse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count)
     }
 }

@@ -31,142 +31,43 @@ private func assertParseResults(_ disposition: ContentDisposition?, _ expected: 
 
 private func assertParse(_ text: String, _ expected: ContentDisposition?, result: Bool = true, tokenIndex: Int = -1, errorIndex: Int = -1) {
     let buffer = Array(text.utf8)
-    let options = ParserOptions.default
-    var disposition: ContentDisposition? = nil
 
-    #expect(ContentDisposition.tryParse(text, disposition: &disposition) == result)
-    assertParseResults(disposition, expected)
-
-    disposition = nil
-    #expect(ContentDisposition.tryParse(options, text, disposition: &disposition) == result)
-    assertParseResults(disposition, expected)
-
-    disposition = nil
-    #expect(ContentDisposition.tryParse(buffer, disposition: &disposition) == result)
-    assertParseResults(disposition, expected)
-
-    disposition = nil
-    #expect(ContentDisposition.tryParse(options, buffer, disposition: &disposition) == result)
-    assertParseResults(disposition, expected)
-
-    disposition = nil
-    #expect(ContentDisposition.tryParse(buffer, startIndex: 0, disposition: &disposition) == result)
-    assertParseResults(disposition, expected)
-
-    disposition = nil
-    #expect(ContentDisposition.tryParse(options, buffer, startIndex: 0, disposition: &disposition) == result)
-    assertParseResults(disposition, expected)
-
-    disposition = nil
-    #expect(ContentDisposition.tryParse(buffer, startIndex: 0, length: buffer.count, disposition: &disposition) == result)
-    assertParseResults(disposition, expected)
-
-    disposition = nil
-    #expect(ContentDisposition.tryParse(options, buffer, startIndex: 0, length: buffer.count, disposition: &disposition) == result)
-    assertParseResults(disposition, expected)
-
-    do {
-        let parsed = try ContentDisposition.parse(text)
-        if tokenIndex != -1 && errorIndex != -1 {
-            Issue.record("Parsing \"\(text)\" should have failed.")
-        }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
+    // Test failable parsing
+    let parsedFromText = try? ContentDisposition(parsing: text)
+    #expect((parsedFromText != nil) == result)
+    // Only compare results when parsing succeeds
+    if result {
+        assertParseResults(parsedFromText, expected)
     }
 
-    do {
-        let parsed = try ContentDisposition.parse(options, text)
-        if tokenIndex != -1 && errorIndex != -1 {
-            Issue.record("Parsing \"\(text)\" should have failed.")
-        }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
+    let parsedFromBuffer = try? ContentDisposition(parsing: buffer)
+    #expect((parsedFromBuffer != nil) == result)
+    // Only compare results when parsing succeeds
+    if result {
+        assertParseResults(parsedFromBuffer, expected)
     }
 
-    do {
-        let parsed = try ContentDisposition.parse(buffer)
-        if tokenIndex != -1 && errorIndex != -1 {
+    // Test throwing parsing - only check for exceptions when parsing should fail
+    if !result {
+        do {
+            _ = try ContentDisposition(parsing: text)
             Issue.record("Parsing \"\(text)\" should have failed.")
+        } catch let ex as ParseException {
+            #expect(ex.tokenIndex == tokenIndex)
+            #expect(ex.errorIndex == errorIndex)
+        } catch {
+            Issue.record("Unexpected exception: \(error)")
         }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
-    }
 
-    do {
-        let parsed = try ContentDisposition.parse(options, buffer)
-        if tokenIndex != -1 && errorIndex != -1 {
+        do {
+            _ = try ContentDisposition(parsing: buffer)
             Issue.record("Parsing \"\(text)\" should have failed.")
+        } catch let ex as ParseException {
+            #expect(ex.tokenIndex == tokenIndex)
+            #expect(ex.errorIndex == errorIndex)
+        } catch {
+            Issue.record("Unexpected exception: \(error)")
         }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
-    }
-
-    do {
-        let parsed = try ContentDisposition.parse(buffer, startIndex: 0)
-        if tokenIndex != -1 && errorIndex != -1 {
-            Issue.record("Parsing \"\(text)\" should have failed.")
-        }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
-    }
-
-    do {
-        let parsed = try ContentDisposition.parse(options, buffer, startIndex: 0)
-        if tokenIndex != -1 && errorIndex != -1 {
-            Issue.record("Parsing \"\(text)\" should have failed.")
-        }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
-    }
-
-    do {
-        let parsed = try ContentDisposition.parse(buffer, startIndex: 0, length: buffer.count)
-        if tokenIndex != -1 && errorIndex != -1 {
-            Issue.record("Parsing \"\(text)\" should have failed.")
-        }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
-    }
-
-    do {
-        let parsed = try ContentDisposition.parse(options, buffer, startIndex: 0, length: buffer.count)
-        if tokenIndex != -1 && errorIndex != -1 {
-            Issue.record("Parsing \"\(text)\" should have failed.")
-        }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
     }
 }
 
@@ -385,8 +286,8 @@ func contentDispositionChineseFilename() {
     let encoded = disposition.encode(format, .utf8)
     #expect(encoded == expected)
 
-    var parsed: ContentDisposition? = nil
-    #expect(ContentDisposition.tryParse(encoded, disposition: &parsed))
+    let parsed = try? ContentDisposition(parsing: encoded)
+    #expect(parsed != nil)
     #expect(parsed?.fileName == "测试文本.txt")
 
     var param: Parameter? = nil
@@ -407,8 +308,8 @@ func contentDispositionChineseFilename2047() {
     let encoded = disposition.encode(format, .utf8)
     #expect(encoded == expected)
 
-    var parsed: ContentDisposition? = nil
-    #expect(ContentDisposition.tryParse(encoded, disposition: &parsed))
+    let parsed = try? ContentDisposition(parsing: encoded)
+    #expect(parsed != nil)
     #expect(parsed?.fileName == "测试文本.txt")
 
     var param: Parameter? = nil
@@ -430,26 +331,16 @@ func contentDispositionIssue239() {
 func contentDispositionFormData() {
     let text = "form-data; filename=\"form.txt\""
     let buffer = Array(text.utf8)
-    var disposition: ContentDisposition? = nil
 
-    #expect(ContentDisposition.tryParse(text, disposition: &disposition))
-    #expect(disposition?.disposition == "form-data")
-    #expect(disposition?.fileName == "form.txt")
+    let dispositionFromText = try? ContentDisposition(parsing: text)
+    #expect(dispositionFromText != nil)
+    #expect(dispositionFromText?.disposition == "form-data")
+    #expect(dispositionFromText?.fileName == "form.txt")
 
-    disposition = nil
-    #expect(ContentDisposition.tryParse(buffer, startIndex: 0, length: buffer.count, disposition: &disposition))
-    #expect(disposition?.disposition == "form-data")
-    #expect(disposition?.fileName == "form.txt")
-
-    disposition = nil
-    #expect(ContentDisposition.tryParse(buffer, startIndex: 0, disposition: &disposition))
-    #expect(disposition?.disposition == "form-data")
-    #expect(disposition?.fileName == "form.txt")
-
-    disposition = nil
-    #expect(ContentDisposition.tryParse(buffer, disposition: &disposition))
-    #expect(disposition?.disposition == "form-data")
-    #expect(disposition?.fileName == "form.txt")
+    let dispositionFromBuffer = try? ContentDisposition(parsing: buffer)
+    #expect(dispositionFromBuffer != nil)
+    #expect(dispositionFromBuffer?.disposition == "form-data")
+    #expect(dispositionFromBuffer?.fileName == "form.txt")
 }
 
 @Test("ContentDisposition parameters")
@@ -483,7 +374,7 @@ func contentDispositionParameters() {
     let encoded = try! disposition.toString(format, .utf8, true)
     #expect(encoded == expected)
 
-    let parsed = try! ContentDisposition.parse(String(encoded.dropFirst("Content-Disposition:".count)))
+    let parsed = try! ContentDisposition(parsing:String(encoded.dropFirst("Content-Disposition:".count)))
     #expect(parsed.fileName == "document.doc")
     #expect(parsed.creationDate == ctime)
     #expect(parsed.modificationDate == mtime)

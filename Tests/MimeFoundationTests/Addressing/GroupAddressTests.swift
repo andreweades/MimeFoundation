@@ -7,67 +7,39 @@ import MimeFoundation
 
 private func assertParseFailure(_ text: String, result: Bool, tokenIndex: Int, errorIndex: Int) {
     let buffer = text.isEmpty ? [UInt8](repeating: 0, count: 1) : CharsetUtils.getBytes(text, encoding: .utf8)
-    var group: GroupAddress? = nil
 
-    #expect(GroupAddress.tryParse(text, group: &group) == result)
-    #expect(GroupAddress.tryParse(buffer, group: &group) == result)
-    #expect(GroupAddress.tryParse(buffer, startIndex: 0, group: &group) == result)
-    #expect(GroupAddress.tryParse(buffer, startIndex: 0, length: buffer.count, group: &group) == result)
+    #expect(((try? GroupAddress(parsing: text)) != nil) == result)
+    #expect(((try? GroupAddress(parsing: buffer)) != nil) == result)
 
-    do {
-        _ = try GroupAddress.parse(text)
-        #expect(Bool(false))
-    } catch let error as ParseException {
-        #expect(error.tokenIndex == tokenIndex)
-        #expect(error.errorIndex == errorIndex)
-    } catch {
-        #expect(Bool(false))
-    }
+    // Only check for exceptions when parsing is expected to fail
+    if !result {
+        do {
+            _ = try GroupAddress(parsing: text)
+            #expect(Bool(false))
+        } catch let error as ParseException {
+            #expect(error.tokenIndex == tokenIndex)
+            #expect(error.errorIndex == errorIndex)
+        } catch {
+            #expect(Bool(false))
+        }
 
-    do {
-        _ = try GroupAddress.parse(buffer)
-        #expect(Bool(false))
-    } catch let error as ParseException {
-        #expect(error.tokenIndex == tokenIndex)
-        #expect(error.errorIndex == errorIndex)
-    } catch {
-        #expect(Bool(false))
-    }
-
-    do {
-        _ = try GroupAddress.parse(buffer, startIndex: 0)
-        #expect(Bool(false))
-    } catch let error as ParseException {
-        #expect(error.tokenIndex == tokenIndex)
-        #expect(error.errorIndex == errorIndex)
-    } catch {
-        #expect(Bool(false))
-    }
-
-    do {
-        _ = try GroupAddress.parse(buffer, startIndex: 0, length: buffer.count)
-        #expect(Bool(false))
-    } catch let error as ParseException {
-        #expect(error.tokenIndex == tokenIndex)
-        #expect(error.errorIndex == errorIndex)
-    } catch {
-        #expect(Bool(false))
+        do {
+            _ = try GroupAddress(parsing: buffer)
+            #expect(Bool(false))
+        } catch let error as ParseException {
+            #expect(error.tokenIndex == tokenIndex)
+            #expect(error.errorIndex == errorIndex)
+        } catch {
+            #expect(Bool(false))
+        }
     }
 }
 
 private func assertParse(_ text: String) {
     let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-    var group: GroupAddress? = nil
 
-    #expect(GroupAddress.tryParse(text, group: &group))
-    #expect(GroupAddress.tryParse(buffer, group: &group))
-    #expect(GroupAddress.tryParse(buffer, startIndex: 0, group: &group))
-    #expect(GroupAddress.tryParse(buffer, startIndex: 0, length: buffer.count, group: &group))
-
-    #expect((try? GroupAddress.parse(text)) != nil)
-    #expect((try? GroupAddress.parse(buffer)) != nil)
-    #expect((try? GroupAddress.parse(buffer, startIndex: 0)) != nil)
-    #expect((try? GroupAddress.parse(buffer, startIndex: 0, length: buffer.count)) != nil)
+    #expect((try? GroupAddress(parsing: text)) != nil)
+    #expect((try? GroupAddress(parsing: buffer)) != nil)
 }
 
 @Test("Group clone")

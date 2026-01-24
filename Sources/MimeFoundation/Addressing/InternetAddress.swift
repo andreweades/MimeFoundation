@@ -657,113 +657,41 @@ public class InternetAddress: Comparable, Equatable, CustomStringConvertible {
 
     // MARK: Public Parsing APIs
 
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, length: Int, address: inout InternetAddress?) -> Bool {
-        let endIndex = startIndex + length
-        guard startIndex >= 0, length >= 0, endIndex <= buffer.count else {
-            address = nil
-            return false
-        }
-        var index = startIndex
-        do {
-            if !(try tryParse(.tryParse, options, buffer, index: &index, endIndex: endIndex, groupDepth: 0, address: &address)) {
-                address = nil
-                return false
-            }
-            if (try? ParseUtils.skipCommentsAndWhiteSpace(buffer, index: &index, endIndex: endIndex, throwOnError: false)) != true {
-                address = nil
-                return false
-            }
-            if index != endIndex {
-                address = nil
-                return false
-            }
-        } catch {
-            address = nil
-            return false
-        }
+    // MARK: - Swift-Idiomatic Parsing Factory Methods
 
-        return address != nil
-    }
-
-    public static func tryParse(_ buffer: [UInt8], address: inout InternetAddress?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count, address: &address)
-    }
-
-    public static func tryParse(_ buffer: [UInt8], startIndex: Int, address: inout InternetAddress?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: startIndex, length: buffer.count - startIndex, address: &address)
-    }
-
-    public static func tryParse(_ buffer: [UInt8], startIndex: Int, length: Int, address: inout InternetAddress?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: startIndex, length: length, address: &address)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, address: inout InternetAddress?) -> Bool {
-        tryParse(options, buffer, startIndex: startIndex, length: buffer.count - startIndex, address: &address)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], address: inout InternetAddress?) -> Bool {
-        tryParse(options, buffer, startIndex: 0, length: buffer.count, address: &address)
-    }
-
-    public static func tryParse(_ text: String, address: inout InternetAddress?) -> Bool {
+    /// Factory method for parsing - throws ParseException on failure.
+    /// Returns either MailboxAddress or GroupAddress depending on input.
+    /// Use `try?` for optional behavior: `let addr = try? InternetAddress.parsed(from: text)`
+    public static func parsed(from text: String, options: ParserOptions = .default) throws -> InternetAddress {
         let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return tryParse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count, address: &address)
+        return try parsed(from: buffer, options: options)
     }
 
-    public static func tryParse(_ options: ParserOptions, _ text: String, address: inout InternetAddress?) -> Bool {
-        let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return tryParse(options, buffer, startIndex: 0, length: buffer.count, address: &address)
-    }
-
-    public class func parse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, length: Int) throws -> InternetAddress {
-        let endIndex = startIndex + length
-        guard startIndex >= 0, length >= 0, endIndex <= buffer.count else {
-            throw ParseException("Invalid buffer range.", tokenIndex: startIndex, errorIndex: startIndex)
-        }
-
-        var index = startIndex
+    /// Factory method for parsing - throws ParseException on failure.
+    /// Returns either MailboxAddress or GroupAddress depending on input.
+    /// Use `try?` for optional behavior: `let addr = try? InternetAddress.parsed(from: buffer)`
+    public static func parsed(from buffer: [UInt8], options: ParserOptions = .default) throws -> InternetAddress {
+        var index = 0
+        let endIndex = buffer.count
         var address: InternetAddress? = nil
-        _ = try tryParse(.parse, options, buffer, index: &index, endIndex: endIndex, groupDepth: 0, address: &address)
+
+        // First try with tryParse (no throwOnError) to allow lenient parsing of incomplete groups
+        if !(try tryParse(.tryParse, options, buffer, index: &index, endIndex: endIndex, groupDepth: 0, address: &address)) {
+            // If that fails, try with parse (throwOnError) to get the proper exception
+            index = 0
+            _ = try tryParse(.parse, options, buffer, index: &index, endIndex: endIndex, groupDepth: 0, address: &address)
+        }
+
         _ = try ParseUtils.skipCommentsAndWhiteSpace(buffer, index: &index, endIndex: endIndex, throwOnError: true)
 
         if index != endIndex {
             throw ParseException("Unexpected token at offset \(index)", tokenIndex: index, errorIndex: index)
         }
 
-        if let address {
-            return address
+        guard let address else {
+            throw ParseException("Invalid address.", tokenIndex: 0, errorIndex: index)
         }
 
-        throw ParseException("Invalid address.", tokenIndex: startIndex, errorIndex: index)
-    }
-
-    public class func parse(_ buffer: [UInt8], startIndex: Int, length: Int) throws -> InternetAddress {
-        try parse(ParserOptions.default, buffer, startIndex: startIndex, length: length)
-    }
-
-    public class func parse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int) throws -> InternetAddress {
-        try parse(options, buffer, startIndex: startIndex, length: buffer.count - startIndex)
-    }
-
-    public class func parse(_ buffer: [UInt8], startIndex: Int) throws -> InternetAddress {
-        try parse(ParserOptions.default, buffer, startIndex: startIndex, length: buffer.count - startIndex)
-    }
-
-    public class func parse(_ options: ParserOptions, _ buffer: [UInt8]) throws -> InternetAddress {
-        try parse(options, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public class func parse(_ buffer: [UInt8]) throws -> InternetAddress {
-        try parse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public class func parse(_ options: ParserOptions, _ text: String) throws -> InternetAddress {
-        let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return try parse(options, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public class func parse(_ text: String) throws -> InternetAddress {
-        let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return try parse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count)
+        return address
     }
 }

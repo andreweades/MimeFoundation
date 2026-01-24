@@ -223,76 +223,28 @@ public final class GroupAddress: InternetAddress {
         return nil
     }
 
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, length: Int, group: inout GroupAddress?) -> Bool {
-        let endIndex = startIndex + length
+    // MARK: - Swift-Idiomatic Parsing Initializers
 
-        guard length >= 0, startIndex >= 0, endIndex <= buffer.count else {
-            group = nil
-            return false
-        }
-
-        var index = startIndex
-        do {
-            if !(try tryParse(options, buffer, index: &index, endIndex: endIndex, throwOnError: false, group: &group)) {
-                group = nil
-                return false
-            }
-            if (try? ParseUtils.skipCommentsAndWhiteSpace(buffer, index: &index, endIndex: endIndex, throwOnError: false)) != true {
-                group = nil
-                return false
-            }
-            if index != endIndex {
-                group = nil
-                return false
-            }
-        } catch {
-            group = nil
-            return false
-        }
-
-        return group != nil
-    }
-
-    public static func tryParse(_ buffer: [UInt8], group: inout GroupAddress?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count, group: &group)
-    }
-
-    public static func tryParse(_ buffer: [UInt8], startIndex: Int, group: inout GroupAddress?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: startIndex, length: buffer.count - startIndex, group: &group)
-    }
-
-    public static func tryParse(_ buffer: [UInt8], startIndex: Int, length: Int, group: inout GroupAddress?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: startIndex, length: length, group: &group)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, group: inout GroupAddress?) -> Bool {
-        tryParse(options, buffer, startIndex: startIndex, length: buffer.count - startIndex, group: &group)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], group: inout GroupAddress?) -> Bool {
-        tryParse(options, buffer, startIndex: 0, length: buffer.count, group: &group)
-    }
-
-    public static func tryParse(_ text: String, group: inout GroupAddress?) -> Bool {
+    /// Throwing initializer - throws ParseException on failure.
+    /// Use `try?` for optional behavior: `let grp = try? GroupAddress(parsing: text)`
+    public convenience init(parsing text: String, options: ParserOptions = .default) throws {
         let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return tryParse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count, group: &group)
+        try self.init(parsing: buffer, options: options)
     }
 
-    public static func tryParse(_ options: ParserOptions, _ text: String, group: inout GroupAddress?) -> Bool {
-        let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return tryParse(options, buffer, startIndex: 0, length: buffer.count, group: &group)
-    }
-
-    public override class func parse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, length: Int) throws -> GroupAddress {
-        let endIndex = startIndex + length
-
-        guard length >= 0, startIndex >= 0, endIndex <= buffer.count else {
-            throw ParseException("Invalid buffer range.", tokenIndex: startIndex, errorIndex: startIndex)
-        }
-
-        var index = startIndex
+    /// Throwing initializer - throws ParseException on failure.
+    /// Use `try?` for optional behavior: `let grp = try? GroupAddress(parsing: buffer)`
+    public convenience init(parsing buffer: [UInt8], options: ParserOptions = .default) throws {
         var group: GroupAddress? = nil
-        _ = try tryParse(options, buffer, index: &index, endIndex: endIndex, throwOnError: true, group: &group)
+        var index = 0
+        let endIndex = buffer.count
+
+        // First try with throwOnError: false to allow lenient parsing of incomplete groups
+        if !(try Self.tryParse(options, buffer, index: &index, endIndex: endIndex, throwOnError: false, group: &group)) {
+            // If that fails, try with throwOnError: true to get the proper exception
+            index = 0
+            _ = try Self.tryParse(options, buffer, index: &index, endIndex: endIndex, throwOnError: true, group: &group)
+        }
 
         _ = try ParseUtils.skipCommentsAndWhiteSpace(buffer, index: &index, endIndex: endIndex, throwOnError: true)
 
@@ -300,40 +252,10 @@ public final class GroupAddress: InternetAddress {
             throw ParseException("Unexpected token at offset \(index)", tokenIndex: index, errorIndex: index)
         }
 
-        if let group = group {
-            return group
+        guard let parsed = group else {
+            throw ParseException("Invalid group address.", tokenIndex: 0, errorIndex: index)
         }
 
-        throw ParseException("Invalid group address.", tokenIndex: startIndex, errorIndex: index)
-    }
-
-    public override class func parse(_ buffer: [UInt8], startIndex: Int, length: Int) throws -> GroupAddress {
-        try parse(ParserOptions.default, buffer, startIndex: startIndex, length: length)
-    }
-
-    public override class func parse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int) throws -> GroupAddress {
-        try parse(options, buffer, startIndex: startIndex, length: buffer.count - startIndex)
-    }
-
-    public override class func parse(_ buffer: [UInt8], startIndex: Int) throws -> GroupAddress {
-        try parse(ParserOptions.default, buffer, startIndex: startIndex, length: buffer.count - startIndex)
-    }
-
-    public override class func parse(_ options: ParserOptions, _ buffer: [UInt8]) throws -> GroupAddress {
-        try parse(options, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public override class func parse(_ buffer: [UInt8]) throws -> GroupAddress {
-        try parse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public override class func parse(_ options: ParserOptions, _ text: String) throws -> GroupAddress {
-        let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return try parse(options, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public override class func parse(_ text: String) throws -> GroupAddress {
-        let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return try parse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count)
+        self.init(encoding: parsed.encoding, name: parsed.name, members: parsed.members)
     }
 }

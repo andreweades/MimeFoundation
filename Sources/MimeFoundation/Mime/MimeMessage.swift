@@ -447,8 +447,7 @@ public final class MimeMessage {
         var contentType: ContentType? = nil
         if let header = headers.tryGetHeader(.contentType) {
             let value = header.value
-            var parsed: ContentType? = nil
-            if ContentType.tryParse(value, contentType: &parsed) {
+            if let parsed = try? ContentType(parsing: value) {
                 contentType = parsed
             } else {
                 let fallback = try ContentType("application", "octet-stream")
@@ -1161,9 +1160,7 @@ public final class MimeMessage {
     private func addressesFromHeaders(_ id: HeaderId) -> [InternetAddress] {
         var addresses: [InternetAddress] = []
         for header in headers where header.id == id {
-            var list: InternetAddressList? = nil
-            if InternetAddressList.tryParse(headers.options, header.rawValue, startIndex: 0, length: header.rawValue.count, addresses: &list),
-               let list {
+            if let list = try? InternetAddressList(parsing: header.rawValue, options: headers.options) {
                 addresses.append(contentsOf: list)
             }
         }
@@ -1172,9 +1169,7 @@ public final class MimeMessage {
 
     private func mailboxFromHeader(_ id: HeaderId) -> MailboxAddress? {
         guard let header = headers.tryGetHeader(id) else { return nil }
-        var mailbox: MailboxAddress? = nil
-        _ = MailboxAddress.tryParse(headers.options, header.rawValue, startIndex: 0, length: header.rawValue.count, mailbox: &mailbox)
-        return mailbox
+        return try? MailboxAddress(parsing: header.rawValue, options: headers.options)
     }
 
     private func dateFromHeader(_ id: HeaderId) -> DateTimeOffset? {

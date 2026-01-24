@@ -466,9 +466,8 @@ private extension MimeReader {
 
     func resolveContentType(headers: HeaderList, parent: ContentType?) -> ContentType? {
         if let value = headers[.contentType] ?? headers.first(where: { $0.field.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "content-type" })?.value {
-            var parsed: ContentType?
-            if ContentType.tryParse(value, contentType: &parsed), let type = parsed {
-                return type
+            if let parsed = try? ContentType(parsing: value) {
+                return parsed
             }
             return try? ContentType("application", "octet-stream")
         }

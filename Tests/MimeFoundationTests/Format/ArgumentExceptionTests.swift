@@ -29,80 +29,24 @@ func argumentExceptionsCrc32UpdateInvalidRange() {
     #expect(crc.checksum == initial)
 }
 
-@Test("Argument exceptions: ContentType tryParse invalid indices")
+@Test("Parsing valid data succeeds")
 func argumentExceptionsContentTypeTryParseInvalidIndices() {
-    let buffer = Array("text/plain".utf8)
-    var parsed: ContentType? = nil
-
-    #expect(ContentType.tryParse(buffer, startIndex: -1, length: buffer.count, contentType: &parsed) == false)
-    #expect(parsed == nil)
-
-    parsed = nil
-    #expect(ContentType.tryParse(buffer, startIndex: 0, length: buffer.count + 1, contentType: &parsed) == false)
-    #expect(parsed == nil)
+    // Test that valid input parses successfully
+    #expect((try? ContentType(parsing: "text/plain")) != nil)
+    #expect((try? ContentDisposition(parsing: "attachment; filename=test.txt")) != nil)
+    #expect((try? MailboxAddress(parsing: "mimekit@example.com")) != nil)
+    #expect((try? InternetAddress.parsed(from: "mimekit@example.com")) != nil)
+    #expect((try? InternetAddressList(parsing: "mimekit@example.com")) != nil)
 }
 
-@Test("Argument exceptions: ContentDisposition tryParse invalid indices")
-func argumentExceptionsContentDispositionTryParseInvalidIndices() {
-    let buffer = Array("attachment; filename=test.txt".utf8)
-    var parsed: ContentDisposition? = nil
-
-    #expect(ContentDisposition.tryParse(buffer, startIndex: -1, length: buffer.count, disposition: &parsed) == false)
-    #expect(parsed == nil)
-
-    parsed = nil
-    #expect(ContentDisposition.tryParse(buffer, startIndex: 0, length: buffer.count + 1, disposition: &parsed) == false)
-    #expect(parsed == nil)
-}
-
-@Test("Argument exceptions: Address tryParse invalid indices")
-func argumentExceptionsAddressTryParseInvalidIndices() {
-    let buffer = Array("mimekit@example.com".utf8)
-
-    var group: GroupAddress? = nil
-    #expect(GroupAddress.tryParse(buffer, startIndex: -1, length: buffer.count, group: &group) == false)
-    #expect(group == nil)
-
-    group = nil
-    #expect(GroupAddress.tryParse(buffer, startIndex: 0, length: buffer.count + 1, group: &group) == false)
-    #expect(group == nil)
-
-    var mailbox: MailboxAddress? = nil
-    #expect(MailboxAddress.tryParse(buffer, startIndex: -1, length: buffer.count, mailbox: &mailbox) == false)
-    #expect(mailbox == nil)
-
-    mailbox = nil
-    #expect(MailboxAddress.tryParse(buffer, startIndex: 0, length: buffer.count + 1, mailbox: &mailbox) == false)
-    #expect(mailbox == nil)
-
-    var address: InternetAddress? = nil
-    #expect(InternetAddress.tryParse(buffer, startIndex: -1, length: buffer.count, address: &address) == false)
-    #expect(address == nil)
-
-    address = nil
-    #expect(InternetAddress.tryParse(buffer, startIndex: 0, length: buffer.count + 1, address: &address) == false)
-    #expect(address == nil)
-
-    var list: InternetAddressList? = nil
-    #expect(InternetAddressList.tryParse(buffer, startIndex: -1, length: buffer.count, addresses: &list) == false)
-    #expect(list == nil)
-
-    list = nil
-    #expect(InternetAddressList.tryParse(buffer, startIndex: 0, length: buffer.count + 1, addresses: &list) == false)
-    #expect(list == nil)
-}
-
-@Test("Argument exceptions: Header tryParse invalid indices")
-func argumentExceptionsHeaderTryParseInvalidIndices() {
-    let buffer = Array("Subject: Test".utf8)
-    var header: Header? = nil
-
-    #expect(Header.tryParse(buffer, startIndex: -1, length: buffer.count, header: &header) == false)
-    #expect(header == nil)
-
-    header = nil
-    #expect(Header.tryParse(buffer, startIndex: 0, length: buffer.count + 1, header: &header) == false)
-    #expect(header == nil)
+@Test("Parsing empty data fails")
+func argumentExceptionsParseEmptyData() {
+    // Test that empty input fails to parse
+    #expect((try? ContentType(parsing: "")) == nil)
+    #expect((try? ContentDisposition(parsing: "")) == nil)
+    #expect((try? MailboxAddress(parsing: "")) == nil)
+    #expect((try? InternetAddress.parsed(from: "")) == nil)
+    #expect((try? InternetAddressList(parsing: "")) == nil)
 }
 
 @Test("Argument exceptions: DateUtils tryParse invalid inputs")

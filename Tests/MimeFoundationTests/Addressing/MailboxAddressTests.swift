@@ -165,14 +165,11 @@ private func assertParseFailure(_ text: String, result: Bool, tokenIndex: Int, e
     var options = ParserOptions.default
     options.addressParserComplianceMode = mode
 
-    var mailbox: MailboxAddress? = nil
-    #expect(MailboxAddress.tryParse(options, text, mailbox: &mailbox) == result)
-    #expect(MailboxAddress.tryParse(options, buffer, mailbox: &mailbox) == result)
-    #expect(MailboxAddress.tryParse(options, buffer, startIndex: 0, mailbox: &mailbox) == result)
-    #expect(MailboxAddress.tryParse(options, buffer, startIndex: 0, length: buffer.count, mailbox: &mailbox) == result)
+    #expect(((try? MailboxAddress(parsing: text, options: options)) != nil) == result)
+    #expect(((try? MailboxAddress(parsing: buffer, options: options)) != nil) == result)
 
     do {
-        _ = try MailboxAddress.parse(options, text)
+        _ = try MailboxAddress(parsing: text, options: options)
         #expect(Bool(false))
     } catch let error as ParseException {
         #expect(error.tokenIndex == tokenIndex)
@@ -182,27 +179,7 @@ private func assertParseFailure(_ text: String, result: Bool, tokenIndex: Int, e
     }
 
     do {
-        _ = try MailboxAddress.parse(options, buffer)
-        #expect(Bool(false))
-    } catch let error as ParseException {
-        #expect(error.tokenIndex == tokenIndex)
-        #expect(error.errorIndex == errorIndex)
-    } catch {
-        #expect(Bool(false))
-    }
-
-    do {
-        _ = try MailboxAddress.parse(options, buffer, startIndex: 0)
-        #expect(Bool(false))
-    } catch let error as ParseException {
-        #expect(error.tokenIndex == tokenIndex)
-        #expect(error.errorIndex == errorIndex)
-    } catch {
-        #expect(Bool(false))
-    }
-
-    do {
-        _ = try MailboxAddress.parse(options, buffer, startIndex: 0, length: buffer.count)
+        _ = try MailboxAddress(parsing: buffer, options: options)
         #expect(Bool(false))
     } catch let error as ParseException {
         #expect(error.tokenIndex == tokenIndex)
@@ -219,34 +196,19 @@ private func assertParse(_ text: String, mode: RfcComplianceMode? = nil) {
         options.addressParserComplianceMode = mode
     }
 
-    var mailbox: MailboxAddress? = nil
-    #expect(MailboxAddress.tryParse(options, text, mailbox: &mailbox))
-    #expect(MailboxAddress.tryParse(options, buffer, mailbox: &mailbox))
-    #expect(MailboxAddress.tryParse(options, buffer, startIndex: 0, mailbox: &mailbox))
-    #expect(MailboxAddress.tryParse(options, buffer, startIndex: 0, length: buffer.count, mailbox: &mailbox))
+    #expect((try? MailboxAddress(parsing: text, options: options)) != nil)
+    #expect((try? MailboxAddress(parsing: buffer, options: options)) != nil)
 
     do {
-        _ = try MailboxAddress.parse(options, text)
+        _ = try MailboxAddress(parsing: text, options: options)
     } catch {
-        #expect(Bool(false))
+        #expect(Bool(false), "Failed to parse from text: \(error)")
     }
 
     do {
-        _ = try MailboxAddress.parse(options, buffer)
+        _ = try MailboxAddress(parsing: buffer, options: options)
     } catch {
-        #expect(Bool(false))
-    }
-
-    do {
-        _ = try MailboxAddress.parse(options, buffer, startIndex: 0)
-    } catch {
-        #expect(Bool(false))
-    }
-
-    do {
-        _ = try MailboxAddress.parse(options, buffer, startIndex: 0, length: buffer.count)
-    } catch {
-        #expect(Bool(false))
+        #expect(Bool(false), "Failed to parse from buffer: \(error)")
     }
 }
 
@@ -270,7 +232,7 @@ func mailboxEmptyAddress() {
 @Test("Mailbox parse rejects garbage after address")
 func mailboxGarbageAfterAddress() {
     do {
-        _ = try MailboxAddress.parse("fejj@helixcode.com garbage")
+        _ = try MailboxAddress(parsing:"fejj@helixcode.com garbage")
         #expect(Bool(false))
     } catch let error as ParseException {
         #expect(error.tokenIndex == 19)
@@ -284,10 +246,11 @@ func mailboxGarbageAfterAddress() {
 func mailboxParseSimple() {
     let text = "Johnny Appleseed <johnny@example.com>"
     var mailbox: MailboxAddress? = nil
-    #expect(MailboxAddress.tryParse(text, mailbox: &mailbox))
+    mailbox = try? MailboxAddress(parsing: text)
+    #expect(mailbox != nil)
     #expect(mailbox?.address == "johnny@example.com")
 
-    let parsed = try? MailboxAddress.parse(text)
+    let parsed = try? MailboxAddress(parsing: text)
     #expect(parsed?.address == "johnny@example.com")
     #expect(parsed?.name == "Johnny Appleseed")
 }
@@ -403,8 +366,8 @@ func mailboxParseInternationalRoute() {
 func mailboxParseIdnAddress() {
     let encoded = "user@xn--v8jxj3d1dzdz08w.com"
     let expected = "user@名がドメイン.com"
-    var mailbox: MailboxAddress? = nil
-    #expect(MailboxAddress.tryParse(encoded, mailbox: &mailbox))
+    let mailbox = try? MailboxAddress(parsing: encoded)
+    #expect(mailbox != nil)
     #expect(mailbox?.address == expected)
 }
 
@@ -431,7 +394,7 @@ func mailboxParseAddrspecNoDomainWithIncompleteComment() {
 func mailboxParseAddrspecNoDomainWithComment() {
     let text = "jeff (Jeffrey Stedfast)"
     assertParse(text)
-    let mailbox = try? MailboxAddress.parse(text)
+    let mailbox = try? MailboxAddress(parsing: text)
     #expect(mailbox?.name == "Jeffrey Stedfast")
     #expect(mailbox?.address == "jeff")
 }
@@ -456,7 +419,7 @@ func mailboxParseUnquotedCommaInName() {
     let text = "Worthington, Warren <warren@worthington.com>"
     assertParse(text)
 
-    let mailbox = try? MailboxAddress.parse(text)
+    let mailbox = try? MailboxAddress(parsing: text)
     #expect(mailbox?.name == "Worthington, Warren")
 
     var options = ParserOptions.default
@@ -464,7 +427,7 @@ func mailboxParseUnquotedCommaInName() {
     options.allowAddressesWithoutDomain = false
 
     do {
-        _ = try MailboxAddress.parse(options, text)
+        _ = try MailboxAddress(parsing: text, options: options)
         #expect(Bool(false))
     } catch let error as ParseException {
         #expect(error.tokenIndex == 0)
@@ -672,13 +635,7 @@ func mailboxAddrspecAsUnquotedName() {
 func mailboxLatin1AddrspecLoose() {
     let text = "Name <æøå@example.com>"
     let buffer = CharsetUtils.getBytes(text, encoding: .isoLatin1)
-    var mailbox: MailboxAddress? = nil
-    #expect(MailboxAddress.tryParse(buffer, mailbox: &mailbox))
-    #expect(MailboxAddress.tryParse(buffer, startIndex: 0, mailbox: &mailbox))
-    #expect(MailboxAddress.tryParse(buffer, startIndex: 0, length: buffer.count, mailbox: &mailbox))
-    #expect((try? MailboxAddress.parse(buffer)) != nil)
-    #expect((try? MailboxAddress.parse(buffer, startIndex: 0)) != nil)
-    #expect((try? MailboxAddress.parse(buffer, startIndex: 0, length: buffer.count)) != nil)
+    #expect((try? MailboxAddress(parsing: buffer)) != nil)
 }
 
 @Test("Mailbox Latin1 addrspec strict")
@@ -687,34 +644,11 @@ func mailboxLatin1AddrspecStrict() {
     let buffer = CharsetUtils.getBytes(text, encoding: .isoLatin1)
     var options = ParserOptions.default
     options.addressParserComplianceMode = .strict
-    var mailbox: MailboxAddress? = nil
 
-    #expect(MailboxAddress.tryParse(options, buffer, mailbox: &mailbox) == false)
-    #expect(MailboxAddress.tryParse(options, buffer, startIndex: 0, mailbox: &mailbox) == false)
-    #expect(MailboxAddress.tryParse(options, buffer, startIndex: 0, length: buffer.count, mailbox: &mailbox) == false)
+    #expect((try? MailboxAddress(parsing: buffer, options: options)) == nil)
 
     do {
-        _ = try MailboxAddress.parse(options, buffer)
-        #expect(Bool(false))
-    } catch let error as ParseException {
-        #expect(error.tokenIndex == 6)
-        #expect(error.errorIndex == 6)
-    } catch {
-        #expect(Bool(false))
-    }
-
-    do {
-        _ = try MailboxAddress.parse(options, buffer, startIndex: 0)
-        #expect(Bool(false))
-    } catch let error as ParseException {
-        #expect(error.tokenIndex == 6)
-        #expect(error.errorIndex == 6)
-    } catch {
-        #expect(Bool(false))
-    }
-
-    do {
-        _ = try MailboxAddress.parse(options, buffer, startIndex: 0, length: buffer.count)
+        _ = try MailboxAddress(parsing: buffer, options: options)
         #expect(Bool(false))
     } catch let error as ParseException {
         #expect(error.tokenIndex == 6)

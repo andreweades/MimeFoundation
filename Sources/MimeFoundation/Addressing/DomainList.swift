@@ -199,14 +199,25 @@ public final class DomainList: RandomAccessCollection, MutableCollection, Custom
         return true
     }
 
-    public static func tryParse(_ text: String, route: inout DomainList?) -> Bool {
+    // MARK: - Swift-Idiomatic Parsing Initializers
+
+    /// Throwing initializer - throws ParseException on failure.
+    /// Use `try?` for optional behavior: `let dl = try? DomainList(parsing: text)`
+    public convenience init(parsing text: String) throws {
         let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
+        try self.init(parsing: buffer)
+    }
+
+    /// Throwing initializer - throws ParseException on failure.
+    /// Use `try?` for optional behavior: `let dl = try? DomainList(parsing: buffer)`
+    public convenience init(parsing buffer: [UInt8]) throws {
+        var result: DomainList? = nil
         var index = 0
-        do {
-            return try tryParse(buffer, index: &index, endIndex: buffer.count, throwOnError: false, route: &route)
-        } catch {
-            route = nil
-            return false
+        _ = try Self.tryParse(buffer, index: &index, endIndex: buffer.count,
+                              throwOnError: true, route: &result)
+        guard let parsed = result else {
+            throw ParseException("Failed to parse domain list.", tokenIndex: 0, errorIndex: index)
         }
+        self.init(parsed)
     }
 }

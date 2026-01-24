@@ -32,142 +32,43 @@ private func assertParseResults(_ type: ContentType?, _ expected: ContentType?) 
 
 private func assertParse(_ text: String, _ expected: ContentType?, result: Bool = true, tokenIndex: Int = -1, errorIndex: Int = -1) {
     let buffer = Array(text.utf8)
-    let options = ParserOptions.default
-    var type: ContentType? = nil
 
-    #expect(ContentType.tryParse(text, contentType: &type) == result)
-    assertParseResults(type, expected)
-
-    type = nil
-    #expect(ContentType.tryParse(options, text, contentType: &type) == result)
-    assertParseResults(type, expected)
-
-    type = nil
-    #expect(ContentType.tryParse(buffer, contentType: &type) == result)
-    assertParseResults(type, expected)
-
-    type = nil
-    #expect(ContentType.tryParse(options, buffer, contentType: &type) == result)
-    assertParseResults(type, expected)
-
-    type = nil
-    #expect(ContentType.tryParse(buffer, startIndex: 0, contentType: &type) == result)
-    assertParseResults(type, expected)
-
-    type = nil
-    #expect(ContentType.tryParse(options, buffer, startIndex: 0, contentType: &type) == result)
-    assertParseResults(type, expected)
-
-    type = nil
-    #expect(ContentType.tryParse(buffer, startIndex: 0, length: buffer.count, contentType: &type) == result)
-    assertParseResults(type, expected)
-
-    type = nil
-    #expect(ContentType.tryParse(options, buffer, startIndex: 0, length: buffer.count, contentType: &type) == result)
-    assertParseResults(type, expected)
-
-    do {
-        let parsed = try ContentType.parse(text)
-        if tokenIndex != -1 && errorIndex != -1 {
-            Issue.record("Parsing \"\(text)\" should have failed.")
-        }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
+    // Test failable parsing
+    let parsedFromText = try? ContentType(parsing: text)
+    #expect((parsedFromText != nil) == result)
+    // Only compare results when parsing succeeds
+    if result {
+        assertParseResults(parsedFromText, expected)
     }
 
-    do {
-        let parsed = try ContentType.parse(options, text)
-        if tokenIndex != -1 && errorIndex != -1 {
-            Issue.record("Parsing \"\(text)\" should have failed.")
-        }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
+    let parsedFromBuffer = try? ContentType(parsing: buffer)
+    #expect((parsedFromBuffer != nil) == result)
+    // Only compare results when parsing succeeds
+    if result {
+        assertParseResults(parsedFromBuffer, expected)
     }
 
-    do {
-        let parsed = try ContentType.parse(buffer)
-        if tokenIndex != -1 && errorIndex != -1 {
+    // Test throwing parsing - only check for exceptions when parsing should fail
+    if !result {
+        do {
+            _ = try ContentType(parsing: text)
             Issue.record("Parsing \"\(text)\" should have failed.")
+        } catch let ex as ParseException {
+            #expect(ex.tokenIndex == tokenIndex)
+            #expect(ex.errorIndex == errorIndex)
+        } catch {
+            Issue.record("Unexpected exception: \(error)")
         }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
-    }
 
-    do {
-        let parsed = try ContentType.parse(options, buffer)
-        if tokenIndex != -1 && errorIndex != -1 {
+        do {
+            _ = try ContentType(parsing: buffer)
             Issue.record("Parsing \"\(text)\" should have failed.")
+        } catch let ex as ParseException {
+            #expect(ex.tokenIndex == tokenIndex)
+            #expect(ex.errorIndex == errorIndex)
+        } catch {
+            Issue.record("Unexpected exception: \(error)")
         }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
-    }
-
-    do {
-        let parsed = try ContentType.parse(buffer, startIndex: 0)
-        if tokenIndex != -1 && errorIndex != -1 {
-            Issue.record("Parsing \"\(text)\" should have failed.")
-        }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
-    }
-
-    do {
-        let parsed = try ContentType.parse(options, buffer, startIndex: 0)
-        if tokenIndex != -1 && errorIndex != -1 {
-            Issue.record("Parsing \"\(text)\" should have failed.")
-        }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
-    }
-
-    do {
-        let parsed = try ContentType.parse(buffer, startIndex: 0, length: buffer.count)
-        if tokenIndex != -1 && errorIndex != -1 {
-            Issue.record("Parsing \"\(text)\" should have failed.")
-        }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
-    }
-
-    do {
-        let parsed = try ContentType.parse(options, buffer, startIndex: 0, length: buffer.count)
-        if tokenIndex != -1 && errorIndex != -1 {
-            Issue.record("Parsing \"\(text)\" should have failed.")
-        }
-        assertParseResults(parsed, expected)
-    } catch let ex as ParseException {
-        #expect(ex.tokenIndex == tokenIndex)
-        #expect(ex.errorIndex == errorIndex)
-    } catch {
-        Issue.record("Unexpected exception: \(error)")
     }
 }
 
@@ -481,14 +382,13 @@ func contentTypeUnquotedParameterWithSpaces() throws {
     var type: ContentType? = nil
 
     options.parameterComplianceMode = .strict
-    #expect(ContentType.tryParse(options, buffer, contentType: &type) == false)
-    #expect(type != nil)
-    #expect(type?.mediaType == "application")
-    #expect(type?.mediaSubtype == "octet-stream")
+    type = try? ContentType(parsing: buffer, options: options)
+    #expect(type == nil)
 
     options.parameterComplianceMode = .loose
     type = nil
-    #expect(ContentType.tryParse(options, buffer, contentType: &type) == true)
+    type = try? ContentType(parsing: buffer, options: options)
+    #expect(type != nil)
     #expect(type?.mediaType == "application")
     #expect(type?.mediaSubtype == "octet-stream")
     #expect(type?.parameters.contains("name") == true)
@@ -503,14 +403,16 @@ func contentTypeUnquotedBoundaryWithTrailingNewLineAndSpace() throws {
     var type: ContentType? = nil
 
     options.parameterComplianceMode = .strict
-    #expect(ContentType.tryParse(options, buffer, contentType: &type) == true)
+    type = try? ContentType(parsing: buffer, options: options)
+    #expect(type != nil)
     #expect(type?.mediaType == "multipart")
     #expect(type?.mediaSubtype == "mixed")
     #expect(type?.boundary == "--boundary_0_8ab0e518-760f-4a94-acc0-66f7cdea5c9f")
 
     options.parameterComplianceMode = .loose
     type = nil
-    #expect(ContentType.tryParse(options, buffer, contentType: &type) == true)
+    type = try? ContentType(parsing: buffer, options: options)
+    #expect(type != nil)
     #expect(type?.mediaType == "multipart")
     #expect(type?.mediaSubtype == "mixed")
     #expect(type?.boundary == "--boundary_0_8ab0e518-760f-4a94-acc0-66f7cdea5c9f")
@@ -520,7 +422,8 @@ func contentTypeUnquotedBoundaryWithTrailingNewLineAndSpace() throws {
 func contentTypeInternationalParameterValue() throws {
     let text = " text/plain; format=flowed; x-eai-please-do-not=\"abstürzen\""
     var type: ContentType? = nil
-    #expect(ContentType.tryParse(text, contentType: &type))
+    type = try? ContentType(parsing: text)
+    #expect(type != nil)
     #expect(type?.parameters["x-eai-please-do-not"] == "abstürzen")
 }
 
@@ -669,7 +572,8 @@ func contentTypeToStringEncode() throws {
 func contentTypeParseMultipartMultipartMixed() throws {
     let input = "multipart/multipart/mixed; boundary=\"boundary-marker\"\r\n"
     var contentType: ContentType? = nil
-    #expect(ContentType.tryParse(input, contentType: &contentType))
+    contentType = try? ContentType(parsing: input)
+    #expect(contentType != nil)
     #expect(contentType?.mediaType == "multipart")
     #expect(contentType?.mediaSubtype == "multipart/mixed")
     #expect(contentType?.boundary == "boundary-marker")

@@ -422,76 +422,22 @@ public class MailboxAddress: InternetAddress {
         return mailbox != nil
     }
 
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, length: Int, mailbox: inout MailboxAddress?) -> Bool {
-        let endIndex = startIndex + length
+    // MARK: - Swift-Idiomatic Parsing Initializers
 
-        guard length >= 0, startIndex >= 0, endIndex <= buffer.count else {
-            mailbox = nil
-            return false
-        }
-
-        var index = startIndex
-        do {
-            if !(try tryParse(options, buffer, index: &index, endIndex: endIndex, throwOnError: false, mailbox: &mailbox)) {
-                mailbox = nil
-                return false
-            }
-            if (try? ParseUtils.skipCommentsAndWhiteSpace(buffer, index: &index, endIndex: endIndex, throwOnError: false)) != true {
-                mailbox = nil
-                return false
-            }
-            if index != endIndex {
-                mailbox = nil
-                return false
-            }
-        } catch {
-            mailbox = nil
-            return false
-        }
-
-        return mailbox != nil
-    }
-
-    public static func tryParse(_ buffer: [UInt8], mailbox: inout MailboxAddress?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count, mailbox: &mailbox)
-    }
-
-    public static func tryParse(_ buffer: [UInt8], startIndex: Int, mailbox: inout MailboxAddress?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: startIndex, length: buffer.count - startIndex, mailbox: &mailbox)
-    }
-
-    public static func tryParse(_ buffer: [UInt8], startIndex: Int, length: Int, mailbox: inout MailboxAddress?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: startIndex, length: length, mailbox: &mailbox)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, mailbox: inout MailboxAddress?) -> Bool {
-        tryParse(options, buffer, startIndex: startIndex, length: buffer.count - startIndex, mailbox: &mailbox)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], mailbox: inout MailboxAddress?) -> Bool {
-        tryParse(options, buffer, startIndex: 0, length: buffer.count, mailbox: &mailbox)
-    }
-
-    public static func tryParse(_ text: String, mailbox: inout MailboxAddress?) -> Bool {
+    /// Throwing initializer - throws ParseException on failure.
+    /// Use `try?` for optional behavior: `let mb = try? MailboxAddress(parsing: text)`
+    public convenience init(parsing text: String, options: ParserOptions = .default) throws {
         let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return tryParse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count, mailbox: &mailbox)
+        try self.init(parsing: buffer, options: options)
     }
 
-    public static func tryParse(_ options: ParserOptions, _ text: String, mailbox: inout MailboxAddress?) -> Bool {
-        let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return tryParse(options, buffer, startIndex: 0, length: buffer.count, mailbox: &mailbox)
-    }
-
-    public override class func parse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, length: Int) throws -> MailboxAddress {
-        let endIndex = startIndex + length
-
-        guard length >= 0, startIndex >= 0, endIndex <= buffer.count else {
-            throw ParseException("Invalid buffer range.", tokenIndex: startIndex, errorIndex: startIndex)
-        }
-
-        var index = startIndex
+    /// Throwing initializer - throws ParseException on failure.
+    /// Use `try?` for optional behavior: `let mb = try? MailboxAddress(parsing: buffer)`
+    public convenience init(parsing buffer: [UInt8], options: ParserOptions = .default) throws {
         var mailbox: MailboxAddress? = nil
-        _ = try tryParse(options, buffer, index: &index, endIndex: endIndex, throwOnError: true, mailbox: &mailbox)
+        var index = 0
+        let endIndex = buffer.count
+        _ = try Self.tryParse(options, buffer, index: &index, endIndex: endIndex, throwOnError: true, mailbox: &mailbox)
 
         _ = try ParseUtils.skipCommentsAndWhiteSpace(buffer, index: &index, endIndex: endIndex, throwOnError: true)
 
@@ -499,40 +445,10 @@ public class MailboxAddress: InternetAddress {
             throw ParseException("Unexpected token at offset \(index)", tokenIndex: index, errorIndex: index)
         }
 
-        if let mailbox = mailbox {
-            return mailbox
+        guard let parsed = mailbox else {
+            throw ParseException("Invalid mailbox address.", tokenIndex: 0, errorIndex: index)
         }
 
-        throw ParseException("Invalid mailbox address.", tokenIndex: startIndex, errorIndex: index)
-    }
-
-    public override class func parse(_ buffer: [UInt8], startIndex: Int, length: Int) throws -> MailboxAddress {
-        try parse(ParserOptions.default, buffer, startIndex: startIndex, length: length)
-    }
-
-    public override class func parse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int) throws -> MailboxAddress {
-        try parse(options, buffer, startIndex: startIndex, length: buffer.count - startIndex)
-    }
-
-    public override class func parse(_ buffer: [UInt8], startIndex: Int) throws -> MailboxAddress {
-        try parse(ParserOptions.default, buffer, startIndex: startIndex, length: buffer.count - startIndex)
-    }
-
-    public override class func parse(_ options: ParserOptions, _ buffer: [UInt8]) throws -> MailboxAddress {
-        try parse(options, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public override class func parse(_ buffer: [UInt8]) throws -> MailboxAddress {
-        try parse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public override class func parse(_ options: ParserOptions, _ text: String) throws -> MailboxAddress {
-        let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return try parse(options, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public override class func parse(_ text: String) throws -> MailboxAddress {
-        let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
-        return try parse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count)
+        self.init(encoding: parsed.encoding, name: parsed.name, route: parsed.route, address: parsed.address, at: parsed.atIndex)
     }
 }

@@ -331,80 +331,34 @@ public final class ContentType {
         return true
     }
 
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, length: Int, contentType: inout ContentType?) -> Bool {
-        guard startIndex >= 0, length >= 0, startIndex + length <= buffer.count else {
-            contentType = nil
-            return false
-        }
-        var index = startIndex
-        return (try? tryParse(options, buffer, index: &index, endIndex: startIndex + length, throwOnError: false, contentType: &contentType)) ?? false
-    }
+    // MARK: - Swift-Idiomatic Parsing Initializers
 
-    public static func tryParse(_ buffer: [UInt8], startIndex: Int, length: Int, contentType: inout ContentType?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: startIndex, length: length, contentType: &contentType)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, contentType: inout ContentType?) -> Bool {
-        tryParse(options, buffer, startIndex: startIndex, length: buffer.count - startIndex, contentType: &contentType)
-    }
-
-    public static func tryParse(_ buffer: [UInt8], startIndex: Int, contentType: inout ContentType?) -> Bool {
-        tryParse(ParserOptions.default, buffer, startIndex: startIndex, contentType: &contentType)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], contentType: inout ContentType?) -> Bool {
-        tryParse(options, buffer, startIndex: 0, length: buffer.count, contentType: &contentType)
-    }
-
-    public static func tryParse(_ buffer: [UInt8], contentType: inout ContentType?) -> Bool {
-        tryParse(ParserOptions.default, buffer, contentType: &contentType)
-    }
-
-    public static func tryParse(_ options: ParserOptions, _ text: String, contentType: inout ContentType?) -> Bool {
+    /// Throwing initializer - throws ParseException on failure.
+    /// Use `try?` for optional behavior: `let ct = try? ContentType(parsing: text)`
+    public convenience init(parsing text: String, options: ParserOptions = .default) throws {
         let buffer = Array(text.utf8)
-        return tryParse(options, buffer, startIndex: 0, length: buffer.count, contentType: &contentType)
+        try self.init(parsing: buffer, options: options)
     }
 
-    public static func tryParse(_ text: String, contentType: inout ContentType?) -> Bool {
-        tryParse(ParserOptions.default, text, contentType: &contentType)
-    }
+    /// Throwing initializer - throws ParseException on failure.
+    /// Use `try?` for optional behavior: `let ct = try? ContentType(parsing: buffer)`
+    public convenience init(parsing buffer: [UInt8], options: ParserOptions = .default) throws {
+        var result: ContentType? = nil
+        var index = 0
 
-    public static func parse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, length: Int) throws -> ContentType {
-        var index = startIndex
-        var type: ContentType? = nil
-        let endIndex = startIndex + length
-        if try tryParse(options, buffer, index: &index, endIndex: endIndex, throwOnError: true, contentType: &type), let type {
-            return type
+        // First try with throwOnError: false to allow lenient parsing
+        if !(try Self.tryParse(options, buffer, index: &index, endIndex: buffer.count,
+                              throwOnError: false, contentType: &result)) {
+            // If that fails, try with throwOnError: true to get the proper exception
+            index = 0
+            _ = try Self.tryParse(options, buffer, index: &index, endIndex: buffer.count,
+                                  throwOnError: true, contentType: &result)
         }
-        throw ParseException("Failed to parse content type.", tokenIndex: startIndex, errorIndex: index)
-    }
 
-    public static func parse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int) throws -> ContentType {
-        try parse(options, buffer, startIndex: startIndex, length: buffer.count - startIndex)
-    }
-
-    public static func parse(_ buffer: [UInt8], startIndex: Int, length: Int) throws -> ContentType {
-        try parse(ParserOptions.default, buffer, startIndex: startIndex, length: length)
-    }
-
-    public static func parse(_ buffer: [UInt8], startIndex: Int) throws -> ContentType {
-        try parse(ParserOptions.default, buffer, startIndex: startIndex)
-    }
-
-    public static func parse(_ options: ParserOptions, _ buffer: [UInt8]) throws -> ContentType {
-        try parse(options, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public static func parse(_ buffer: [UInt8]) throws -> ContentType {
-        try parse(ParserOptions.default, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public static func parse(_ options: ParserOptions, _ text: String) throws -> ContentType {
-        let buffer = Array(text.utf8)
-        return try parse(options, buffer, startIndex: 0, length: buffer.count)
-    }
-
-    public static func parse(_ text: String) throws -> ContentType {
-        try parse(ParserOptions.default, text)
+        guard let parsed = result else {
+            throw ParseException("Failed to parse content type.", tokenIndex: 0, errorIndex: index)
+        }
+        try self.init(parsed.mediaType, parsed.mediaSubtype)
+        self.parameters = parsed.parameters
     }
 }

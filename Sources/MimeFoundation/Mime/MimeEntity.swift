@@ -78,11 +78,9 @@ open class MimeEntity {
         get {
             if !contentDispositionLoaded {
                 if let header = headers.tryGetHeader(.contentDisposition) {
-                    var parsed: ContentDisposition?
-                    if ContentDisposition.tryParse(options, header.rawValue, disposition: &parsed) {
-                        parsed?.changed = { [weak self] in
-                            self?.updateContentDispositionHeader()
-                        }
+                    let parsed = try? ContentDisposition(parsing: header.rawValue, options: options)
+                    parsed?.changed = { [weak self] in
+                        self?.updateContentDispositionHeader()
                     }
                     contentDispositionCache = parsed
                 } else {
@@ -244,7 +242,7 @@ open class MimeEntity {
         guard let header else { return }
         switch header.id {
         case .contentType:
-            if let parsed = try? ContentType.parse(options, header.rawValue) {
+            if let parsed = try? ContentType(parsing: header.rawValue, options: options) {
                 isUpdatingHeaders = true
                 setContentType(parsed, updateHeaders: false)
                 isUpdatingHeaders = false

@@ -26,21 +26,10 @@ struct AuthenticationResultsTests {
 
     private static func assertParseFailure(_ input: String, tokenIndex: Int, errorIndex: Int) {
         let buffer = ascii(input)
-        var authres: AuthenticationResults? = nil
-        #expect(AuthenticationResults.tryParse(buffer, authres: &authres) == false)
+        #expect((try? AuthenticationResults(parsing: buffer)) == nil)
 
         do {
-            _ = try AuthenticationResults.parse(buffer)
-            #expect(Bool(false))
-        } catch let error as ParseException {
-            #expect(error.tokenIndex == tokenIndex)
-            #expect(error.errorIndex == errorIndex)
-        } catch {
-            #expect(Bool(false))
-        }
-
-        do {
-            _ = try AuthenticationResults.parse(buffer, startIndex: 0, length: buffer.count)
+            _ = try AuthenticationResults(parsing: buffer)
             #expect(Bool(false))
         } catch let error as ParseException {
             #expect(error.tokenIndex == tokenIndex)
@@ -53,17 +42,10 @@ struct AuthenticationResultsTests {
     @Test("AuthenticationResults argument exceptions")
     func argumentExceptions() {
         let buffer = [UInt8](repeating: 0, count: 16)
-        var authres: AuthenticationResults? = nil
-
-        #expect(throws: AuthenticationResultsError.self) {
-            _ = try AuthenticationResults.parse(buffer, startIndex: -1, length: 0)
+        // Empty/invalid buffers should throw ParseException
+        #expect(throws: (any Error).self) {
+            _ = try AuthenticationResults(parsing: buffer)
         }
-        #expect(throws: AuthenticationResultsError.self) {
-            _ = try AuthenticationResults.parse(buffer, startIndex: 0, length: -1)
-        }
-
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: -1, length: 0, authres: &authres) == false)
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: -1, authres: &authres) == false)
     }
 
     @Test("Encode long authserv-id")
@@ -225,11 +207,8 @@ struct AuthenticationResultsTests {
     func parseArcAuthenticationResults() {
         let input = "i=1; example.com; foo=pass"
         let buffer = Self.ascii(input)
-        var authres: AuthenticationResults? = nil
-
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
-        guard let authres else {
-            #expect(Bool(false))
+        guard let authres = try? AuthenticationResults(parsing: buffer) else {
+            #expect(Bool(false), "Failed to parse AuthenticationResults")
             return
         }
         #expect(authres.authenticationServiceIdentifier == "example.com")
@@ -249,15 +228,16 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii("example.org")
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.org")
         #expect(authres?.toString() == "example.org; none")
 
-        let parsedRange = try AuthenticationResults.parse(buffer, startIndex: 0, length: buffer.count)
+        let parsedRange = try AuthenticationResults(parsing: buffer)
         #expect(parsedRange.authenticationServiceIdentifier == "example.org")
         #expect(parsedRange.toString() == "example.org; none")
 
-        let parsed = try AuthenticationResults.parse(buffer)
+        let parsed = try AuthenticationResults(parsing: buffer)
         #expect(parsed.authenticationServiceIdentifier == "example.org")
         #expect(parsed.toString() == "example.org; none")
 
@@ -271,7 +251,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii("example.org;")
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.org")
         #expect(authres?.toString() == "example.org; none")
 
@@ -286,7 +267,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii(input)
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.org")
         #expect(authres?.version == 1)
         #expect(authres?.toString() == "example.org 1; none")
@@ -301,7 +283,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii("example.org 1;")
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.org")
         #expect(authres?.version == 1)
         #expect(authres?.toString() == "example.org 1; none")
@@ -315,11 +298,8 @@ struct AuthenticationResultsTests {
     func parseNoAuthServId() {
         let input = "spf=fail (sender IP is 1.1.1.1) smtp.mailfrom=eu-west-1.amazonses.com; dkim=pass (signature was verified) header.d=domain.com; dmarc=bestguesspass header.from=domain.com"
         let buffer = Self.ascii(input)
-        var authres: AuthenticationResults? = nil
-
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
-        guard let authres else {
-            #expect(Bool(false))
+        guard let authres = try? AuthenticationResults(parsing: buffer) else {
+            #expect(Bool(false), "Failed to parse AuthenticationResults")
             return
         }
 
@@ -362,7 +342,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii("example.org 1; none")
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.org")
         #expect(authres?.version == 1)
         #expect(authres?.results.count == 0)
@@ -379,7 +360,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii(input)
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.com")
         #expect(authres?.results.count == 1)
         #expect(authres?.results[0].method == "foo")
@@ -397,7 +379,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii(input)
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.com")
         #expect(authres?.results.count == 1)
         #expect(authres?.results[0].method == "foo")
@@ -416,7 +399,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii(input)
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.com")
         #expect(authres?.results.count == 1)
         #expect(authres?.results[0].method == "spf")
@@ -438,7 +422,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii(input)
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.com")
         #expect(authres?.results.count == 1)
         #expect(authres?.results[0].method == "spf")
@@ -460,7 +445,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii(input)
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.com")
         #expect(authres?.results.count == 1)
         #expect(authres?.results[0].method == "spf")
@@ -482,7 +468,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii(input)
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.com")
         #expect(authres?.results.count == 1)
         #expect(authres?.results[0].method == "method")
@@ -504,7 +491,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii(input)
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.com")
         #expect(authres?.results.count == 1)
         #expect(authres?.results[0].method == "spf")
@@ -524,7 +512,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii(input)
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.com")
         #expect(authres?.results.count == 1)
         #expect(authres?.results[0].method == "spf")
@@ -544,7 +533,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii(input)
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.com")
         #expect(authres?.results.count == 1)
         #expect(authres?.results[0].method == "spf")
@@ -564,7 +554,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii(input + "; ")
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.com")
         #expect(authres?.results.count == 1)
         #expect(authres?.results[0].method == "spf")
@@ -584,7 +575,8 @@ struct AuthenticationResultsTests {
         let buffer = Self.ascii(input)
         var authres: AuthenticationResults? = nil
 
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
+        authres = try? AuthenticationResults(parsing: buffer)
+        #expect(authres != nil)
         #expect(authres?.authenticationServiceIdentifier == "example.com")
         #expect(authres?.results.count == 1)
         #expect(authres?.results[0].method == "spf")
@@ -607,11 +599,8 @@ struct AuthenticationResultsTests {
     func parseMultipleMethods() {
         let input = "example.com; auth=pass (cram-md5) smtp.auth=sender@example.net; spf=pass smtp.mailfrom=example.net; sender-id=pass header.from=example.net"
         let buffer = Self.ascii(input)
-        var authres: AuthenticationResults? = nil
-
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
-        guard let authres else {
-            #expect(Bool(false))
+        guard let authres = try? AuthenticationResults(parsing: buffer) else {
+            #expect(Bool(false), "Failed to parse AuthenticationResults")
             return
         }
 
@@ -647,11 +636,8 @@ struct AuthenticationResultsTests {
     func parseMultipleMethodsWithReasons() {
         let input = "example.com; dkim=pass reason=\"good signature\" header.i=@mail-router.example.net; dkim=fail reason=\"bad signature\" header.i=@newyork.example.com"
         let buffer = Self.ascii(input)
-        var authres: AuthenticationResults? = nil
-
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
-        guard let authres else {
-            #expect(Bool(false))
+        guard let authres = try? AuthenticationResults(parsing: buffer) else {
+            #expect(Bool(false), "Failed to parse AuthenticationResults")
             return
         }
 
@@ -682,11 +668,8 @@ struct AuthenticationResultsTests {
     func parseHeavilyCommentedExample() {
         let input = "foo.example.net (foobar) 1 (baz); dkim (Because I like it) / 1 (One yay) = (wait for it) fail policy (A dot can go here) . (like that) expired (this surprised me) = (as I wasn't expecting it) 1362471462"
         let buffer = Self.ascii(input)
-        var authres: AuthenticationResults? = nil
-
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
-        guard let authres else {
-            #expect(Bool(false))
+        guard let authres = try? AuthenticationResults(parsing: buffer) else {
+            #expect(Bool(false), "Failed to parse AuthenticationResults")
             return
         }
 
@@ -711,11 +694,8 @@ struct AuthenticationResultsTests {
     func parseMethodPropertyValueWithSlash() {
         let input = "i=2; test.com; dkim=pass header.d=test.com header.s=selector1 header.b=Iww3/TIUS; dmarc=pass (policy=reject) header.from=test.com; spf=pass (test.com: domain of no-reply@test.com designates 1.1.1.1 as permitted sender) smtp.mailfrom=no-reply@test.com"
         let buffer = Self.ascii(input)
-        var authres: AuthenticationResults? = nil
-
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
-        guard let authres else {
-            #expect(Bool(false))
+        guard let authres = try? AuthenticationResults(parsing: buffer) else {
+            #expect(Bool(false), "Failed to parse AuthenticationResults")
             return
         }
 
@@ -761,11 +741,8 @@ struct AuthenticationResultsTests {
     func parseOffice365RandomDomainTokensAndAction() {
         let input = "spf=fail (sender IP is 1.1.1.1) smtp.mailfrom=eu-west-1.amazonses.com; receivingdomain.com; dkim=pass (signature was verified) header.d=domain.com;domain1.com; dmarc=bestguesspass action=none header.from=domain.com;"
         let buffer = Self.ascii(input)
-        var authres: AuthenticationResults? = nil
-
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
-        guard let authres else {
-            #expect(Bool(false))
+        guard let authres = try? AuthenticationResults(parsing: buffer) else {
+            #expect(Bool(false), "Failed to parse AuthenticationResults")
             return
         }
 
@@ -809,11 +786,8 @@ struct AuthenticationResultsTests {
     func parseOffice365RandomDomainTokensAndEmptyPropertyValue() {
         let input = "spf=temperror (sender IP is 1.1.1.1) smtp.helo=tes.test.ru; mydomain.com; dkim=none (message not signed) header.d=none;mydomain.com; dmarc=none action=none header.from=;"
         let buffer = Self.ascii(input)
-        var authres: AuthenticationResults? = nil
-
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
-        guard let authres else {
-            #expect(Bool(false))
+        guard let authres = try? AuthenticationResults(parsing: buffer) else {
+            #expect(Bool(false), "Failed to parse AuthenticationResults")
             return
         }
 
@@ -857,11 +831,8 @@ struct AuthenticationResultsTests {
     func parseGmailAuthenticationResults() {
         let input = "mx.google.com; dkim=pass header.i=@sender.com header.s=15ca3b75e6386151 header.b=qsGI6Y43; gateway.spf=pass (google.com: domain receiver.com configured 1.2.3.4 as internal address) smtp.mailfrom=mail@from.com smtp.remote-ip=1.2.3.4 policy.d=receiver.com"
         let buffer = Self.ascii(input)
-        var authres: AuthenticationResults? = nil
-
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
-        guard let authres else {
-            #expect(Bool(false))
+        guard let authres = try? AuthenticationResults(parsing: buffer) else {
+            #expect(Bool(false), "Failed to parse AuthenticationResults")
             return
         }
 
@@ -901,11 +872,8 @@ struct AuthenticationResultsTests {
     func parseMethodResultWithUnderscore() {
         let input = " atlas122.free.mail.gq1.yahoo.com; dkim=dkim_pass header.i=@news.aegeanair.com header.s=@aegeanair2; spf=pass smtp.mailfrom=news.aegeanair.com; dmarc=success(p=REJECT) header.from=news.aegeanair.com;"
         let buffer = Self.ascii(input)
-        var authres: AuthenticationResults? = nil
-
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
-        guard let authres else {
-            #expect(Bool(false))
+        guard let authres = try? AuthenticationResults(parsing: buffer) else {
+            #expect(Bool(false), "Failed to parse AuthenticationResults")
             return
         }
 
@@ -949,11 +917,8 @@ struct AuthenticationResultsTests {
     func parsePropertyWithEqualSignInValue() {
         let input = "i=1; relay.mailrelay.com; dkim=pass header.d=domaina.com header.s=sfdc header.b=abcefg; dmarc=pass (policy=quarantine) header.from=domaina.com; spf=pass (relay.mailrelay.com: domain of support=domaina.com__0-1q6woix34obtbu@823lwd90ky2ahf.mail_sender.com designates 1.1.1.1 as permitted sender) smtp.mailfrom=support=domaina.com__0-1q6woix34obtbu@823lwd90ky2ahf.mail_sender.com"
         let buffer = Self.ascii(input)
-        var authres: AuthenticationResults? = nil
-
-        #expect(AuthenticationResults.tryParse(buffer, startIndex: 0, length: buffer.count, authres: &authres))
-        guard let authres else {
-            #expect(Bool(false))
+        guard let authres = try? AuthenticationResults(parsing: buffer) else {
+            #expect(Bool(false), "Failed to parse AuthenticationResults")
             return
         }
 

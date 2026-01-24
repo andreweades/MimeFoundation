@@ -324,15 +324,14 @@ extension Header {
     }
 
     private static func encodeAddressHeader(options: ParserOptions, format: FormatOptions, encoding: String.Encoding, field: String, value: String) -> [UInt8] {
-        var list: InternetAddressList? = nil
-        if !InternetAddressList.tryParse(options, value, addresses: &list) || list == nil {
+        guard let list = try? InternetAddressList(parsing: value, options: options) else {
             return encodeUnstructuredHeader(options: options, format: format, encoding: encoding, field: field, value: value)
         }
 
         var builder = ""
         builder.append(" ")
         var lineLength = field.count + 2
-        list?.encode(format, builder: &builder, firstToken: true, lineLength: &lineLength)
+        list.encode(format, builder: &builder, firstToken: true, lineLength: &lineLength)
         builder.append(format.newLine)
         return Array(builder.utf8)
     }
@@ -391,21 +390,20 @@ extension Header {
     }
 
     private static func reformatAddressHeader(options: ParserOptions, format: FormatOptions, field: String, rawValue: [UInt8]) -> [UInt8] {
-        var list: InternetAddressList? = nil
-        if !InternetAddressList.tryParse(options, rawValue, startIndex: 0, length: rawValue.count, addresses: &list) {
+        guard let list = try? InternetAddressList(parsing: rawValue, options: options) else {
             return rawValue
         }
 
         var builder = ""
         builder.append(" ")
         var lineLength = field.count + 2
-        list?.encode(format, builder: &builder, firstToken: true, lineLength: &lineLength)
+        list.encode(format, builder: &builder, firstToken: true, lineLength: &lineLength)
         builder.append(format.newLine)
         return Array(builder.utf8)
     }
 
     private static func reformatContentDisposition(options: ParserOptions, format: FormatOptions, encoding: String.Encoding, field: String, rawValue: [UInt8]) -> [UInt8] {
-        if let disposition = try? ContentDisposition.parse(options, rawValue) {
+        if let disposition = try? ContentDisposition(parsing: rawValue, options: options) {
             let encoded = disposition.encode(format, encoding)
             return Array(encoded.utf8)
         }
@@ -413,7 +411,7 @@ extension Header {
     }
 
     private static func reformatContentType(options: ParserOptions, format: FormatOptions, encoding: String.Encoding, field: String, rawValue: [UInt8]) -> [UInt8] {
-        if let contentType = try? ContentType.parse(options, rawValue) {
+        if let contentType = try? ContentType(parsing: rawValue, options: options) {
             let encoded = contentType.encode(format, encoding)
             return Array(encoded.utf8)
         }
@@ -421,7 +419,7 @@ extension Header {
     }
 
     private static func encodeContentDisposition(options: ParserOptions, format: FormatOptions, encoding: String.Encoding, field: String, value: String) -> [UInt8] {
-        if let disposition = try? ContentDisposition.parse(options, value) {
+        if let disposition = try? ContentDisposition(parsing: value, options: options) {
             let encoded = disposition.encode(format, encoding)
             return Array(encoded.utf8)
         }
@@ -429,7 +427,7 @@ extension Header {
     }
 
     private static func encodeContentType(options: ParserOptions, format: FormatOptions, encoding: String.Encoding, field: String, value: String) -> [UInt8] {
-        if let contentType = try? ContentType.parse(options, value) {
+        if let contentType = try? ContentType(parsing: value, options: options) {
             let encoded = contentType.encode(format, encoding)
             return Array(encoded.utf8)
         }

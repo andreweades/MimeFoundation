@@ -165,7 +165,7 @@ func parameterEncodeRfc2047WithSurrogates() {
     #expect(encoded == "Content-Disposition: attachment; filename=\"=?utf-8?b?SSDinaTvuI/igI3wn5Sl?=\r\n\t=?utf-8?q?_emojis=2Edoc?=\"")
 
     let offset = "Content-Disposition:".count
-    let contentDisposition = try! ContentDisposition.parse(String(encoded.dropFirst(offset)))
+    let contentDisposition = try! ContentDisposition(parsing:String(encoded.dropFirst(offset)))
     #expect(contentDisposition.parameters.count == 1)
     #expect(contentDisposition.parameters[param.name] == param.value)
 }
@@ -187,7 +187,7 @@ func parameterEncodeRfc2047WithQuotes() {
     #expect(encoded == "Content-Disposition: attachment; filename=\"=?utf-8?b?U29tZSAi5rWL6K+V5paH?=\r\n\t=?utf-8?q?=E6=9C=AC=22_characters=2Edoc?=\"")
 
     let offset = "Content-Disposition:".count
-    let contentDisposition = try! ContentDisposition.parse(String(encoded.dropFirst(offset)))
+    let contentDisposition = try! ContentDisposition(parsing:String(encoded.dropFirst(offset)))
     #expect(contentDisposition.parameters.count == 1)
     #expect(contentDisposition.parameters[param.name] == param.value)
 }
@@ -338,7 +338,7 @@ func parameterEncodeLongParameterName() {
     #expect(encoded == "Content-Disposition: attachment;\r\n\t\(name)*0=val;\r\n\t\(name)*1=ue")
 
     let offset = "Content-Disposition:".count
-    let contentDisposition = try! ContentDisposition.parse(String(encoded.dropFirst(offset)))
+    let contentDisposition = try! ContentDisposition(parsing:String(encoded.dropFirst(offset)))
     #expect(contentDisposition.parameters.count == 1)
     #expect(contentDisposition.parameters[param.name] == param.value)
 }
@@ -361,7 +361,7 @@ func parameterEncodeLongParameterNameWithRfc2231Value() {
     #expect(encoded == "Content-Disposition: attachment;\r\n\t\(name)*0*=gb18030'';\r\n\t\(name)*1*=%B2%E2;\r\n\t\(name)*2*=%CA%D4;\r\n\t\(name)*3*=%CE%C4;\r\n\t\(name)*4*=%B1%BE;\r\n\t\(name)*5=.do;\r\n\t\(name)*6=c")
 
     let offset = "Content-Disposition:".count
-    let contentDisposition = try! ContentDisposition.parse(String(encoded.dropFirst(offset)))
+    let contentDisposition = try! ContentDisposition(parsing:String(encoded.dropFirst(offset)))
     #expect(contentDisposition.parameters.count == 1)
     #expect(contentDisposition.parameters[param.name] == param.value)
 }
@@ -402,7 +402,7 @@ func parameterEncodeLongInternational() {
     #expect(encoded == "Content-Disposition: attachment;\r\n\tfilename*0=\"测试文本测试文本测试文本测试文本测试文本测\";\r\n\tfilename*1=\"试文本测试文本测试文本测试文本测试文本测试\";\r\n\tfilename*2=\"文本测试文本测试文本测试文本测试文本测试文\";\r\n\tfilename*3=\"本.doc\"")
 
     let offset = "Content-Disposition:".count
-    let contentDisposition = try! ContentDisposition.parse(String(encoded.dropFirst(offset)))
+    let contentDisposition = try! ContentDisposition(parsing:String(encoded.dropFirst(offset)))
     #expect(contentDisposition.parameters.count == 1)
     #expect(contentDisposition.parameters[param.name] == param.value)
 }

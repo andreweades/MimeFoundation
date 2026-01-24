@@ -28,36 +28,16 @@ private func assertTryParse(_ text: String, _ encoded: String, _ expected: Inter
     let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
     let opts = options ?? ParserOptions.default
 
-    var result: InternetAddressList? = nil
-    #expect(InternetAddressList.tryParse(opts, text, addresses: &result))
-    if let result {
+    if let result = try? InternetAddressList(parsing: text, options: opts) {
         assertInternetAddressListsEqual(encoded, expected, result)
     } else {
-        #expect(Bool(false))
+        #expect(Bool(false), "Failed to parse from text")
     }
 
-    result = nil
-    #expect(InternetAddressList.tryParse(opts, buffer, addresses: &result))
-    if let result {
+    if let result = try? InternetAddressList(parsing: buffer, options: opts) {
         assertInternetAddressListsEqual(encoded, expected, result)
     } else {
-        #expect(Bool(false))
-    }
-
-    result = nil
-    #expect(InternetAddressList.tryParse(opts, buffer, startIndex: 0, addresses: &result))
-    if let result {
-        assertInternetAddressListsEqual(encoded, expected, result)
-    } else {
-        #expect(Bool(false))
-    }
-
-    result = nil
-    #expect(InternetAddressList.tryParse(opts, buffer, startIndex: 0, length: buffer.count, addresses: &result))
-    if let result {
-        assertInternetAddressListsEqual(encoded, expected, result)
-    } else {
-        #expect(Bool(false))
+        #expect(Bool(false), "Failed to parse from buffer")
     }
 }
 
@@ -66,31 +46,17 @@ private func assertParse(_ text: String, _ encoded: String, _ expected: Internet
     let opts = options ?? ParserOptions.default
 
     do {
-        let result = try InternetAddressList.parse(opts, text)
+        let result = try InternetAddressList(parsing: text, options: opts)
         assertInternetAddressListsEqual(encoded, expected, result)
     } catch {
-        #expect(Bool(false))
+        #expect(Bool(false), "Failed to parse from text: \(error)")
     }
 
     do {
-        let result = try InternetAddressList.parse(opts, buffer)
+        let result = try InternetAddressList(parsing: buffer, options: opts)
         assertInternetAddressListsEqual(encoded, expected, result)
     } catch {
-        #expect(Bool(false))
-    }
-
-    do {
-        let result = try InternetAddressList.parse(opts, buffer, startIndex: 0)
-        assertInternetAddressListsEqual(encoded, expected, result)
-    } catch {
-        #expect(Bool(false))
-    }
-
-    do {
-        let result = try InternetAddressList.parse(opts, buffer, startIndex: 0, length: buffer.count)
-        assertInternetAddressListsEqual(encoded, expected, result)
-    } catch {
-        #expect(Bool(false))
+        #expect(Bool(false), "Failed to parse from buffer: \(error)")
     }
 }
 
@@ -102,12 +68,9 @@ private func assertParseAndTryParse(_ text: String, _ encoded: String, _ expecte
 private func assertTryParseFails(_ text: String, options: ParserOptions? = nil) {
     let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
     let opts = options ?? ParserOptions.default
-    var result: InternetAddressList? = nil
 
-    #expect(InternetAddressList.tryParse(opts, text, addresses: &result) == false)
-    #expect(InternetAddressList.tryParse(opts, buffer, addresses: &result) == false)
-    #expect(InternetAddressList.tryParse(opts, buffer, startIndex: 0, addresses: &result) == false)
-    #expect(InternetAddressList.tryParse(opts, buffer, startIndex: 0, length: buffer.count, addresses: &result) == false)
+    #expect((try? InternetAddressList(parsing: text, options: opts)) == nil)
+    #expect((try? InternetAddressList(parsing: buffer, options: opts)) == nil)
 }
 
 private func assertParseFails(_ text: String, options: ParserOptions? = nil) {
@@ -115,7 +78,7 @@ private func assertParseFails(_ text: String, options: ParserOptions? = nil) {
     let opts = options ?? ParserOptions.default
 
     do {
-        _ = try InternetAddressList.parse(opts, text)
+        _ = try InternetAddressList(parsing: text, options: opts)
         #expect(Bool(false))
     } catch is ParseException {
     } catch {
@@ -123,23 +86,7 @@ private func assertParseFails(_ text: String, options: ParserOptions? = nil) {
     }
 
     do {
-        _ = try InternetAddressList.parse(opts, buffer)
-        #expect(Bool(false))
-    } catch is ParseException {
-    } catch {
-        #expect(Bool(false))
-    }
-
-    do {
-        _ = try InternetAddressList.parse(opts, buffer, startIndex: 0)
-        #expect(Bool(false))
-    } catch is ParseException {
-    } catch {
-        #expect(Bool(false))
-    }
-
-    do {
-        _ = try InternetAddressList.parse(opts, buffer, startIndex: 0, length: buffer.count)
+        _ = try InternetAddressList(parsing: buffer, options: opts)
         #expect(Bool(false))
     } catch is ParseException {
     } catch {
@@ -396,7 +343,8 @@ func internetAddressListEncodingMailboxWithReallyLongWord() {
     let actual = list.toString(options, encode: true)
     #expect(actual == expected)
     var parsed: InternetAddressList? = nil
-    #expect(InternetAddressList.tryParse(actual, addresses: &parsed))
+    parsed = try? InternetAddressList(parsing: actual)
+    #expect(parsed != nil)
     #expect(parsed?.first?.name == name)
 }
 
@@ -409,7 +357,8 @@ func internetAddressListEncodingMailboxWithArabicName() {
     let actual = list.toString(unixFormatOptions(), encode: true)
     #expect(actual == expected)
     var parsed: InternetAddressList? = nil
-    #expect(InternetAddressList.tryParse(actual, addresses: &parsed))
+    parsed = try? InternetAddressList(parsing: actual)
+    #expect(parsed != nil)
     #expect(parsed?.first?.name == mailbox.name)
 }
 
@@ -422,7 +371,8 @@ func internetAddressListEncodingMailboxWithJapaneseName() {
     let actual = list.toString(unixFormatOptions(), encode: true)
     #expect(actual == expected)
     var parsed: InternetAddressList? = nil
-    #expect(InternetAddressList.tryParse(actual, addresses: &parsed))
+    parsed = try? InternetAddressList(parsing: actual)
+    #expect(parsed != nil)
     #expect(parsed?.first?.name == mailbox.name)
 }
 
@@ -481,7 +431,8 @@ func internetAddressListDecodedMailboxHasCorrectCharsetEncoding() {
     let encoded = list.toString(unixFormatOptions(), encode: true)
 
     var parsed: InternetAddressList? = nil
-    #expect(InternetAddressList.tryParse(encoded, addresses: &parsed))
+    parsed = try? InternetAddressList(parsing: encoded)
+    #expect(parsed != nil)
     #expect(parsed?.first?.encoding == latin1)
 }
 
@@ -493,7 +444,8 @@ func internetAddressListUnsupportedCharsetDoesNotThrow() {
     encoded = encoded.replacingOccurrences(of: "utf-8", with: "x-unknown")
 
     var parsed: InternetAddressList? = nil
-    #expect(InternetAddressList.tryParse(encoded, addresses: &parsed))
+    parsed = try? InternetAddressList(parsing: encoded)
+    #expect(parsed != nil)
 }
 
 @Test("InternetAddressList international email addresses")
@@ -501,7 +453,8 @@ func internetAddressListInternationalEmailAddresses() {
     let text = "伊昭傑@郵件.商務, राम@मोहन.ईन्फो, юзер@екзампл.ком, θσερ@εχαμπλε.ψομ"
     var list: InternetAddressList? = nil
 
-    #expect(InternetAddressList.tryParse(text, addresses: &list))
+    list = try? InternetAddressList(parsing: text)
+    #expect(list != nil)
     #expect(list?.count == 4)
 
     let addresses = text.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -672,7 +625,8 @@ func internetAddressListParseMailboxWithEscapedAtSymbol() {
         options.addressParserComplianceMode = mode
         if mode == .looser {
             var list: InternetAddressList? = nil
-            #expect(InternetAddressList.tryParse(options, text, addresses: &list))
+            list = try? InternetAddressList(parsing: text, options: options)
+            #expect(list != nil)
             #expect(list?.count == 1)
             let mailbox = list?.first as? MailboxAddress
             #expect(mailbox?.address == "webmaster%40custom-domain.com@mail-host.com")
@@ -680,7 +634,8 @@ func internetAddressListParseMailboxWithEscapedAtSymbol() {
             #expect(mailbox?.domain == "mail-host.com")
         } else {
             var list: InternetAddressList? = nil
-            #expect(InternetAddressList.tryParse(options, text, addresses: &list) == false)
+            list = try? InternetAddressList(parsing: text, options: options)
+            #expect(list == nil)
         }
     }
 }
@@ -950,12 +905,13 @@ func internetAddressListTryParseFailsWithInvalidAddrSpec() {
 func internetAddressListParsesMailboxes() {
     let text = "Alice <alice@example.com>, Bob <bob@example.com>"
     var list: InternetAddressList? = nil
-    #expect(InternetAddressList.tryParse(text, addresses: &list))
+    list = try? InternetAddressList(parsing: text)
+    #expect(list != nil)
     #expect(list?.count == 2)
     #expect(list?[0].toString(.default, encode: false) == "\"Alice\" <alice@example.com>")
     #expect(list?[1].toString(.default, encode: false) == "\"Bob\" <bob@example.com>")
 
-    let parsed = try? InternetAddressList.parse(text)
+    let parsed = try? InternetAddressList(parsing: text)
     #expect(parsed?.count == 2)
 }
 

@@ -225,8 +225,7 @@ open class MimePart: MimeEntity {
         guard let mimeType else {
             throw MimePartError.nilMediaType
         }
-        let buffer = Array(mimeType.utf8)
-        let parsed = try ContentType.parse(.default, buffer)
+        let parsed = try ContentType(parsing: mimeType)
         self.init(parsed)
     }
 
