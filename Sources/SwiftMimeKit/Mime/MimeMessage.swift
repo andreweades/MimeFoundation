@@ -641,6 +641,7 @@ public final class MimeMessage {
             } else {
                 let rawField = lineBytes + lineBreak
                 let header = Header(.default, fieldBytes: rawField, fieldNameLength: rawField.count, rawValue: [])
+                header.isInvalid = true
                 headerList.add(header)
             }
         }

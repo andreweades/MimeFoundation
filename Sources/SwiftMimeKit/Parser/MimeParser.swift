@@ -53,6 +53,9 @@ open class MimeParser {
             return HeaderList()
         }
         let bytes = Array(data[currentOffset..<data.count])
+        if shouldThrowForTruncatedHeaderName(bytes) {
+            throw ParseException("Invalid header.", tokenIndex: currentOffset, errorIndex: currentOffset)
+        }
         let (headers, bodyBytes) = MimeMessage.parseHeaders(bytes)
         currentOffset += bytes.count - bodyBytes.count
         if currentOffset >= data.count {
@@ -67,7 +70,20 @@ open class MimeParser {
 
     public func parseMessage() throws -> MimeMessage {
         let range = try nextMessageRange()
-        let messageBytes = Array(data[range.start..<range.end])
+        var messageBytes = Array(data[range.start..<range.end])
+        if messageBytes.isEmpty {
+            if format == .mbox {
+                let message = MimeMessage(addDefaults: false)
+                currentOffset = range.end
+                if currentOffset >= data.count {
+                    isEndOfStream = true
+                }
+                return message
+            }
+            throw ParseException("End of stream.", tokenIndex: currentOffset, errorIndex: currentOffset)
+        }
+        messageBytes = try stripByteOrderMarkIfNeeded(messageBytes)
+        try validateHeaderStart(in: messageBytes, errorMessage: "Failed to parse message headers.")
         let stream = MemoryStream(messageBytes, writable: false)
         let message = try MimeMessage.load(options, stream)
         currentOffset = range.end
@@ -82,7 +98,12 @@ open class MimeParser {
     }
 
     public func parseEntity() throws -> MimeEntity {
-        let bytes = Array(data[currentOffset..<data.count])
+        var bytes = Array(data[currentOffset..<data.count])
+        if bytes.isEmpty {
+            throw ParseException("End of stream.", tokenIndex: currentOffset, errorIndex: currentOffset)
+        }
+        bytes = try stripByteOrderMarkIfNeeded(bytes)
+        try validateHeaderStart(in: bytes, errorMessage: "Failed to parse entity headers.")
         let stream = MemoryStream(bytes, writable: false)
         let entity = try MimeEntity.load(options, stream)
         currentOffset = data.count
@@ -98,6 +119,58 @@ open class MimeParser {
 // MARK: - Parsing helpers
 
 private extension MimeParser {
+    func shouldThrowForTruncatedHeaderName(_ bytes: [UInt8]) -> Bool {
+        guard !bytes.isEmpty else { return false }
+        var index = 0
+        while index < bytes.count {
+            let byte = bytes[index]
+            if byte == 0x0D || byte == 0x0A {
+                return false
+            }
+            index += 1
+        }
+        return !bytes.contains(0x3A)
+    }
+
+    func stripByteOrderMarkIfNeeded(_ bytes: [UInt8]) throws -> [UInt8] {
+        guard bytes.count >= 2 else {
+            return bytes
+        }
+        if bytes[0] == 0xEF && bytes[1] == 0xBB {
+            guard bytes.count >= 3 else {
+                throw ParseException("Invalid byte order mark.", tokenIndex: currentOffset, errorIndex: currentOffset)
+            }
+            guard bytes[2] == 0xBF else {
+                throw ParseException("Invalid byte order mark.", tokenIndex: currentOffset, errorIndex: currentOffset)
+            }
+            if bytes.count == 3 {
+                throw ParseException("End of stream.", tokenIndex: currentOffset, errorIndex: currentOffset)
+            }
+            return Array(bytes[3..<bytes.count])
+        }
+        return bytes
+    }
+
+    func validateHeaderStart(in bytes: [UInt8], errorMessage: String) throws {
+        guard !bytes.isEmpty else {
+            throw ParseException("End of stream.", tokenIndex: currentOffset, errorIndex: currentOffset)
+        }
+        var index = 0
+        while index < bytes.count {
+            let byte = bytes[index]
+            if byte == 0x0D || byte == 0x0A {
+                break
+            }
+            index += 1
+        }
+        if index == 0 {
+            return
+        }
+        if !bytes[0..<index].contains(0x3A) {
+            throw ParseException(errorMessage, tokenIndex: currentOffset, errorIndex: currentOffset)
+        }
+    }
+
     func readAllBytes(from stream: MimeStream) throws -> [UInt8] {
         var buffer = [UInt8](repeating: 0, count: 4096)
         var data: [UInt8] = []
@@ -131,7 +204,7 @@ private extension MimeParser {
     func nextMessageRange() throws -> (start: Int, end: Int) {
         if isEndOfStream || currentOffset >= data.count {
             isEndOfStream = true
-            return (data.count, data.count)
+            throw ParseException("End of stream.", tokenIndex: currentOffset, errorIndex: currentOffset)
         }
 
         switch format {
@@ -143,9 +216,13 @@ private extension MimeParser {
                 markerIndex += 1
             }
             if markerIndex >= mboxMarkers.count {
-                return (currentOffset, data.count)
+                throw ParseException("Failed to find mbox From marker.", tokenIndex: currentOffset, errorIndex: currentOffset)
             }
             let marker = mboxMarkers[markerIndex]
+            let markerLength = marker.lineEnd - marker.start
+            if marker.lineBreakLength == 0 || markerLength > 4096 {
+                throw ParseException("Invalid mbox marker.", tokenIndex: marker.start, errorIndex: marker.start)
+            }
             let messageStart = marker.lineEnd + marker.lineBreakLength
             var nextMarkerIndex = markerIndex + 1
             var messageEnd = data.count
@@ -163,6 +240,9 @@ private extension MimeParser {
                 }
             } else if nextMarkerIndex < mboxMarkers.count {
                 messageEnd = adjustedEndOffset(beforeLineIndex: mboxMarkers[nextMarkerIndex].lineIndex)
+            }
+            if messageEnd < messageStart {
+                messageEnd = messageStart
             }
             currentMarkerIndex = nextMarkerIndex
             return (messageStart, messageEnd)

@@ -93,7 +93,7 @@ Notes:
 - ✅ MimeAnonymizerTests
 
 ## Parser/Reader
-- ⬜️ MimeParserTests
+- 🟡 MimeParserTests
 - ⬜️ ExperimentalMimeParserTests
 - ✅ MimeReaderTests
 
