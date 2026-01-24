@@ -108,7 +108,7 @@ Notes:
 - ✅ TimeoutStream
 - ✅ DecoderFilterTests
 - ✅ EncoderFilterTests
-- 🟡 FilterTests (missing BestEncoding/Charset/OpenPGP/PGP block coverage)
+- ✅ FilterTests
 
 ## Text Converters
 - ⬜️ FlowedToHtmlTests

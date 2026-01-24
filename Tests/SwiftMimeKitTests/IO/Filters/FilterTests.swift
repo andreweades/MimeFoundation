@@ -2,6 +2,7 @@
 // FilterTests.swift
 //
 
+import Foundation
 import Testing
 @testable import SwiftMimeKit
 
@@ -38,6 +39,23 @@ struct FilterTests {
             }
         }
         return nil
+    }
+
+    private static func applyOpenPgpBlockFilter(_ filter: OpenPgpBlockFilter, input: String, increment: Int) throws -> String {
+        let buffer = Array(input.utf8)
+        let output = MemoryStream([], writable: true)
+        let filtered = try FilteredStream(output)
+        try filtered.add(filter)
+
+        var index = 0
+        while index < buffer.count {
+            let count = min(increment, buffer.count - index)
+            try filtered.write(buffer, offset: index, count: count)
+            index += count
+        }
+
+        try filtered.flush()
+        return String(decoding: output.toByteArray(), as: UTF8.self)
     }
 
     @Test("ArmoredFromFilter")
@@ -181,5 +199,210 @@ struct FilterTests {
         #expect(flushed == buffer)
         #expect(outputIndex == 1)
         #expect(outputLength == buffer.count - 2)
+    }
+
+    @Test("BestEncodingFilter")
+    func bestEncodingFilter() throws {
+        let fromLines = "This text is meant to test that the filter will armor lines beginning with\nFrom (like mbox).\n"
+        let ascii = "This is some ascii text to make sure that\nthe filter returns 7bit encoding...\n"
+        let french = "Wikipédia est un projet d’encyclopédie collective en ligne, universelle, multilingue et fonctionnant sur le principe du wiki. Wikipédia a pour objectif d’offrir un contenu librement réutilisable, objectif et vérifiable, que chacun peut modifier et améliorer.\n\nTous les rédacteurs des articles de Wikipédia sont bénévoles. Ils coordonnent leurs efforts au sein d'une communauté collaborative, sans dirigeant."
+        let filter = BestEncodingFilter()
+
+        #expect(throws: BestEncodingFilterError.invalidMaxLineLength) {
+            _ = try filter.getBestEncoding(.sevenBit, maxLineLength: 10)
+        }
+
+        do {
+            let stream = MemoryStream([], writable: true)
+            let filtered = try FilteredStream(stream)
+            try filtered.add(filter)
+
+            let buffer = Array(ascii.utf8)
+            try filtered.write(buffer, offset: 0, count: buffer.count)
+            try filtered.flush()
+
+            #expect(try filter.getBestEncoding(.sevenBit) == .sevenBit)
+            #expect(try filter.getBestEncoding(.eightBit) == .sevenBit)
+            #expect(try filter.getBestEncoding(.none) == .sevenBit)
+
+            _ = try filtered.remove(filter)
+        }
+
+        filter.reset()
+
+        do {
+            let stream = MemoryStream([], writable: true)
+            let filtered = try FilteredStream(stream)
+            try filtered.add(filter)
+
+            let buffer = Array(fromLines.utf8)
+            let marker = Array("\nFrom ".utf8)
+            let fromIndex = Self.indexOf(buffer, pattern: marker) ?? 0
+            let split = fromIndex + 3
+            try filtered.write(buffer, offset: 0, count: split)
+            try filtered.write(buffer, offset: split, count: buffer.count - split)
+            try filtered.flush()
+
+            #expect(try filter.getBestEncoding(.sevenBit) == .quotedPrintable)
+            #expect(try filter.getBestEncoding(.eightBit) == .quotedPrintable)
+            #expect(try filter.getBestEncoding(.none) == .quotedPrintable)
+        }
+
+        filter.reset()
+
+        do {
+            let stream = MemoryStream([], writable: true)
+            let filtered = try FilteredStream(stream)
+            try filtered.add(filter)
+
+            let buffer = Array(french.utf8)
+            let shortCount = min(60, buffer.count)
+            try filtered.write(buffer, offset: 0, count: shortCount)
+            try filtered.flush()
+
+            #expect(try filter.getBestEncoding(.sevenBit) == .quotedPrintable)
+            #expect(try filter.getBestEncoding(.eightBit) == .eightBit)
+            #expect(try filter.getBestEncoding(.none) == .eightBit)
+        }
+
+        filter.reset()
+
+        do {
+            let stream = MemoryStream([], writable: true)
+            let filtered = try FilteredStream(stream)
+            try filtered.add(filter)
+
+            let buffer = Array(french.utf8)
+            try filtered.write(buffer, offset: 0, count: buffer.count)
+            try filtered.flush()
+
+            #expect(try filter.getBestEncoding(.sevenBit) == .quotedPrintable)
+            #expect(try filter.getBestEncoding(.eightBit) == .quotedPrintable)
+            #expect(try filter.getBestEncoding(.none) == .quotedPrintable)
+        }
+
+        filter.reset()
+
+        do {
+            let stream = MemoryStream([], writable: true)
+            let filtered = try FilteredStream(stream)
+            try filtered.add(filter)
+
+            let buffer = Array("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\r\nabc\r\n".utf8)
+            try filtered.write(buffer, offset: 0, count: buffer.count)
+            try filtered.flush()
+
+            #expect(try filter.getBestEncoding(.sevenBit, maxLineLength: 78) == .sevenBit)
+            #expect(try filter.getBestEncoding(.eightBit, maxLineLength: 78) == .sevenBit)
+            #expect(try filter.getBestEncoding(.none, maxLineLength: 78) == .sevenBit)
+        }
+    }
+
+    @Test("CharsetFilter")
+    func charsetFilter() throws {
+        let french = "Wikipédia est un projet d’encyclopédie collective en ligne, universelle, multilingue et fonctionnant sur le principe du wiki. Wikipédia a pour objectif d’offrir un contenu librement réutilisable, objectif et vérifiable, que chacun peut modifier et améliorer.\n\nTous les rédacteurs des articles de Wikipédia sont bénévoles. Ils coordonnent leurs efforts au sein d'une communauté collaborative, sans dirigeant."
+
+        #expect(throws: CharsetFilterError.unsupportedEncoding) { _ = try CharsetFilter("bogus charset", "iso-8859-1") }
+        #expect(throws: CharsetFilterError.unsupportedEncoding) { _ = try CharsetFilter("iso-8859-1", "bogus charset") }
+        #expect(throws: CharsetFilterError.invalidArgument) { _ = try CharsetFilter(sourceCodepage: -1, targetCodepage: 28591) }
+        #expect(throws: CharsetFilterError.invalidArgument) { _ = try CharsetFilter(sourceCodepage: 28591, targetCodepage: -1) }
+
+        _ = CharsetFilter(.utf8, .isoLatin1)
+
+        if let iso8859_15 = CharsetUtils.getEncoding("iso-8859-15") {
+            let expected = french.data(using: iso8859_15, allowLossyConversion: true) ?? Data()
+            let source = MemoryStream(Array(french.utf8), writable: false)
+            let filtered = try FilteredStream(source)
+            try filtered.add(try CharsetFilter("utf-8", "iso-8859-15"))
+
+            var buffer = [UInt8](repeating: 0, count: expected.count)
+            var length = try filtered.read(&buffer, offset: 0, count: expected.count / 2)
+            length += try filtered.read(&buffer, offset: expected.count / 2, count: buffer.count - expected.count / 2)
+            try filtered.flush()
+
+            #expect(length == expected.count)
+        }
+
+        do {
+            let expected = french.data(using: .isoLatin1, allowLossyConversion: true) ?? Data()
+            let source = MemoryStream(Array(french.utf8), writable: false)
+            let filtered = try FilteredStream(source)
+            try filtered.add(CharsetFilter(.utf8, .isoLatin1))
+
+            var buffer = [UInt8](repeating: 0, count: expected.count)
+            var length = try filtered.read(&buffer, offset: 0, count: expected.count / 2)
+            length += try filtered.read(&buffer, offset: expected.count / 2, count: buffer.count - expected.count / 2)
+            try filtered.flush()
+
+            #expect(length == expected.count)
+        }
+    }
+
+    @Test("OpenPgpBlockFilter")
+    func openPgpBlockFilter() throws {
+        let input = """
+% cat sample
+This is a sample.
+
+This is a sample text file.  I created it with an editor.  If it were
+an actual message, it would contain some useful information.
+
+This has been a sample.
+% pgp -eat sample john
+Pretty Good Privacy(tm) 2.6.2 - Public-key encryption for the masses.
+(c) 1990-1994 Philip Zimmermann, Phil's Pretty Good Software. 11 Oct 94
+Uses the RSAREF(tm) Toolkit, which is copyright RSA Data Security, Inc.
+Distributed by the Massachusetts Institute of Technology.
+Export of this software may be restricted by the U.S. government.
+Current time: 1996/11/09 13:10 GMT
+
+
+Recipients' public key(s) will be used to encrypt. 
+Key for user ID: John E Doe <jd@somewhere.net>
+1024-bit key, Key ID F4DD25F1, created 1996/11/07
+
+WARNING:  Because this public key is not certified with a trusted
+signature, it is not known with high confidence that this public key
+actually belongs to: "John E Doe <jd@somewhere.net>".
+
+Are you sure you want to use this public key (y/N)? y
+.
+Transport armor file: sample.asc
+% cat sample.asc
+-----BEGIN PGP MESSAGE-----
+Version: 2.6.2
+
+hIwD1vwet/TdJfEBBACdcCPkNI3kRwYqtHUyfpvVAY5rt+Lb9P6EztNd4sYq9egV
+CZjfqcCn36XZmYPbbO6nZbl992kPRFzTgCRszKNPtlk6Wa93AqXs3KCZp+4emXQh
+7moE+XTf4QUGJZ2L3w/sSNs5WFkZRIbto0ivK1aRlX1XTqhPqo9HbgEfElBVUaYA
+AACQEWaOS3/h6BVLHTfXaK20vmLcg9BUisB5RDvYGLZv9XFwHMMjctFJJQYnWIOp
++7LLkmNO5fE48rWh0EOAwjAeduGzJGQb4yiE7OlxoESmmTJQ+qO1K2nDz8Stk3a6
+WvAQJrpEUY7Og8QGlQQRPKl2F++j6XbIhZ27OeYqJp+vgylUd874KDMCcTrzF3ph
+/Qfi
+=xTV9
+-----END PGP MESSAGE-----
+%
+"""
+        let expected = """
+-----BEGIN PGP MESSAGE-----
+Version: 2.6.2
+
+hIwD1vwet/TdJfEBBACdcCPkNI3kRwYqtHUyfpvVAY5rt+Lb9P6EztNd4sYq9egV
+CZjfqcCn36XZmYPbbO6nZbl992kPRFzTgCRszKNPtlk6Wa93AqXs3KCZp+4emXQh
+7moE+XTf4QUGJZ2L3w/sSNs5WFkZRIbto0ivK1aRlX1XTqhPqo9HbgEfElBVUaYA
+AACQEWaOS3/h6BVLHTfXaK20vmLcg9BUisB5RDvYGLZv9XFwHMMjctFJJQYnWIOp
++7LLkmNO5fE48rWh0EOAwjAeduGzJGQb4yiE7OlxoESmmTJQ+qO1K2nDz8Stk3a6
+WvAQJrpEUY7Og8QGlQQRPKl2F++j6XbIhZ27OeYqJp+vgylUd874KDMCcTrzF3ph
+/Qfi
+=xTV9
+-----END PGP MESSAGE-----
+""" + "\n"
+        let filter = OpenPgpBlockFilter("-----BEGIN PGP MESSAGE-----", "-----END PGP MESSAGE-----")
+        let actual20 = try Self.applyOpenPgpBlockFilter(filter, input: input, increment: 20)
+        #expect(actual20 == expected)
+
+        filter.reset()
+        let actual21 = try Self.applyOpenPgpBlockFilter(filter, input: input, increment: 21)
+        #expect(actual21 == expected)
     }
 }
