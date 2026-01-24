@@ -114,7 +114,6 @@ Notes:
 - ✅ FlowedToHtmlTests
 - ✅ FlowedToTextTests
 - ✅ HtmlToHtmlTests
-- ⬜️ HtmlToTextTests (not present in current upstream MimeKit)
 - ✅ TextToFlowedTests
 - ✅ TextToHtmlTests
 - ✅ TextToTextTests
@@ -124,9 +123,12 @@ Notes:
 - ⬜️ TnefTests
 
 ## Cryptography
+- ✅ DkimRelaxedBodyFilterTests
+- ✅ DkimHashStreamTests
+- ✅ DkimSignatureStreamTests
 - ⬜️ ArcSignerTests
 - ⬜️ ArcVerifierTests
 - ⬜️ DkimSignerTests
 - ⬜️ DkimVerifierTests
 - ⬜️ OpenPgpTests
-- ⬜️ SmimeTests
+- ⬜️ S/MIME (unimplemented; requires CMS/X.509 backend decision)
