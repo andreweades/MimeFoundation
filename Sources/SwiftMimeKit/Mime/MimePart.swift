@@ -322,29 +322,43 @@ open class MimePart: MimeEntity {
 
     internal override func writeBody(_ options: FormatOptions, stream: MimeStream) throws {
         guard let content else { return }
-        let source = try content.open()
-        var buffer = [UInt8](repeating: 0, count: 4096)
-        if contentTransferEncoding == .base64 || contentTransferEncoding == .quotedPrintable || contentTransferEncoding == .uuEncode {
+
+        if content.encoding != contentTransferEncoding {
+            if contentTransferEncoding == .uuEncode {
+                let name = fileName ?? "unknown"
+                let begin = Array("begin 0644 \(name)".utf8)
+                try stream.write(begin, offset: 0, count: begin.count)
+                let newLine = options.newLineBytes
+                try stream.write(newLine, offset: 0, count: newLine.count)
+            }
+
             let filtered = try FilteredStream(stream)
             let filter = EncoderFilter.create(contentTransferEncoding)
             _ = try filtered.add(filter)
-            while true {
-                let read = try source.read(&buffer, offset: 0, count: buffer.count)
-                if read == 0 {
-                    break
-                }
-                try filtered.write(buffer, offset: 0, count: read)
+            if contentTransferEncoding != .binary {
+                try filtered.add(options.createNewLineFilter(ensureNewLine))
             }
+            try content.decodeTo(filtered)
             try filtered.flush()
-        } else {
-            while true {
-                let read = try source.read(&buffer, offset: 0, count: buffer.count)
-                if read == 0 {
-                    break
-                }
-                try stream.write(buffer, offset: 0, count: read)
+
+            if contentTransferEncoding == .uuEncode {
+                let end = Array("end".utf8)
+                let newLine = options.newLineBytes
+                try stream.write(end, offset: 0, count: end.count)
+                try stream.write(newLine, offset: 0, count: newLine.count)
             }
+            return
         }
+
+        if contentTransferEncoding == .binary {
+            try content.writeTo(stream)
+            return
+        }
+
+        let filtered = try FilteredStream(stream)
+        try filtered.add(options.createNewLineFilter(ensureNewLine))
+        try content.writeTo(filtered)
+        try filtered.flush()
     }
 
     public override func accept(_ visitor: MimeVisitor?) throws {

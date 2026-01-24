@@ -121,3 +121,73 @@ final class DkimEd25519SignatureContext: DkimSignatureContext {
         false
     }
 }
+
+final class DkimRsaVerifyContext: DkimSignatureContext {
+    private var digest: DkimDigestState
+    private let key: _RSA.Signing.PublicKey
+    private let algorithm: DkimSignatureAlgorithm
+
+    init(key: _RSA.Signing.PublicKey, algorithm: DkimSignatureAlgorithm) {
+        self.key = key
+        self.algorithm = algorithm
+        switch algorithm {
+        case .rsaSha1:
+            digest = .sha1(Insecure.SHA1())
+        case .rsaSha256:
+            digest = .sha256(SHA256())
+        case .ed25519Sha256:
+            digest = .sha256(SHA256())
+        }
+    }
+
+    func update(_ buffer: [UInt8], offset: Int, count: Int) {
+        guard count > 0 else { return }
+        digest.update(buffer[offset..<(offset + count)])
+    }
+
+    func generateSignature() throws -> [UInt8] {
+        throw DkimSignerError.unsupportedAlgorithm
+    }
+
+    func verify(signature: [UInt8]) throws -> Bool {
+        switch algorithm {
+        case .rsaSha1:
+            guard let hash = digest.finalizeSha1() else {
+                return false
+            }
+            let sig = _RSA.Signing.RSASignature(rawRepresentation: Data(signature))
+            return key.isValidSignature(sig, for: hash, padding: .insecurePKCS1v1_5)
+        case .rsaSha256:
+            guard let hash = digest.finalizeSha256() else {
+                return false
+            }
+            let sig = _RSA.Signing.RSASignature(rawRepresentation: Data(signature))
+            return key.isValidSignature(sig, for: hash, padding: .insecurePKCS1v1_5)
+        case .ed25519Sha256:
+            return false
+        }
+    }
+}
+
+final class DkimEd25519VerifyContext: DkimSignatureContext {
+    private var digest = DkimDigestState.sha256(SHA256())
+    private let key: Curve25519.Signing.PublicKey
+
+    init(key: Curve25519.Signing.PublicKey) {
+        self.key = key
+    }
+
+    func update(_ buffer: [UInt8], offset: Int, count: Int) {
+        guard count > 0 else { return }
+        digest.update(buffer[offset..<(offset + count)])
+    }
+
+    func generateSignature() throws -> [UInt8] {
+        throw DkimSignerError.unsupportedAlgorithm
+    }
+
+    func verify(signature: [UInt8]) throws -> Bool {
+        let hash = digest.finalizeBytes()
+        return key.isValidSignature(Data(signature), for: Data(hash))
+    }
+}

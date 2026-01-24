@@ -134,7 +134,7 @@ public final class DkimSigner: DkimSignerBase {
         let context = try createSigningContext()
         let stream = try DkimSignatureStream(context)
         let filtered = try FilteredStream(stream)
-        try filtered.add(signingOptions.createNewLineFilter(true))
+        try filtered.add(signingOptions.createNewLineFilter(false))
 
         try DkimVerifierBase.writeHeaders(options: signingOptions, message: message, fields: headers, canonicalization: headerCanonicalizationAlgorithm, stream: filtered)
 

@@ -123,13 +123,15 @@ Notes:
 - ⬜️ TnefTests
 
 ## Cryptography
+- 🟡 AuthenticationResultsTests
 - ✅ DkimRelaxedBodyFilterTests
 - ✅ DkimHashStreamTests
 - ✅ DkimSignatureStreamTests
 - ✅ DkimPublicKeyLocatorBaseTests
+- ✅ DkimTests
 - ⬜️ ArcSignerTests
 - ⬜️ ArcVerifierTests
-- ⬜️ DkimSignerTests
-- ⬜️ DkimVerifierTests
+- ✅ DkimSignerTests
+- ✅ DkimVerifierTests
 - ⬜️ OpenPgpTests
 - ⬜️ S/MIME (unimplemented; requires CMS/X.509 backend decision)

@@ -42,7 +42,10 @@ public final class MimeContent {
             throw MimeContentError.disposed
         }
         _ = try stream.seek(0, origin: .begin)
-        return stream
+        let filtered = try FilteredStream(stream)
+        let filter = DecoderFilter.create(encoding)
+        _ = try filtered.add(filter)
+        return filtered
     }
 
     public func writeTo(_ destination: MimeStream?, cancellationToken: CancellationToken? = nil) throws {
@@ -106,7 +109,7 @@ public final class MimeContent {
     }
 
     public func decodeToAsync(_ destination: MimeStream?, cancellationToken: CancellationToken? = nil) async throws {
-        try writeTo(destination, cancellationToken: cancellationToken)
+        try decodeTo(destination, cancellationToken: cancellationToken)
     }
 
     private func checkDisposed() throws {

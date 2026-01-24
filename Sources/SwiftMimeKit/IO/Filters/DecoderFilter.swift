@@ -40,7 +40,7 @@ public final class DecoderFilter: MimeFilterBase {
         case .quotedPrintable:
             return DecoderFilter(QuotedPrintableDecoder())
         case .uuEncode:
-            return DecoderFilter(UUDecoder(payloadOnly: true))
+            return DecoderFilter(UUDecoder())
         default:
             return PassThroughFilter()
         }
@@ -56,7 +56,7 @@ public final class DecoderFilter: MimeFilterBase {
         case "quoted-printable":
             return DecoderFilter(QuotedPrintableDecoder())
         case "x-uuencode", "uuencode":
-            return DecoderFilter(UUDecoder(payloadOnly: true))
+            return DecoderFilter(UUDecoder())
         case "7bit", "8bit", "binary":
             return PassThroughFilter()
         default:

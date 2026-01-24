@@ -276,41 +276,6 @@ open class TextPart: MimePart {
         try super.writeTo(options, stream)
     }
 
-    internal override func writeBody(_ options: FormatOptions, stream: MimeStream) throws {
-        if contentTransferEncoding == .base64 || contentTransferEncoding == .quotedPrintable || contentTransferEncoding == .uuEncode {
-            try super.writeBody(options, stream: stream)
-            return
-        }
-
-        guard let content else { return }
-        let data = try readAllBytes(content: content)
-        if options.newLine == "\n" {
-            let normalized = TextPart.normalizeNewLines(data)
-            try stream.write(normalized, offset: 0, count: normalized.count)
-        } else {
-            try stream.write(data, offset: 0, count: data.count)
-        }
-    }
-
-    private static func normalizeNewLines(_ bytes: [UInt8]) -> [UInt8] {
-        var output: [UInt8] = []
-        output.reserveCapacity(bytes.count)
-        var index = 0
-        while index < bytes.count {
-            let byte = bytes[index]
-            if byte == 0x0D {
-                if index + 1 < bytes.count, bytes[index + 1] == 0x0A {
-                    output.append(0x0A)
-                    index += 2
-                    continue
-                }
-            }
-            output.append(byte)
-            index += 1
-        }
-        return output
-    }
-
     public func getText(_ charset: String?) throws -> String {
         guard let charset else {
             throw TextPartError.nilCharset
@@ -328,7 +293,7 @@ open class TextPart: MimePart {
         guard let content else {
             return ""
         }
-        let data = try readAllBytes(content: content)
+        let data = readDecodedBytes(from: content)
         if let decoded = String(data: Data(data), encoding: encoding) {
             return TextPart.normalizeNewLines(decoded, newLine: FormatOptions.default.newLine)
         }
@@ -339,7 +304,7 @@ open class TextPart: MimePart {
         guard let content else {
             return ""
         }
-        let data = try readAllBytes(content: content)
+        let data = readDecodedBytes(from: content)
         return String(data: Data(data), encoding: encoding)
     }
 
@@ -599,20 +564,9 @@ open class TextPart: MimePart {
         return attributes
     }
 
-    private static func readPrefix(_ content: MimeContent, length: Int) throws -> [UInt8] {
-        let stream = try content.open()
-        var buffer = [UInt8](repeating: 0, count: length)
-        let read = try stream.read(&buffer, offset: 0, count: length)
-        if read <= 0 {
-            return []
-        }
-        return Array(buffer[0..<read])
-    }
-
     private func tryDetectBomEncoding(_ content: MimeContent) -> String.Encoding? {
-        guard let bytes = try? TextPart.readPrefix(content, length: 3), !bytes.isEmpty else {
-            return nil
-        }
+        let bytes = readDecodedBytes(from: content)
+        guard !bytes.isEmpty else { return nil }
         if bytes.count >= 3, bytes[0] == 0xEF, bytes[1] == 0xBB, bytes[2] == 0xBF {
             return .utf8
         }
@@ -623,6 +577,22 @@ open class TextPart: MimePart {
             return .utf16LittleEndian
         }
         return nil
+    }
+
+    private func readDecodedBytes(from content: MimeContent) -> [UInt8] {
+        let memory = MemoryStream()
+        _ = try? content.decodeTo(memory)
+        return memory.toByteArray()
+    }
+
+    private static func readPrefix(_ content: MimeContent, length: Int) throws -> [UInt8] {
+        let memory = MemoryStream()
+        try content.decodeTo(memory)
+        let bytes = memory.toByteArray()
+        if bytes.count <= length {
+            return bytes
+        }
+        return Array(bytes.prefix(length))
     }
 
     private static func normalizeNewLines(_ text: String, newLine: String) -> String {

@@ -6,8 +6,45 @@
 
 import Foundation
 
+public enum DkimVerifierError: Error, Equatable {
+    case invalidArgument
+    case malformedHeader(String)
+    case unsupportedAlgorithm
+    case invalidKey
+}
+
 open class DkimVerifierBase {
     private static let colon: [UInt8] = [0x3A]
+    private let publicKeyLocator: DkimPublicKeyLocator
+    private var enabledSignatureAlgorithms: Int = 0
+
+    public var minimumRsaKeyLength: Int = 1024
+
+    public init(publicKeyLocator: DkimPublicKeyLocator) {
+        self.publicKeyLocator = publicKeyLocator
+        enable(.ed25519Sha256)
+        enable(.rsaSha256)
+    }
+
+    public func enable(_ algorithm: DkimSignatureAlgorithm) {
+        enabledSignatureAlgorithms |= 1 << algorithm.bitIndex
+    }
+
+    public func disable(_ algorithm: DkimSignatureAlgorithm) {
+        enabledSignatureAlgorithms &= ~(1 << algorithm.bitIndex)
+    }
+
+    public func isEnabled(_ algorithm: DkimSignatureAlgorithm) -> Bool {
+        (enabledSignatureAlgorithms & (1 << algorithm.bitIndex)) != 0
+    }
+
+    internal func locatePublicKey(methods: String, domain: String, selector: String, cancellationToken: CancellationToken?) throws -> DkimPublicKey {
+        try publicKeyLocator.locatePublicKey(methods: methods, domain: domain, selector: selector, cancellationToken: cancellationToken)
+    }
+
+    internal func locatePublicKeyAsync(methods: String, domain: String, selector: String, cancellationToken: CancellationToken?) async throws -> DkimPublicKey {
+        try await publicKeyLocator.locatePublicKeyAsync(methods: methods, domain: domain, selector: selector, cancellationToken: cancellationToken)
+    }
 
     internal static func writeHeaderRelaxed(options: FormatOptions, stream: MimeStream, header: Header, isDkimSignature: Bool) throws {
         let name = Array(header.field.lowercased().utf8)
@@ -117,6 +154,278 @@ open class DkimVerifierBase {
             }
 
             counts[name] = count + 1
+        }
+    }
+
+    internal static func parseParameterTags(headerId: HeaderId, signature: String) throws -> [String: String] {
+        var parameters: [String: String] = [:]
+        let chars = Array(signature)
+        var index = 0
+
+        func isWhitespace(_ c: Character) -> Bool {
+            c == " " || c == "\t"
+        }
+
+        func isAlpha(_ c: Character) -> Bool {
+            ("A"..."Z").contains(c) || ("a"..."z").contains(c)
+        }
+
+        while index < chars.count {
+            while index < chars.count && isWhitespace(chars[index]) {
+                index += 1
+            }
+            if index >= chars.count {
+                break
+            }
+
+            if chars[index] == ";" || !isAlpha(chars[index]) {
+                throw DkimVerifierError.malformedHeader("Malformed \(headerId.headerName) value.")
+            }
+
+            let startIndex = index
+            index += 1
+            while index < chars.count && chars[index] != "=" {
+                index += 1
+            }
+
+            if index >= chars.count {
+                continue
+            }
+
+            let name = String(chars[startIndex..<index]).trimmingCharacters(in: .whitespacesAndNewlines)
+            index += 1
+
+            var value = ""
+            while index < chars.count && chars[index] != ";" {
+                if !isWhitespace(chars[index]) {
+                    value.append(chars[index])
+                }
+                index += 1
+            }
+
+            if parameters[name] != nil {
+                throw DkimVerifierError.malformedHeader("Malformed \(headerId.headerName) value: duplicate parameter '\(name)'.")
+            }
+
+            parameters[name] = value
+
+            if index < chars.count {
+                index += 1
+            }
+        }
+
+        return parameters
+    }
+
+    internal static func validateCommonParameters(header: String, parameters: [String: String]) throws -> (algorithm: DkimSignatureAlgorithm, d: String, s: String, q: String, b: String) {
+        guard let a = parameters["a"] else {
+            throw DkimVerifierError.malformedHeader("Malformed \(header) header: no signature algorithm parameter detected.")
+        }
+
+        let algorithm: DkimSignatureAlgorithm
+        switch a.lowercased() {
+        case "ed25519-sha256":
+            algorithm = .ed25519Sha256
+        case "rsa-sha256":
+            algorithm = .rsaSha256
+        case "rsa-sha1":
+            algorithm = .rsaSha1
+        default:
+            throw DkimVerifierError.malformedHeader("Unrecognized \(header) algorithm parameter: a=\(a)")
+        }
+
+        guard let d = parameters["d"], !d.isEmpty else {
+            throw DkimVerifierError.malformedHeader("Malformed \(header) header: no domain parameter detected.")
+        }
+
+        guard let s = parameters["s"], !s.isEmpty else {
+            throw DkimVerifierError.malformedHeader("Malformed \(header) header: no selector parameter detected.")
+        }
+
+        let q = parameters["q"] ?? "dns/txt"
+
+        guard let b = parameters["b"], !b.isEmpty else {
+            throw DkimVerifierError.malformedHeader("Malformed \(header) header: no signature parameter detected.")
+        }
+
+        if let t = parameters["t"], let timestamp = Int(t), timestamp < 0 {
+            throw DkimVerifierError.malformedHeader("Malformed \(header) header: invalid timestamp parameter: t=\(t).")
+        }
+
+        return (algorithm, d, s, q, b)
+    }
+
+    internal static func validateCommonSignatureParameters(header: String, parameters: [String: String]) throws -> (algorithm: DkimSignatureAlgorithm, headerAlgorithm: DkimCanonicalizationAlgorithm, bodyAlgorithm: DkimCanonicalizationAlgorithm, d: String, s: String, q: String, headers: [String], bh: String, b: String, maxLength: Int) {
+        let common = try validateCommonParameters(header: header, parameters: parameters)
+
+        let maxLength: Int
+        if let l = parameters["l"], let value = Int(l), value >= 0 {
+            maxLength = value
+        } else if parameters["l"] != nil {
+            throw DkimVerifierError.malformedHeader("Malformed \(header) header: invalid length parameter.")
+        } else {
+            maxLength = -1
+        }
+
+        let headerAlgorithm: DkimCanonicalizationAlgorithm
+        let bodyAlgorithm: DkimCanonicalizationAlgorithm
+
+        if let c = parameters["c"] {
+            let tokens = c.lowercased().split(separator: "/")
+            guard tokens.count >= 1 && tokens.count <= 2 else {
+                throw DkimVerifierError.malformedHeader("Malformed \(header) header: invalid canonicalization parameter: c=\(c)")
+            }
+
+            switch tokens[0] {
+            case "relaxed":
+                headerAlgorithm = .relaxed
+            case "simple":
+                headerAlgorithm = .simple
+            default:
+                throw DkimVerifierError.malformedHeader("Malformed \(header) header: invalid canonicalization parameter: c=\(c)")
+            }
+
+            if tokens.count == 2 {
+                switch tokens[1] {
+                case "relaxed":
+                    bodyAlgorithm = .relaxed
+                case "simple":
+                    bodyAlgorithm = .simple
+                default:
+                    throw DkimVerifierError.malformedHeader("Malformed \(header) header: invalid canonicalization parameter: c=\(c)")
+                }
+            } else {
+                bodyAlgorithm = .simple
+            }
+        } else {
+            headerAlgorithm = .simple
+            bodyAlgorithm = .simple
+        }
+
+        guard let h = parameters["h"] else {
+            throw DkimVerifierError.malformedHeader("Malformed \(header) header: no signed header parameter detected.")
+        }
+
+        let headers = h.split(separator: ":").map { String($0) }
+
+        guard let bh = parameters["bh"] else {
+            throw DkimVerifierError.malformedHeader("Malformed \(header) header: no body hash parameter detected.")
+        }
+
+        return (common.algorithm, headerAlgorithm, bodyAlgorithm, common.d, common.s, common.q, headers, bh, common.b, maxLength)
+    }
+
+    internal static func getSignedSignatureHeader(_ header: Header) throws -> Header {
+        var rawValue = header.rawValue
+        var length = 0
+        var index = 0
+
+        while index < rawValue.count {
+            while index < rawValue.count && ByteClassification.isWhitespace(rawValue[index]) {
+                index += 1
+            }
+
+            if index + 2 < rawValue.count {
+                let param = rawValue[index]
+                index += 1
+
+                while index < rawValue.count && ByteClassification.isWhitespace(rawValue[index]) {
+                    index += 1
+                }
+
+                if index < rawValue.count && rawValue[index] == UInt8(ascii: "=") && param == UInt8(ascii: "b") {
+                    length = index + 1
+                    index += 1
+
+                    while index < rawValue.count && rawValue[index] != UInt8(ascii: ";") {
+                        index += 1
+                    }
+
+                    if index == rawValue.count && rawValue[index - 1] == UInt8(ascii: "\n") {
+                        index -= 1
+                        if index > 0 && rawValue[index - 1] == UInt8(ascii: "\r") {
+                            index -= 1
+                        }
+                    }
+                    break
+                }
+            }
+
+            while index < rawValue.count && rawValue[index] != UInt8(ascii: ";") {
+                index += 1
+            }
+
+            if index < rawValue.count {
+                index += 1
+            }
+        }
+
+        if index == rawValue.count {
+            throw DkimVerifierError.malformedHeader("Malformed \(header.field) header: missing signature parameter.")
+        }
+
+        while index < rawValue.count {
+            rawValue[length] = rawValue[index]
+            length += 1
+            index += 1
+        }
+
+        rawValue.removeLast(rawValue.count - length)
+
+        return Header(header.options, header.id, header.field, rawValue)
+    }
+
+    internal static func verifyBodyHash(options: FormatOptions, message: MimeMessage, signatureAlgorithm: DkimSignatureAlgorithm, canonicalizationAlgorithm: DkimCanonicalizationAlgorithm, maxLength: Int, bodyHash: String) throws -> Bool {
+        let hash = try message.hashBody(options, signatureAlgorithm: signatureAlgorithm, bodyCanonicalization: canonicalizationAlgorithm, maxLength: maxLength)
+        let computed = Data(hash).base64EncodedString()
+        return computed == bodyHash
+    }
+
+    internal func verifySignature(options: FormatOptions, message: MimeMessage, dkimSignature: Header, signatureAlgorithm: DkimSignatureAlgorithm, key: DkimPublicKey, headers: [String], canonicalizationAlgorithm: DkimCanonicalizationAlgorithm, signature: String) throws -> Bool {
+        let context = try createVerifyContext(signatureAlgorithm, key: key)
+        let stream = try DkimSignatureStream(context)
+        let filtered = try FilteredStream(stream)
+        try filtered.add(options.createNewLineFilter(false))
+
+        try DkimVerifierBase.writeHeaders(options: options, message: message, fields: headers, canonicalization: canonicalizationAlgorithm, stream: filtered)
+
+        let signedHeader = try DkimVerifierBase.getSignedSignatureHeader(dkimSignature)
+        switch canonicalizationAlgorithm {
+        case .relaxed:
+            try DkimVerifierBase.writeHeaderRelaxed(options: options, stream: filtered, header: signedHeader, isDkimSignature: true)
+        case .simple:
+            try DkimVerifierBase.writeHeaderSimple(options: options, stream: filtered, header: signedHeader, isDkimSignature: true)
+        }
+
+        try filtered.flush()
+        return try stream.verifySignature(signature)
+    }
+
+    internal func createVerifyContext(_ algorithm: DkimSignatureAlgorithm, key: DkimPublicKey) throws -> DkimSignatureContext {
+        switch algorithm {
+        case .rsaSha1, .rsaSha256:
+            guard case .rsa(let publicKey) = key else {
+                throw DkimVerifierError.invalidKey
+            }
+            return DkimRsaVerifyContext(key: publicKey, algorithm: algorithm)
+        case .ed25519Sha256:
+            guard case .ed25519(let publicKey) = key else {
+                throw DkimVerifierError.invalidKey
+            }
+            return DkimEd25519VerifyContext(key: publicKey)
+        }
+    }
+}
+
+private extension DkimSignatureAlgorithm {
+    var bitIndex: Int {
+        switch self {
+        case .rsaSha1:
+            return 0
+        case .rsaSha256:
+            return 1
+        case .ed25519Sha256:
+            return 2
         }
     }
 }

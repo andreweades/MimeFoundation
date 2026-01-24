@@ -55,6 +55,8 @@ open class MimeEntity {
     public let headers: HeaderList
     public let options: ParserOptions
 
+    internal var ensureNewLine: Bool = false
+
     private var contentTypeStorage: ContentType
     private var contentDispositionCache: ContentDisposition?
     private var contentDispositionLoaded = false
@@ -411,7 +413,9 @@ open class MimeEntity {
     }
 
     internal func writeHeaders(_ options: FormatOptions, stream: MimeStream) throws {
-        var text = headers.toString(options, encode: true)
+        var headerOptions = options
+        headerOptions.ensureNewLine = false
+        var text = headers.toString(headerOptions, encode: true)
         text.append(options.newLine)
         text.append(options.newLine)
         let bytes = Array(text.utf8)

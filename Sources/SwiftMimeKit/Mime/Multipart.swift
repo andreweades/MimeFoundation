@@ -24,6 +24,7 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
     private var preambleStorage: String?
     private var epilogueStorage: String?
     private var writeEndBoundaryStorage: Bool = true
+    internal var rawBody: [UInt8]? = nil
 
     public var rawEndBoundary: [UInt8]? {
         didSet {
@@ -61,6 +62,7 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
     public var preamble: String? {
         get { preambleStorage }
         set {
+            rawBody = nil
             if let value = newValue {
                 preambleStorage = Multipart.foldPreambleOrEpilogue(.default, value, isEpilogue: false)
             } else {
@@ -72,6 +74,7 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
     public var epilogue: String? {
         get { epilogueStorage }
         set {
+            rawBody = nil
             if let value = newValue {
                 epilogueStorage = Multipart.foldPreambleOrEpilogue(.default, value, isEpilogue: true)
                 writeEndBoundaryStorage = true
@@ -114,6 +117,7 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
         guard let value else {
             throw MultipartError.nilBoundary
         }
+        rawBody = nil
         contentType.boundary = value
     }
 
@@ -121,6 +125,7 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
         guard let entity else {
             throw MultipartError.nilEntity
         }
+        rawBody = nil
         children.append(entity)
     }
 
@@ -131,6 +136,7 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
         guard index >= 0 && index <= children.count else {
             throw MultipartError.indexOutOfRange
         }
+        rawBody = nil
         children.insert(entity, at: index)
     }
 
@@ -150,6 +156,7 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
         guard index >= 0 && index < children.count else {
             throw MultipartError.indexOutOfRange
         }
+        rawBody = nil
         children.remove(at: index)
     }
 
@@ -178,6 +185,7 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
     }
 
     public func clear() {
+        rawBody = nil
         children.removeAll(keepingCapacity: true)
     }
 
