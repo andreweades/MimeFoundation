@@ -111,13 +111,13 @@ Notes:
 - ✅ FilterTests
 
 ## Text Converters
-- ⬜️ FlowedToHtmlTests
-- ⬜️ FlowedToTextTests
-- ⬜️ HtmlToHtmlTests
-- ⬜️ HtmlToTextTests
-- ⬜️ TextToFlowedTests
-- ⬜️ TextToHtmlTests
-- ⬜️ TextToTextTests
+- ✅ FlowedToHtmlTests
+- ✅ FlowedToTextTests
+- ✅ HtmlToHtmlTests
+- ⬜️ HtmlToTextTests (not present in current upstream MimeKit)
+- ✅ TextToFlowedTests
+- ✅ TextToHtmlTests
+- ✅ TextToTextTests
 
 ## TNEF
 - ⬜️ TnefReaderTests
