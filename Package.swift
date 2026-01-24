@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "SwiftMimeKit",
+    name: "MimeFoundation",
     platforms: [
         .macOS(.v10_15),
         .iOS(.v13),
@@ -15,8 +15,8 @@ let package = Package(
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
-            name: "SwiftMimeKit",
-            targets: ["SwiftMimeKit"]
+            name: "MimeFoundation",
+            targets: ["MimeFoundation"]
         ),
     ],
     dependencies: [
@@ -26,18 +26,23 @@ let package = Package(
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "SwiftMimeKit",
+            name: "MimeFoundation",
             dependencies: [
                 .product(name: "Crypto", package: "swift-crypto"),
                 .product(name: "_CryptoExtras", package: "swift-crypto")
             ]
         ),
         .testTarget(
-            name: "SwiftMimeKitTests",
-            dependencies: ["SwiftMimeKit"],
+            name: "MimeFoundationTests",
+            dependencies: ["MimeFoundation"],
             resources: [
                 .copy("TestData")
             ]
+        ),
+        .executableTarget(
+            name: "Benchmarks",
+            dependencies: ["MimeFoundation"],
+            path: "Benchmarks/Sources"
         ),
     ]
 )

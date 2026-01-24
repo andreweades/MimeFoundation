@@ -1,4 +1,4 @@
-# SwiftMimeKit Porting Status
+# MimeFoundation Porting Status
 
 Legend: ✅ done, 🟡 partial, ⬜️ not started
 
@@ -123,7 +123,7 @@ Notes:
 - ⬜️ TnefTests
 
 ## Cryptography
-- 🟡 AuthenticationResultsTests
+- ✅ AuthenticationResultsTests
 - ✅ DkimRelaxedBodyFilterTests
 - ✅ DkimHashStreamTests
 - ✅ DkimSignatureStreamTests
