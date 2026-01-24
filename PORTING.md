@@ -56,9 +56,9 @@ Notes:
 ## Format/Parser
 - ✅ FormatOptionsTests
 - ✅ ParserOptionsTests
-- 🟡 ArgumentExceptionTests
-- 🟡 ExceptionTests
-- 🟡 AssortedTests
+- ✅ ArgumentExceptionTests
+- ✅ ExceptionTests
+- ✅ AssortedTests
 
 ## Parameters & Types
 - ✅ ParameterTests
