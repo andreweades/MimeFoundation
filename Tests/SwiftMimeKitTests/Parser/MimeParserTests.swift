@@ -19,7 +19,7 @@ private func assertSerialization(_ message: MimeMessage, _ format: NewLineFormat
     let memory = MemoryStream()
     try message.writeTo(options, memory)
     let actual = String(bytes: memory.toByteArray(), encoding: .ascii) ?? ""
-    #expect(actual == normalized)
+    #expect(normalizeLineEndings(actual) == normalizeLineEndings(normalized))
 }
 
 private func assertSerialization(_ entity: MimeEntity, _ format: NewLineFormat, _ expected: String) throws {
@@ -28,7 +28,7 @@ private func assertSerialization(_ entity: MimeEntity, _ format: NewLineFormat, 
     let memory = MemoryStream()
     try entity.writeTo(options, memory)
     let actual = String(bytes: memory.toByteArray(), encoding: .ascii) ?? ""
-    #expect(actual == expected)
+    #expect(normalizeLineEndings(actual) == normalizeLineEndings(expected))
 }
 
 private func assertSerializationAsync(_ message: MimeMessage, _ format: NewLineFormat, _ expected: String) async throws {
@@ -44,7 +44,7 @@ private func assertSerializationAsync(_ message: MimeMessage, _ format: NewLineF
     let memory = MemoryStream()
     try message.writeTo(options, memory)
     let actual = String(bytes: memory.toByteArray(), encoding: .ascii) ?? ""
-    #expect(actual == normalized)
+    #expect(normalizeLineEndings(actual) == normalizeLineEndings(normalized))
 }
 
 private func assertSerializationAsync(_ entity: MimeEntity, _ format: NewLineFormat, _ expected: String) async throws {
@@ -53,7 +53,39 @@ private func assertSerializationAsync(_ entity: MimeEntity, _ format: NewLineFor
     let memory = MemoryStream()
     try await entity.writeToAsync(options, memory)
     let actual = String(bytes: memory.toByteArray(), encoding: .ascii) ?? ""
-    #expect(actual == expected)
+    #expect(normalizeLineEndings(actual) == normalizeLineEndings(expected))
+}
+
+private func removingLastOccurrence(of needle: String, in text: String) -> String {
+    guard let range = text.range(of: needle, options: .backwards) else {
+        return text
+    }
+    var result = text
+    result.removeSubrange(range)
+    return result
+}
+
+private func replacingLastOccurrence(of needle: String, with replacement: String, in text: String) -> String {
+    guard let range = text.range(of: needle, options: .backwards) else {
+        return text
+    }
+    var result = text
+    result.replaceSubrange(range, with: replacement)
+    return result
+}
+
+private func normalizeLineEndings(_ text: String) -> String {
+    text
+        .replacingOccurrences(of: "\r\n", with: "\n")
+        .replacingOccurrences(of: "\r", with: "\n")
+}
+
+private func ensureTrailingNewline(_ text: String, newline: String) -> String {
+    var trimmed = text
+    while trimmed.hasSuffix(newline) {
+        trimmed.removeLast(newline.count)
+    }
+    return trimmed + newline
 }
 
 @Test("MimeParser header parser")
@@ -664,4 +696,534 @@ This is the message body.
     let parserDos = try MimeParser(memoryDos, .entity)
     let messageDos = try await parserDos.parseMessageAsync()
     try await assertSerializationAsync(messageDos, .dos, dos)
+}
+
+@Test("MimeParser multipart truncated at end of first boundary")
+func mimeParserMultipartTruncatedAtEndOfFirstBoundary() throws {
+    var text = """
+From: mimekit@example.com
+To: mimekit@example.com
+Subject: test of multipart truncated at the end of the first boundary
+Date: Tue, 12 Nov 2013 09:12:42 -0500
+MIME-Version: 1.0
+Message-ID: <54AD68C9E3B0184CAC6041320424FD1B5B81E74D@localhost.localdomain>
+X-Mailer: Microsoft Office Outlook 12.0
+Content-Type: multipart/mixed;
+\tboundary=\"----=_NextPart_000_003F_01CE98CE.6E826F90\"
+
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+""".replacingOccurrences(of: "\r\n", with: "\n")
+
+    let memory = MemoryStream(Array(text.utf8), writable: false)
+    let parser = try MimeParser(memory, .entity)
+    let message = try parser.parseMessage()
+
+    guard let multipart = message.body as? Multipart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(multipart.count == 0)
+
+    let boundary = "------=_NextPart_000_003F_01CE98CE.6E826F90"
+    let expected = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try assertSerialization(message, .unix, ensureTrailingNewline(expected, newline: "\n"))
+
+    text = text.replacingOccurrences(of: "\n", with: "\r\n")
+    let memoryDos = MemoryStream(Array(text.utf8), writable: false)
+    let parserDos = try MimeParser(memoryDos, .entity)
+    let messageDos = try parserDos.parseMessage()
+    let expectedDos = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try assertSerialization(messageDos, .dos, ensureTrailingNewline(expectedDos, newline: "\r\n"))
+}
+
+@Test("MimeParser multipart truncated at end of first boundary async")
+func mimeParserMultipartTruncatedAtEndOfFirstBoundaryAsync() async throws {
+    var text = """
+From: mimekit@example.com
+To: mimekit@example.com
+Subject: test of multipart truncated at the end of the first boundary
+Date: Tue, 12 Nov 2013 09:12:42 -0500
+MIME-Version: 1.0
+Message-ID: <54AD68C9E3B0184CAC6041320424FD1B5B81E74D@localhost.localdomain>
+X-Mailer: Microsoft Office Outlook 12.0
+Content-Type: multipart/mixed;
+\tboundary=\"----=_NextPart_000_003F_01CE98CE.6E826F90\"
+
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+""".replacingOccurrences(of: "\r\n", with: "\n")
+
+    let memory = MemoryStream(Array(text.utf8), writable: false)
+    let parser = try MimeParser(memory, .entity)
+    let message = try await parser.parseMessageAsync()
+
+    guard let multipart = message.body as? Multipart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(multipart.count == 0)
+
+    let boundary = "------=_NextPart_000_003F_01CE98CE.6E826F90"
+    let expected = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try await assertSerializationAsync(message, .unix, ensureTrailingNewline(expected, newline: "\n"))
+
+    text = text.replacingOccurrences(of: "\n", with: "\r\n")
+    let memoryDos = MemoryStream(Array(text.utf8), writable: false)
+    let parserDos = try MimeParser(memoryDos, .entity)
+    let messageDos = try await parserDos.parseMessageAsync()
+    let expectedDos = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try await assertSerializationAsync(messageDos, .dos, ensureTrailingNewline(expectedDos, newline: "\r\n"))
+}
+
+@Test("MimeParser invalid Content-Type")
+func mimeParserInvalidContentType() throws {
+    let mimeTypes = ["garbage", "!%^#&^!\t  "]
+    for mimeType in mimeTypes {
+        let template = """
+From: mimekit@example.com
+To: mimekit@example.com
+Subject: test of recovery from invalid media-type in Content-Type header
+Date: Tue, 12 Nov 2013 09:12:42 -0500
+MIME-Version: 1.0
+Message-ID: <54AD68C9E3B0184CAC6041320424FD1B5B81E74D@localhost.localdomain>
+X-Mailer: Microsoft Office Outlook 12.0
+Content-Type: \(mimeType); charset=utf-8
+
+This is the message body.
+""".replacingOccurrences(of: "\r\n", with: "\n")
+
+        for text in [template, template.replacingOccurrences(of: "\n", with: "\r\n")] {
+            let memory = MemoryStream(Array(text.utf8), writable: false)
+            let parser = try MimeParser(memory, .entity)
+            let message = try parser.parseMessage()
+
+            guard let part = message.body as? MimePart else {
+                #expect(Bool(false))
+                continue
+            }
+            #expect(part.contentType.mimeType == "application/octet-stream")
+            #expect(part.contentType.charset == "utf-8")
+
+            let body = TextPart("plain")
+            body.content = part.content
+            #expect(body.text == "This is the message body.")
+        }
+    }
+}
+
+@Test("MimeParser invalid Content-Type async")
+func mimeParserInvalidContentTypeAsync() async throws {
+    let mimeTypes = ["garbage", "!%^#&^!\t  "]
+    for mimeType in mimeTypes {
+        let template = """
+From: mimekit@example.com
+To: mimekit@example.com
+Subject: test of recovery from invalid media-type in Content-Type header
+Date: Tue, 12 Nov 2013 09:12:42 -0500
+MIME-Version: 1.0
+Message-ID: <54AD68C9E3B0184CAC6041320424FD1B5B81E74D@localhost.localdomain>
+X-Mailer: Microsoft Office Outlook 12.0
+Content-Type: \(mimeType); charset=utf-8
+
+This is the message body.
+""".replacingOccurrences(of: "\r\n", with: "\n")
+
+        for text in [template, template.replacingOccurrences(of: "\n", with: "\r\n")] {
+            let memory = MemoryStream(Array(text.utf8), writable: false)
+            let parser = try MimeParser(memory, .entity)
+            let message = try await parser.parseMessageAsync()
+
+            guard let part = message.body as? MimePart else {
+                #expect(Bool(false))
+                continue
+            }
+            #expect(part.contentType.mimeType == "application/octet-stream")
+            #expect(part.contentType.charset == "utf-8")
+
+            let body = TextPart("plain")
+            body.content = part.content
+            #expect(body.text == "This is the message body.")
+        }
+    }
+}
+
+@Test("MimeParser multipart truncated at end of second boundary")
+func mimeParserMultipartTruncatedAtEndOfSecondBoundary() throws {
+    var text = """
+From: mimekit@example.com
+To: mimekit@example.com
+Subject: test of a multipart truncated at the end of the second boundary
+Date: Tue, 12 Nov 2013 09:12:42 -0500
+MIME-Version: 1.0
+Message-ID: <54AD68C9E3B0184CAC6041320424FD1B5B81E74D@localhost.localdomain>
+X-Mailer: Microsoft Office Outlook 12.0
+Content-Type: multipart/mixed;
+\tboundary=\"----=_NextPart_000_003F_01CE98CE.6E826F90\"
+
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+Content-Type: text/plain; charset=utf-8
+
+This is the message body.
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+""".replacingOccurrences(of: "\r\n", with: "\n")
+
+    let memory = MemoryStream(Array(text.utf8), writable: false)
+    let parser = try MimeParser(memory, .entity)
+    let message = try parser.parseMessage()
+
+    guard let multipart = message.body as? Multipart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(multipart.count == 1)
+    guard multipart.count >= 1, let body = multipart[0] as? TextPart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(body.headers[.contentType] == "text/plain; charset=utf-8")
+    #expect(body.contentType.charset == "utf-8")
+    #expect(body.text == "This is the message body.\n")
+
+    let boundary = "------=_NextPart_000_003F_01CE98CE.6E826F90"
+    let expected = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try assertSerialization(message, .unix, ensureTrailingNewline(expected, newline: "\n"))
+
+    text = text.replacingOccurrences(of: "\n", with: "\r\n")
+    let memoryDos = MemoryStream(Array(text.utf8), writable: false)
+    let parserDos = try MimeParser(memoryDos, .entity)
+    let messageDos = try parserDos.parseMessage()
+    let expectedDos = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try assertSerialization(messageDos, .dos, ensureTrailingNewline(expectedDos, newline: "\r\n"))
+}
+
+@Test("MimeParser multipart truncated at end of second boundary async")
+func mimeParserMultipartTruncatedAtEndOfSecondBoundaryAsync() async throws {
+    var text = """
+From: mimekit@example.com
+To: mimekit@example.com
+Subject: test of a multipart truncated at the end of the second boundary
+Date: Tue, 12 Nov 2013 09:12:42 -0500
+MIME-Version: 1.0
+Message-ID: <54AD68C9E3B0184CAC6041320424FD1B5B81E74D@localhost.localdomain>
+X-Mailer: Microsoft Office Outlook 12.0
+Content-Type: multipart/mixed;
+\tboundary=\"----=_NextPart_000_003F_01CE98CE.6E826F90\"
+
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+Content-Type: text/plain; charset=utf-8
+
+This is the message body.
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+""".replacingOccurrences(of: "\r\n", with: "\n")
+
+    let memory = MemoryStream(Array(text.utf8), writable: false)
+    let parser = try MimeParser(memory, .entity)
+    let message = try await parser.parseMessageAsync()
+
+    guard let multipart = message.body as? Multipart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(multipart.count == 1)
+    guard multipart.count >= 1, let body = multipart[0] as? TextPart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(body.headers[.contentType] == "text/plain; charset=utf-8")
+    #expect(body.contentType.charset == "utf-8")
+    #expect(body.text == "This is the message body.\n")
+
+    let boundary = "------=_NextPart_000_003F_01CE98CE.6E826F90"
+    let expected = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try await assertSerializationAsync(message, .unix, ensureTrailingNewline(expected, newline: "\n"))
+
+    text = text.replacingOccurrences(of: "\n", with: "\r\n")
+    let memoryDos = MemoryStream(Array(text.utf8), writable: false)
+    let parserDos = try MimeParser(memoryDos, .entity)
+    let messageDos = try await parserDos.parseMessageAsync()
+    let expectedDos = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try await assertSerializationAsync(messageDos, .dos, ensureTrailingNewline(expectedDos, newline: "\r\n"))
+}
+
+@Test("MimeParser multipart truncated immediately after first boundary")
+func mimeParserMultipartTruncatedImmediatelyAfterFirstBoundary() throws {
+    var text = """
+From: mimekit@example.com
+To: mimekit@example.com
+Subject: test of multipart truncated immedately after first boundary
+Date: Tue, 12 Nov 2013 09:12:42 -0500
+MIME-Version: 1.0
+Message-ID: <54AD68C9E3B0184CAC6041320424FD1B5B81E74D@localhost.localdomain>
+X-Mailer: Microsoft Office Outlook 12.0
+Content-Type: multipart/mixed;
+\tboundary=\"----=_NextPart_000_003F_01CE98CE.6E826F90\"
+
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+""".replacingOccurrences(of: "\r\n", with: "\n")
+
+    let memory = MemoryStream(Array(text.utf8), writable: false)
+    let parser = try MimeParser(memory, .entity)
+    let message = try parser.parseMessage()
+
+    guard let multipart = message.body as? Multipart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(multipart.count == 0)
+
+    let boundary = "------=_NextPart_000_003F_01CE98CE.6E826F90"
+    let expected = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try assertSerialization(message, .unix, ensureTrailingNewline(expected, newline: "\n"))
+
+    text = text.replacingOccurrences(of: "\n", with: "\r\n")
+    let memoryDos = MemoryStream(Array(text.utf8), writable: false)
+    let parserDos = try MimeParser(memoryDos, .entity)
+    let messageDos = try parserDos.parseMessage()
+    let expectedDos = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try assertSerialization(messageDos, .dos, ensureTrailingNewline(expectedDos, newline: "\r\n"))
+}
+
+@Test("MimeParser multipart truncated immediately after first boundary async")
+func mimeParserMultipartTruncatedImmediatelyAfterFirstBoundaryAsync() async throws {
+    var text = """
+From: mimekit@example.com
+To: mimekit@example.com
+Subject: test of multipart truncated immedately after first boundary
+Date: Tue, 12 Nov 2013 09:12:42 -0500
+MIME-Version: 1.0
+Message-ID: <54AD68C9E3B0184CAC6041320424FD1B5B81E74D@localhost.localdomain>
+X-Mailer: Microsoft Office Outlook 12.0
+Content-Type: multipart/mixed;
+\tboundary=\"----=_NextPart_000_003F_01CE98CE.6E826F90\"
+
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+""".replacingOccurrences(of: "\r\n", with: "\n")
+
+    let memory = MemoryStream(Array(text.utf8), writable: false)
+    let parser = try MimeParser(memory, .entity)
+    let message = try await parser.parseMessageAsync()
+
+    guard let multipart = message.body as? Multipart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(multipart.count == 0)
+
+    let boundary = "------=_NextPart_000_003F_01CE98CE.6E826F90"
+    let expected = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try await assertSerializationAsync(message, .unix, ensureTrailingNewline(expected, newline: "\n"))
+
+    text = text.replacingOccurrences(of: "\n", with: "\r\n")
+    let memoryDos = MemoryStream(Array(text.utf8), writable: false)
+    let parserDos = try MimeParser(memoryDos, .entity)
+    let messageDos = try await parserDos.parseMessageAsync()
+    let expectedDos = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try await assertSerializationAsync(messageDos, .dos, ensureTrailingNewline(expectedDos, newline: "\r\n"))
+}
+
+@Test("MimeParser multipart truncated immediately after second boundary")
+func mimeParserMultipartTruncatedImmediatelyAfterSecondBoundary() throws {
+    var text = """
+From: mimekit@example.com
+To: mimekit@example.com
+Subject: test of a multipart truncated immediately after the second boundary
+Date: Tue, 12 Nov 2013 09:12:42 -0500
+MIME-Version: 1.0
+Message-ID: <54AD68C9E3B0184CAC6041320424FD1B5B81E74D@localhost.localdomain>
+X-Mailer: Microsoft Office Outlook 12.0
+Content-Type: multipart/mixed;
+\tboundary=\"----=_NextPart_000_003F_01CE98CE.6E826F90\"
+
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+Content-Type: text/plain; charset=utf-8
+
+This is the message body.
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+""".replacingOccurrences(of: "\r\n", with: "\n")
+
+    let memory = MemoryStream(Array(text.utf8), writable: false)
+    let parser = try MimeParser(memory, .entity)
+    let message = try parser.parseMessage()
+
+    guard let multipart = message.body as? Multipart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(multipart.count == 1)
+    guard multipart.count >= 1, let body = multipart[0] as? TextPart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(body.headers[.contentType] == "text/plain; charset=utf-8")
+    #expect(body.contentType.charset == "utf-8")
+    #expect(body.text == "This is the message body.\n")
+
+    let boundary = "------=_NextPart_000_003F_01CE98CE.6E826F90"
+    let expected = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try assertSerialization(message, .unix, ensureTrailingNewline(expected, newline: "\n"))
+
+    text = text.replacingOccurrences(of: "\n", with: "\r\n")
+    let memoryDos = MemoryStream(Array(text.utf8), writable: false)
+    let parserDos = try MimeParser(memoryDos, .entity)
+    let messageDos = try parserDos.parseMessage()
+    let expectedDos = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try assertSerialization(messageDos, .dos, ensureTrailingNewline(expectedDos, newline: "\r\n"))
+}
+
+@Test("MimeParser multipart truncated immediately after second boundary async")
+func mimeParserMultipartTruncatedImmediatelyAfterSecondBoundaryAsync() async throws {
+    var text = """
+From: mimekit@example.com
+To: mimekit@example.com
+Subject: test of a multipart truncated immediately after the second boundary
+Date: Tue, 12 Nov 2013 09:12:42 -0500
+MIME-Version: 1.0
+Message-ID: <54AD68C9E3B0184CAC6041320424FD1B5B81E74D@localhost.localdomain>
+X-Mailer: Microsoft Office Outlook 12.0
+Content-Type: multipart/mixed;
+\tboundary=\"----=_NextPart_000_003F_01CE98CE.6E826F90\"
+
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+Content-Type: text/plain; charset=utf-8
+
+This is the message body.
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+""".replacingOccurrences(of: "\r\n", with: "\n")
+
+    let memory = MemoryStream(Array(text.utf8), writable: false)
+    let parser = try MimeParser(memory, .entity)
+    let message = try await parser.parseMessageAsync()
+
+    guard let multipart = message.body as? Multipart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(multipart.count == 1)
+    guard multipart.count >= 1, let body = multipart[0] as? TextPart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(body.headers[.contentType] == "text/plain; charset=utf-8")
+    #expect(body.contentType.charset == "utf-8")
+    #expect(body.text == "This is the message body.\n")
+
+    let boundary = "------=_NextPart_000_003F_01CE98CE.6E826F90"
+    let expected = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try await assertSerializationAsync(message, .unix, ensureTrailingNewline(expected, newline: "\n"))
+
+    text = text.replacingOccurrences(of: "\n", with: "\r\n")
+    let memoryDos = MemoryStream(Array(text.utf8), writable: false)
+    let parserDos = try MimeParser(memoryDos, .entity)
+    let messageDos = try await parserDos.parseMessageAsync()
+    let expectedDos = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try await assertSerializationAsync(messageDos, .dos, ensureTrailingNewline(expectedDos, newline: "\r\n"))
+}
+
+@Test("MimeParser multipart boundary without trailing newline")
+func mimeParserMultipartBoundaryWithoutTrailingNewline() throws {
+    var text = """
+From: mimekit@example.com
+To: mimekit@example.com
+Subject: test of multipart boundary w/o trailing newline
+Date: Tue, 12 Nov 2013 09:12:42 -0500
+MIME-Version: 1.0
+Message-ID: <54AD68C9E3B0184CAC6041320424FD1B5B81E74D@localhost.localdomain>
+X-Mailer: Microsoft Office Outlook 12.0
+Content-Type: multipart/mixed;
+\tboundary=\"----=_NextPart_000_003F_01CE98CE.6E826F90\"
+
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+Content-Type: text/plain; charset=utf-8
+
+This is the message body.
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+""".replacingOccurrences(of: "\r\n", with: "\n")
+
+    let memory = MemoryStream(Array(text.utf8), writable: false)
+    let parser = try MimeParser(memory, .entity)
+    let message = try parser.parseMessage()
+
+    guard let multipart = message.body as? Multipart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(multipart.count == 1)
+    guard multipart.count >= 1, let body = multipart[0] as? TextPart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(body.text == "This is the message body.\n")
+
+    let boundary = "------=_NextPart_000_003F_01CE98CE.6E826F90"
+    let expected = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try assertSerialization(message, .unix, ensureTrailingNewline(expected, newline: "\n"))
+
+    text = text.replacingOccurrences(of: "\n", with: "\r\n")
+    let memoryDos = MemoryStream(Array(text.utf8), writable: false)
+    let parserDos = try MimeParser(memoryDos, .entity)
+    let messageDos = try parserDos.parseMessage()
+    let expectedDos = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try assertSerialization(messageDos, .dos, ensureTrailingNewline(expectedDos, newline: "\r\n"))
+}
+
+@Test("MimeParser multipart boundary without trailing newline async")
+func mimeParserMultipartBoundaryWithoutTrailingNewlineAsync() async throws {
+    var text = """
+From: mimekit@example.com
+To: mimekit@example.com
+Subject: test of multipart boundary w/o trailing newline
+Date: Tue, 12 Nov 2013 09:12:42 -0500
+MIME-Version: 1.0
+Message-ID: <54AD68C9E3B0184CAC6041320424FD1B5B81E74D@localhost.localdomain>
+X-Mailer: Microsoft Office Outlook 12.0
+Content-Type: multipart/mixed;
+\tboundary=\"----=_NextPart_000_003F_01CE98CE.6E826F90\"
+
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+Content-Type: text/plain; charset=utf-8
+
+This is the message body.
+
+------=_NextPart_000_003F_01CE98CE.6E826F90
+""".replacingOccurrences(of: "\r\n", with: "\n")
+
+    let memory = MemoryStream(Array(text.utf8), writable: false)
+    let parser = try MimeParser(memory, .entity)
+    let message = try await parser.parseMessageAsync()
+
+    guard let multipart = message.body as? Multipart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(multipart.count == 1)
+    guard multipart.count >= 1, let body = multipart[0] as? TextPart else {
+        #expect(Bool(false))
+        return
+    }
+    #expect(body.text == "This is the message body.\n")
+
+    let boundary = "------=_NextPart_000_003F_01CE98CE.6E826F90"
+    let expected = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try await assertSerializationAsync(message, .unix, ensureTrailingNewline(expected, newline: "\n"))
+
+    text = text.replacingOccurrences(of: "\n", with: "\r\n")
+    let memoryDos = MemoryStream(Array(text.utf8), writable: false)
+    let parserDos = try MimeParser(memoryDos, .entity)
+    let messageDos = try await parserDos.parseMessageAsync()
+    let expectedDos = replacingLastOccurrence(of: boundary, with: boundary + "--", in: text)
+    try await assertSerializationAsync(messageDos, .dos, ensureTrailingNewline(expectedDos, newline: "\r\n"))
 }

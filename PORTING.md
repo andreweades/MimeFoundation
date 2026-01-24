@@ -94,7 +94,7 @@ Notes:
 
 ## Parser/Reader
 - 🟡 MimeParserTests
-- ⬜️ ExperimentalMimeParserTests
+- 🟡 ExperimentalMimeParserTests
 - ✅ MimeReaderTests
 
 ## IO / Streams

@@ -408,10 +408,23 @@ public final class MimeMessage {
         }
 
         var contentType: ContentType? = nil
-        if let contentTypeValue = headers[.contentType] {
+        if let header = headers.tryGetHeader(.contentType) {
+            let value = header.value
             var parsed: ContentType? = nil
-            if ContentType.tryParse(contentTypeValue, contentType: &parsed) {
+            if ContentType.tryParse(value, contentType: &parsed) {
                 contentType = parsed
+            } else {
+                let fallback = try ContentType("application", "octet-stream")
+                let bytes = Array(value.utf8)
+                if let semiIndex = bytes.firstIndex(of: UInt8(ascii: ";")) {
+                    var index = semiIndex + 1
+                    var params: ParameterList?
+                    _ = try? ParameterList.tryParse(options, bytes, index: &index, endIndex: bytes.count, throwOnError: false, paramList: &params)
+                    if let params {
+                        fallback.parameters = params
+                    }
+                }
+                contentType = fallback
             }
         }
         if contentType == nil {
@@ -683,6 +696,7 @@ public final class MimeMessage {
         var epilogueLines: [String] = []
         var inPart = false
         var inEpilogue = false
+        var pendingEmptyPart = false
 
         let lines = normalized.split(separator: "\n", omittingEmptySubsequences: false)
         for rawLine in lines {
@@ -695,6 +709,7 @@ public final class MimeMessage {
                 } else {
                     inPart = true
                 }
+                pendingEmptyPart = true
                 continue
             }
             if line == endBoundaryLine {
@@ -705,18 +720,20 @@ public final class MimeMessage {
                 }
                 inPart = false
                 inEpilogue = true
+                pendingEmptyPart = false
                 continue
             }
             if inEpilogue {
                 epilogueLines.append(line)
             } else if inPart {
+                pendingEmptyPart = false
                 current.append(line)
             } else {
                 preambleLines.append(line)
             }
         }
 
-        if inPart && !current.isEmpty {
+        if inPart && (!current.isEmpty || pendingEmptyPart) {
             let partText = current.joined(separator: "\n")
             parts.append(Array(partText.utf8))
         }
