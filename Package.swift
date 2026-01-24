@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "MimeFoundation",
     platforms: [
-        .macOS(.v10_15),
+        .macOS(.v13),
         .iOS(.v13),
         .tvOS(.v13),
         .watchOS(.v6),
@@ -20,7 +20,8 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0")
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0"),
+        .package(url: "https://github.com/ordo-one/package-benchmark", from: "1.22.0")
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -40,9 +41,15 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "Benchmarks",
-            dependencies: ["MimeFoundation"],
-            path: "Benchmarks/Sources"
+            name: "MimeBenchmarks",
+            dependencies: [
+                "MimeFoundation",
+                .product(name: "Benchmark", package: "package-benchmark")
+            ],
+            path: "Benchmarks/MimeBenchmarks",
+            plugins: [
+                .plugin(name: "BenchmarkPlugin", package: "package-benchmark")
+            ]
         ),
     ]
 )
