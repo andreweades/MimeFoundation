@@ -126,6 +126,7 @@ Notes:
 - ✅ DkimRelaxedBodyFilterTests
 - ✅ DkimHashStreamTests
 - ✅ DkimSignatureStreamTests
+- ✅ DkimPublicKeyLocatorBaseTests
 - ⬜️ ArcSignerTests
 - ⬜️ ArcVerifierTests
 - ⬜️ DkimSignerTests
