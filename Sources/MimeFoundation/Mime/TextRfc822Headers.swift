@@ -11,13 +11,19 @@ public enum TextRfc822HeadersError: Error, Equatable {
 }
 
 public final class TextRfc822Headers: MessagePart {
+    private static var rfc822HeadersContentType: ContentType {
+        guard let ct = try? ContentType("text", "rfc822-headers") else {
+            preconditionFailure("Invalid static content type - this is a programming error")
+        }
+        return ct
+    }
+
     public override init(_ contentType: ContentType) {
         super.init(contentType)
     }
 
     public convenience init() {
-        let contentType = try! ContentType("text", "rfc822-headers")
-        self.init(contentType)
+        self.init(Self.rfc822HeadersContentType)
     }
 
     public convenience init(_ args: Any?...) throws {

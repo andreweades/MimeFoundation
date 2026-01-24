@@ -40,14 +40,8 @@ public final class Base64Decoder: MimeDecoder {
         return ((inputLength / 4) * 3) + 3
     }
 
-    public func decode(_ input: [UInt8]?, startIndex: Int, length: Int, output: inout [UInt8]?) throws -> Int {
+    public func decode(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
-        guard let input = input else {
-            throw MimeCodingError.inputNil
-        }
-        guard var outputBuffer = output else {
-            throw MimeCodingError.outputNil
-        }
 
         var outIndex = 0
         var index = startIndex
@@ -64,13 +58,13 @@ public final class Base64Decoder: MimeDecoder {
 
                 if bytes == 4 {
                     if (previous & 0x00FF0000) != (Int(0x3D) << 16) {
-                        outputBuffer[outIndex] = UInt8((saved >> 16) & 0xFF)
+                        output[outIndex] = UInt8((saved >> 16) & 0xFF)
                         outIndex += 1
                         if (previous & 0x0000FF00) != (Int(0x3D) << 8) {
-                            outputBuffer[outIndex] = UInt8((saved >> 8) & 0xFF)
+                            output[outIndex] = UInt8((saved >> 8) & 0xFF)
                             outIndex += 1
                             if (previous & 0x000000FF) != Int(0x3D) {
-                                outputBuffer[outIndex] = UInt8(saved & 0xFF)
+                                output[outIndex] = UInt8(saved & 0xFF)
                                 outIndex += 1
                             }
                         }
@@ -81,7 +75,6 @@ public final class Base64Decoder: MimeDecoder {
             }
         }
 
-        output = outputBuffer
         return outIndex
     }
 
@@ -91,18 +84,12 @@ public final class Base64Decoder: MimeDecoder {
         bytes = 0
     }
 
-    private func validateArguments(_ input: [UInt8]?, startIndex: Int, length: Int, output: [UInt8]?) throws {
-        guard let input = input else {
-            throw MimeCodingError.inputNil
-        }
+    private func validateArguments(_ input: [UInt8], startIndex: Int, length: Int, output: [UInt8]) throws {
         if startIndex < 0 || startIndex > input.count {
             throw MimeCodingError.startIndexOutOfRange
         }
         if length < 0 || length > (input.count - startIndex) {
             throw MimeCodingError.lengthOutOfRange
-        }
-        guard let output = output else {
-            throw MimeCodingError.outputNil
         }
         if output.count < estimateOutputLength(length) {
             throw MimeCodingError.outputTooSmall

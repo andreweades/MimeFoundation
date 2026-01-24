@@ -30,7 +30,11 @@ public final class MultipartRelated: Multipart {
     }
 
     public convenience init() {
-        try! self.init(args: [])
+        do {
+            try self.init(args: [])
+        } catch {
+            preconditionFailure("Failed to create multipart/related - this is a programming error")
+        }
     }
 
     public var root: MimeEntity? {

@@ -18,11 +18,10 @@ public final class DecoderFilter: MimeFilterBase {
     public override func filter(_ input: [UInt8], startIndex: Int, length: Int, outputIndex: inout Int, outputLength: inout Int, flush: Bool) -> [UInt8] {
         ensureOutputSize(decoder.estimateOutputLength(length), preserve: false)
         var output = self.output
-        var outputOptional: [UInt8]? = output
-        let written = (try? decoder.decode(input, startIndex: startIndex, length: length, output: &outputOptional)) ?? 0
+        let written = (try? decoder.decode(input, startIndex: startIndex, length: length, output: &output)) ?? 0
         outputIndex = 0
         outputLength = written
-        return outputOptional ?? output
+        return output
     }
 
     public override func reset() {

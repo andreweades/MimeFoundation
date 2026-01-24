@@ -10,6 +10,13 @@ public final class MessageFeedbackReport: MimePart {
     private var fieldsStorage: HeaderList
     private var fieldsLoaded = false
 
+    private static var feedbackReportContentType: ContentType {
+        guard let ct = try? ContentType("message", "feedback-report") else {
+            preconditionFailure("Invalid static content type - this is a programming error")
+        }
+        return ct
+    }
+
     public override init(_ contentType: ContentType) {
         self.fieldsStorage = HeaderList()
         super.init(contentType)
@@ -19,8 +26,7 @@ public final class MessageFeedbackReport: MimePart {
 
     public init() {
         self.fieldsStorage = HeaderList()
-        let contentType = try! ContentType("message", "feedback-report")
-        super.init(contentType)
+        super.init(Self.feedbackReportContentType)
         configureFields()
         fieldsLoaded = true
         updateContentFromFields()

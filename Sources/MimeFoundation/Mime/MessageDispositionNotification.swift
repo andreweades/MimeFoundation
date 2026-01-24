@@ -10,6 +10,13 @@ public final class MessageDispositionNotification: MimePart {
     private var fieldsStorage: HeaderList
     private var fieldsLoaded = false
 
+    private static var dispositionNotificationContentType: ContentType {
+        guard let ct = try? ContentType("message", "disposition-notification") else {
+            preconditionFailure("Invalid static content type - this is a programming error")
+        }
+        return ct
+    }
+
     public override init(_ contentType: ContentType) {
         self.fieldsStorage = HeaderList()
         super.init(contentType)
@@ -19,8 +26,7 @@ public final class MessageDispositionNotification: MimePart {
 
     public init() {
         self.fieldsStorage = HeaderList()
-        let contentType = try! ContentType("message", "disposition-notification")
-        super.init(contentType)
+        super.init(Self.dispositionNotificationContentType)
         configureFields()
         fieldsLoaded = true
         updateContentFromFields()

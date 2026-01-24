@@ -20,6 +20,13 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
     public typealias Element = MimeEntity
     public typealias Index = Int
 
+    private static var octetStreamContentType: ContentType {
+        guard let ct = try? ContentType("application", "octet-stream") else {
+            preconditionFailure("Invalid static content type - this is a programming error")
+        }
+        return ct
+    }
+
     private var attachments: [MimeEntity]
     private let linkedResources: Bool
     private let mimeTypes: MimeTypeRegistry
@@ -314,7 +321,7 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
                 return contentType
             }
         }
-        return try! ContentType("application", "octet-stream")
+        return Self.octetStreamContentType
     }
 
     private func looksLikeMessage(_ data: [UInt8]) -> Bool {

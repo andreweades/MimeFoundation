@@ -30,10 +30,8 @@ public final class UUEncoder: MimeEncoder {
         (((inputLength + 2) / UUEncoder.maxInputPerLine) * UUEncoder.maxOutputPerLine) + UUEncoder.maxOutputPerLine + 2
     }
 
-    public func encode(_ input: [UInt8]?, startIndex: Int, length: Int, output: inout [UInt8]?) throws -> Int {
+    public func encode(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
-        guard let input = input else { throw MimeCodingError.inputNil }
-        guard var outputBuffer = output else { throw MimeCodingError.outputNil }
 
         var outIndex = 0
         let end = startIndex + length
@@ -49,24 +47,20 @@ public final class UUEncoder: MimeEncoder {
                 uulen += 3
 
                 if uulen >= UUEncoder.maxInputPerLine {
-                    outIndex = flushLine(into: &outputBuffer, at: outIndex, lengthOverride: uulen)
+                    outIndex = flushLine(into: &output, at: outIndex, lengthOverride: uulen)
                 }
             }
         }
 
-        output = outputBuffer
         return outIndex
     }
 
-    public func flush(_ input: [UInt8]?, startIndex: Int, length: Int, output: inout [UInt8]?) throws -> Int {
+    public func flush(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
-        guard let input = input else { throw MimeCodingError.inputNil }
-        guard var outputBuffer = output else { throw MimeCodingError.outputNil }
 
         var outIndex = 0
         if length > 0 {
             outIndex = try encode(input, startIndex: startIndex, length: length, output: &output)
-            outputBuffer = output ?? outputBuffer
         }
 
         var uufill = 0
@@ -82,15 +76,14 @@ public final class UUEncoder: MimeEncoder {
 
         if uulen > 0 {
             let actualLength = uulen - uufill
-            outIndex = flushLine(into: &outputBuffer, at: outIndex, lengthOverride: actualLength)
+            outIndex = flushLine(into: &output, at: outIndex, lengthOverride: actualLength)
         }
 
-        outputBuffer[outIndex] = encodeLength(0)
-        outputBuffer[outIndex + 1] = 0x0A
+        output[outIndex] = encodeLength(0)
+        output[outIndex + 1] = 0x0A
         outIndex += 2
 
         reset()
-        output = outputBuffer
         return outIndex
     }
 
@@ -130,11 +123,9 @@ public final class UUEncoder: MimeEncoder {
         return encodeValue(value)
     }
 
-    private func validateArguments(_ input: [UInt8]?, startIndex: Int, length: Int, output: [UInt8]?) throws {
-        guard let input = input else { throw MimeCodingError.inputNil }
+    private func validateArguments(_ input: [UInt8], startIndex: Int, length: Int, output: [UInt8]) throws {
         if startIndex < 0 || startIndex > input.count { throw MimeCodingError.startIndexOutOfRange }
         if length < 0 || length > (input.count - startIndex) { throw MimeCodingError.lengthOutOfRange }
-        guard let output = output else { throw MimeCodingError.outputNil }
         if output.count < estimateOutputLength(length) { throw MimeCodingError.outputTooSmall }
     }
 }

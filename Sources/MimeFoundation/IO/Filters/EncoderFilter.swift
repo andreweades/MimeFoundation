@@ -18,21 +18,19 @@ public final class EncoderFilter: MimeFilterBase {
     public override func filter(_ input: [UInt8], startIndex: Int, length: Int, outputIndex: inout Int, outputLength: inout Int, flush: Bool) -> [UInt8] {
         ensureOutputSize(encoder.estimateOutputLength(length), preserve: false)
         var output = self.output
-        var outputOptional: [UInt8]? = output
-        let written = (try? encoder.encode(input, startIndex: startIndex, length: length, output: &outputOptional)) ?? 0
+        let written = (try? encoder.encode(input, startIndex: startIndex, length: length, output: &output)) ?? 0
         outputIndex = 0
         outputLength = written
-        return outputOptional ?? output
+        return output
     }
 
     public override func flush(_ input: [UInt8], startIndex: Int, length: Int, outputIndex: inout Int, outputLength: inout Int) -> [UInt8] {
         ensureOutputSize(encoder.estimateOutputLength(length) + 8, preserve: false)
         var output = self.output
-        var outputOptional: [UInt8]? = output
-        let written = (try? encoder.flush(input, startIndex: startIndex, length: length, output: &outputOptional)) ?? 0
+        let written = (try? encoder.flush(input, startIndex: startIndex, length: length, output: &output)) ?? 0
         outputIndex = 0
         outputLength = written
-        return outputOptional ?? output
+        return output
     }
 
     public override func reset() {

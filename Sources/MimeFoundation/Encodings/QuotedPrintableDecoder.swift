@@ -46,10 +46,8 @@ public final class QuotedPrintableDecoder: MimeDecoder {
         }
     }
 
-    public func decode(_ input: [UInt8]?, startIndex: Int, length: Int, output: inout [UInt8]?) throws -> Int {
+    public func decode(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
-        guard let input = input else { throw MimeCodingError.inputNil }
-        guard var outputBuffer = output else { throw MimeCodingError.outputNil }
 
         var outIndex = 0
         var index = startIndex
@@ -66,10 +64,10 @@ public final class QuotedPrintableDecoder: MimeDecoder {
                         state = .equalSign
                         break
                     } else if rfc2047 && c == 0x5F {
-                        outputBuffer[outIndex] = 0x20
+                        output[outIndex] = 0x20
                         outIndex += 1
                     } else {
-                        outputBuffer[outIndex] = c
+                        output[outIndex] = c
                         outIndex += 1
                     }
                 }
@@ -82,7 +80,7 @@ public final class QuotedPrintableDecoder: MimeDecoder {
                     state = .decodeByte
                     saved = c
                 } else if c == 0x3D {
-                    outputBuffer[outIndex] = 0x3D
+                    output[outIndex] = 0x3D
                     outIndex += 1
                 } else if c == 0x0D {
                     state = .softBreak
@@ -90,8 +88,8 @@ public final class QuotedPrintableDecoder: MimeDecoder {
                     state = .passThrough
                 } else {
                     state = .passThrough
-                    outputBuffer[outIndex] = 0x3D
-                    outputBuffer[outIndex + 1] = c
+                    output[outIndex] = 0x3D
+                    output[outIndex + 1] = c
                     outIndex += 2
                 }
             case .softBreak:
@@ -100,9 +98,9 @@ public final class QuotedPrintableDecoder: MimeDecoder {
                 let c = input[index]
                 index += 1
                 if c != 0x0A {
-                    outputBuffer[outIndex] = 0x3D
-                    outputBuffer[outIndex + 1] = 0x0D
-                    outputBuffer[outIndex + 2] = c
+                    output[outIndex] = 0x3D
+                    output[outIndex + 1] = 0x0D
+                    output[outIndex + 2] = c
                     outIndex += 3
                 }
             case .decodeByte:
@@ -112,19 +110,18 @@ public final class QuotedPrintableDecoder: MimeDecoder {
                 if ByteClassification.isXDigit(c) {
                     let high = ByteClassification.toXDigit(saved)
                     let low = ByteClassification.toXDigit(c)
-                    outputBuffer[outIndex] = (high << 4) | low
+                    output[outIndex] = (high << 4) | low
                     outIndex += 1
                 } else {
-                    outputBuffer[outIndex] = 0x3D
-                    outputBuffer[outIndex + 1] = saved
-                    outputBuffer[outIndex + 2] = c
+                    output[outIndex] = 0x3D
+                    output[outIndex + 1] = saved
+                    output[outIndex + 2] = c
                     outIndex += 3
                 }
                 state = .passThrough
             }
         }
 
-        output = outputBuffer
         return outIndex
     }
 
@@ -133,11 +130,9 @@ public final class QuotedPrintableDecoder: MimeDecoder {
         saved = 0
     }
 
-    private func validateArguments(_ input: [UInt8]?, startIndex: Int, length: Int, output: [UInt8]?) throws {
-        guard let input = input else { throw MimeCodingError.inputNil }
+    private func validateArguments(_ input: [UInt8], startIndex: Int, length: Int, output: [UInt8]) throws {
         if startIndex < 0 || startIndex > input.count { throw MimeCodingError.startIndexOutOfRange }
         if length < 0 || length > (input.count - startIndex) { throw MimeCodingError.lengthOutOfRange }
-        guard let output = output else { throw MimeCodingError.outputNil }
         if output.count < estimateOutputLength(length) { throw MimeCodingError.outputTooSmall }
     }
 }

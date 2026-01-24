@@ -571,9 +571,9 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Exp
         let hex = HexDecoder()
         let length = endIndex - index
         let outputLength = hex.estimateOutputLength(length)
-        var output: [UInt8]? = Array(repeating: 0, count: outputLength)
+        var output = Array(repeating: UInt8(0), count: outputLength)
         let written = (try? hex.decode(text, startIndex: index, length: length, output: &output)) ?? 0
-        return Array(output?.prefix(written) ?? [])
+        return Array(output.prefix(written))
     }
 
     internal static func tryParse(

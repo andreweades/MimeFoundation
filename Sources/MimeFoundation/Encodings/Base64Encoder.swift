@@ -16,7 +16,7 @@ public final class Base64Encoder: MimeEncoder {
     private var saved: Int = 0
 
     public convenience init() {
-        try! self.init(maxLineLength: 76)
+        self.init(uncheckedMaxLineLength: 76)
     }
 
     public init(maxLineLength: Int) throws {
@@ -26,12 +26,17 @@ public final class Base64Encoder: MimeEncoder {
         quartetsPerLine = maxLineLength / 4
     }
 
+    /// Internal initializer that skips validation. Used for cloning and known-valid defaults.
+    private init(uncheckedMaxLineLength: Int) {
+        quartetsPerLine = uncheckedMaxLineLength / 4
+    }
+
     public var encoding: ContentEncoding {
         .base64
     }
 
     public func clone() -> any MimeEncoder {
-        let clone = try! Base64Encoder(maxLineLength: quartetsPerLine * 4)
+        let clone = Base64Encoder(uncheckedMaxLineLength: quartetsPerLine * 4)
         clone.enableHardwareAcceleration = enableHardwareAcceleration
         clone.quartets = quartets
         clone.saved1 = saved1
@@ -46,28 +51,22 @@ public final class Base64Encoder: MimeEncoder {
         return (((inputLength + 2) / maxInputPerLine) * maxLineLength) + maxLineLength
     }
 
-    public func encode(_ input: [UInt8]?, startIndex: Int, length: Int, output: inout [UInt8]?) throws -> Int {
+    public func encode(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
-        guard let input = input else {
-            throw MimeCodingError.inputNil
-        }
-        guard var outputBuffer = output else {
-            throw MimeCodingError.outputNil
-        }
 
         var outIndex = 0
         var index = startIndex
         let end = startIndex + length
 
         func writeQuartet(_ c1: UInt8, _ c2: UInt8, _ c3: UInt8) {
-            outputBuffer[outIndex] = Self.alphabet[Int(c1 >> 2)]
-            outputBuffer[outIndex + 1] = Self.alphabet[Int((c2 >> 4) | ((c1 & 0x03) << 4))]
-            outputBuffer[outIndex + 2] = Self.alphabet[Int(((c2 & 0x0F) << 2) | (c3 >> 6))]
-            outputBuffer[outIndex + 3] = Self.alphabet[Int(c3 & 0x3F)]
+            output[outIndex] = Self.alphabet[Int(c1 >> 2)]
+            output[outIndex + 1] = Self.alphabet[Int((c2 >> 4) | ((c1 & 0x03) << 4))]
+            output[outIndex + 2] = Self.alphabet[Int(((c2 & 0x0F) << 2) | (c3 >> 6))]
+            output[outIndex + 3] = Self.alphabet[Int(c3 & 0x3F)]
             outIndex += 4
             quartets += 1
             if quartets >= quartetsPerLine {
-                outputBuffer[outIndex] = 0x0A
+                output[outIndex] = 0x0A
                 outIndex += 1
                 quartets = 0
             }
@@ -117,52 +116,39 @@ public final class Base64Encoder: MimeEncoder {
             saved = 2
         }
 
-        output = outputBuffer
         return outIndex
     }
 
-    public func flush(_ input: [UInt8]?, startIndex: Int, length: Int, output: inout [UInt8]?) throws -> Int {
+    public func flush(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
-        guard let input = input else {
-            throw MimeCodingError.inputNil
-        }
-        guard var outputBuffer = output else {
-            throw MimeCodingError.outputNil
-        }
 
         var outIndex = 0
         if length > 0 {
-            let tempOutput = outputBuffer
-            var tempOutputOptional: [UInt8]? = tempOutput
-            outIndex = try encode(input, startIndex: startIndex, length: length, output: &tempOutputOptional)
-            if let updated = tempOutputOptional {
-                outputBuffer = updated
-            }
+            outIndex = try encode(input, startIndex: startIndex, length: length, output: &output)
         }
 
         if saved >= 1 {
             let c1 = saved1
             let c2 = saved2
-            outputBuffer[outIndex] = Self.alphabet[Int(c1 >> 2)]
-            outputBuffer[outIndex + 1] = Self.alphabet[Int((c2 >> 4) | ((c1 & 0x03) << 4))]
+            output[outIndex] = Self.alphabet[Int(c1 >> 2)]
+            output[outIndex + 1] = Self.alphabet[Int((c2 >> 4) | ((c1 & 0x03) << 4))]
             if saved == 2 {
-                outputBuffer[outIndex + 2] = Self.alphabet[Int((c2 & 0x0F) << 2)]
+                output[outIndex + 2] = Self.alphabet[Int((c2 & 0x0F) << 2)]
             } else {
-                outputBuffer[outIndex + 2] = 0x3D
+                output[outIndex + 2] = 0x3D
             }
-            outputBuffer[outIndex + 3] = 0x3D
+            output[outIndex + 3] = 0x3D
             outIndex += 4
             quartets += 1
             saved = 0
         }
 
         if quartets > 0 {
-            outputBuffer[outIndex] = 0x0A
+            output[outIndex] = 0x0A
             outIndex += 1
             quartets = 0
         }
 
-        output = outputBuffer
         return outIndex
     }
 
@@ -173,18 +159,12 @@ public final class Base64Encoder: MimeEncoder {
         saved = 0
     }
 
-    private func validateArguments(_ input: [UInt8]?, startIndex: Int, length: Int, output: [UInt8]?) throws {
-        guard let input = input else {
-            throw MimeCodingError.inputNil
-        }
+    private func validateArguments(_ input: [UInt8], startIndex: Int, length: Int, output: [UInt8]) throws {
         if startIndex < 0 || startIndex > input.count {
             throw MimeCodingError.startIndexOutOfRange
         }
         if length < 0 || length > (input.count - startIndex) {
             throw MimeCodingError.lengthOutOfRange
-        }
-        guard let output = output else {
-            throw MimeCodingError.outputNil
         }
         if output.count < estimateOutputLength(length) {
             throw MimeCodingError.outputTooSmall

@@ -24,7 +24,11 @@ public final class MultipartAlternative: Multipart {
     }
 
     public convenience init() {
-        try! self.init(args: [])
+        do {
+            try self.init(args: [])
+        } catch {
+            preconditionFailure("Failed to create multipart/alternative - this is a programming error")
+        }
     }
 
     public var textBody: String? {

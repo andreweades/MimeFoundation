@@ -43,13 +43,13 @@ struct QuotedPrintableDecoderTests {
     @Test func decodePatterns() {
         let decoder = QuotedPrintableDecoder()
         let encoding = String.Encoding.isoLatin1
-        var output: [UInt8]? = [UInt8](repeating: 0, count: 4096)
+        var output = [UInt8](repeating: 0, count: 4096)
 
         for i in 0..<qpEncodedPatterns.count {
             decoder.reset()
             let buf = Array(qpEncodedPatterns[i].data(using: encoding) ?? Data())
             let n = try! decoder.decode(buf, startIndex: 0, length: buf.count, output: &output)
-            let actual = String(data: Data(output!.prefix(n)), encoding: encoding) ?? ""
+            let actual = String(data: Data(output.prefix(n)), encoding: encoding) ?? ""
             #expect(actual == qpDecodedPatterns[i])
         }
     }
@@ -64,20 +64,20 @@ struct QuotedPrintableDecoderTests {
         let encoded = "<table style=3D\"width:100%;\" cellpadding=3D\"0\" cellspacing=3D\"0\" border=3D\"=\n0\"><tr><td style=3D\"width:100%;text-align:center;background-color:;\" bgcolo=\nr=3D\"\">Test</td></tr><table>=\n"
         let expected = "<table style=\"width:100%;\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr><td style=\"width:100%;text-align:center;background-color:;\" bgcolor=\"\">Test</td></tr><table>"
         let decoder = QuotedPrintableDecoder()
-        var output: [UInt8]? = [UInt8](repeating: 0, count: decoder.estimateOutputLength(encoded.utf8.count))
+        var output = [UInt8](repeating: 0, count: decoder.estimateOutputLength(encoded.utf8.count))
         let buf = Array(encoded.utf8)
         let decodedLength = try! decoder.decode(buf, startIndex: 0, length: buf.count, output: &output)
-        let decoded = String(decoding: output!.prefix(decodedLength), as: UTF8.self)
+        let decoded = String(decoding: output.prefix(decodedLength), as: UTF8.self)
         #expect(decoded == expected)
     }
 
     @Test func decodeInvalidSoftBreak() {
         let input = "This is an invalid=\rsoft break."
         let decoder = QuotedPrintableDecoder()
-        var output: [UInt8]? = [UInt8](repeating: 0, count: 1024)
+        var output = [UInt8](repeating: 0, count: 1024)
         let buf = Array(input.utf8)
         let n = try! decoder.decode(buf, startIndex: 0, length: buf.count, output: &output)
-        let actual = String(decoding: output!.prefix(n), as: UTF8.self)
+        let actual = String(decoding: output.prefix(n), as: UTF8.self)
         #expect(actual == input)
     }
 
@@ -85,10 +85,10 @@ struct QuotedPrintableDecoderTests {
         let input = "This is an ordinary text message in which my name (=ED=E5=EC=F9 =EF=E1 =E9=EC=E8=F4=F0)\nis in Hebrew (=FA=E9=F8=E1=F2)."
         let expected = "This is an ordinary text message in which my name (םולש ןב ילטפנ)\nis in Hebrew (תירבע)."
         let decoder = QuotedPrintableDecoder()
-        var output: [UInt8]? = [UInt8](repeating: 0, count: 4096)
+        var output = [UInt8](repeating: 0, count: 4096)
         let buf = Array(input.utf8)
         let n = try! decoder.decode(buf, startIndex: 0, length: buf.count, output: &output)
-        let actual = String(data: Data(output!.prefix(n)), encoding: TestHelper.isoLatinHebrew) ?? ""
+        let actual = String(data: Data(output.prefix(n)), encoding: TestHelper.isoLatinHebrew) ?? ""
         #expect(actual == expected)
     }
 }

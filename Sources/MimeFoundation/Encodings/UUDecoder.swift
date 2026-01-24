@@ -45,10 +45,8 @@ public final class UUDecoder: MimeDecoder {
         inputLength + 3
     }
 
-    public func decode(_ input: [UInt8]?, startIndex: Int, length: Int, output: inout [UInt8]?) throws -> Int {
+    public func decode(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
-        guard let input = input else { throw MimeCodingError.inputNil }
-        guard var outputBuffer = output else { throw MimeCodingError.outputNil }
 
         if state == .ended {
             return 0
@@ -61,7 +59,7 @@ public final class UUDecoder: MimeDecoder {
 
         if state != .payload {
             index = scanBeginMarker(input, startIndex: index, end: end)
-            if index >= end { output = outputBuffer; return 0 }
+            if index >= end { return 0 }
         }
 
         while index < end {
@@ -103,19 +101,19 @@ public final class UUDecoder: MimeDecoder {
                     let d3 = decodeValue(b3)
 
                     if uulen >= 3 {
-                        outputBuffer[outIndex] = UInt8((d0 << 2) | (d1 >> 4))
-                        outputBuffer[outIndex + 1] = UInt8(truncatingIfNeeded: (d1 << 4) | (d2 >> 2))
-                        outputBuffer[outIndex + 2] = UInt8(truncatingIfNeeded: (d2 << 6) | d3)
+                        output[outIndex] = UInt8((d0 << 2) | (d1 >> 4))
+                        output[outIndex + 1] = UInt8(truncatingIfNeeded: (d1 << 4) | (d2 >> 2))
+                        output[outIndex + 2] = UInt8(truncatingIfNeeded: (d2 << 6) | d3)
                         outIndex += 3
                         uulen -= 3
                     } else {
                         if uulen >= 1 {
-                            outputBuffer[outIndex] = UInt8((d0 << 2) | (d1 >> 4))
+                            output[outIndex] = UInt8((d0 << 2) | (d1 >> 4))
                             outIndex += 1
                             uulen -= 1
                         }
                         if uulen >= 1 {
-                            outputBuffer[outIndex] = UInt8(truncatingIfNeeded: (d1 << 4) | (d2 >> 2))
+                            output[outIndex] = UInt8(truncatingIfNeeded: (d1 << 4) | (d2 >> 2))
                             outIndex += 1
                             uulen -= 1
                         }
@@ -129,7 +127,6 @@ public final class UUDecoder: MimeDecoder {
             }
         }
 
-        output = outputBuffer
         return outIndex
     }
 
@@ -218,11 +215,9 @@ public final class UUDecoder: MimeDecoder {
         return Int((byte &- 0x20) & 0x3F)
     }
 
-    private func validateArguments(_ input: [UInt8]?, startIndex: Int, length: Int, output: [UInt8]?) throws {
-        guard let input = input else { throw MimeCodingError.inputNil }
+    private func validateArguments(_ input: [UInt8], startIndex: Int, length: Int, output: [UInt8]) throws {
         if startIndex < 0 || startIndex > input.count { throw MimeCodingError.startIndexOutOfRange }
         if length < 0 || length > (input.count - startIndex) { throw MimeCodingError.lengthOutOfRange }
-        guard let output = output else { throw MimeCodingError.outputNil }
         if output.count < estimateOutputLength(length) { throw MimeCodingError.outputTooSmall }
     }
 }

@@ -84,17 +84,15 @@ enum Rfc2047 {
             case "q":
                 let decoder = QuotedPrintableDecoder(rfc2047: true)
                 let outputLength = decoder.estimateOutputLength(word.payload.count)
-                let outputBuffer = Array(repeating: UInt8(0), count: outputLength)
-                var outputOptional: [UInt8]? = outputBuffer
-                let written = (try? decoder.decode(word.payload, startIndex: 0, length: word.payload.count, output: &outputOptional)) ?? 0
-                decodedBytes = Array(outputOptional?.prefix(written) ?? [])
+                var output = Array(repeating: UInt8(0), count: outputLength)
+                let written = (try? decoder.decode(word.payload, startIndex: 0, length: word.payload.count, output: &output)) ?? 0
+                decodedBytes = Array(output.prefix(written))
             case "b":
                 let decoder = Base64Decoder()
                 let outputLength = decoder.estimateOutputLength(word.payload.count)
-                let outputBuffer = Array(repeating: UInt8(0), count: outputLength)
-                var outputOptional: [UInt8]? = outputBuffer
-                let written = (try? decoder.decode(word.payload, startIndex: 0, length: word.payload.count, output: &outputOptional)) ?? 0
-                decodedBytes = Array(outputOptional?.prefix(written) ?? [])
+                var output = Array(repeating: UInt8(0), count: outputLength)
+                let written = (try? decoder.decode(word.payload, startIndex: 0, length: word.payload.count, output: &output)) ?? 0
+                decodedBytes = Array(output.prefix(written))
             default:
                 decodedBytes = word.payload
             }
@@ -544,9 +542,9 @@ enum Rfc2047 {
         }
 
         let outputLength = encoder.estimateOutputLength(bytes.count)
-        var output: [UInt8]? = Array(repeating: 0, count: outputLength)
+        var output = Array(repeating: UInt8(0), count: outputLength)
         let written = (try? encoder.encode(bytes, startIndex: 0, length: bytes.count, output: &output)) ?? 0
-        let encodedText = String(bytes: output?.prefix(written) ?? [], encoding: .ascii) ?? ""
+        let encodedText = String(bytes: output.prefix(written), encoding: .ascii) ?? ""
         let charset = CharsetUtils.getMimeCharset(chosenEncoding)
 
         builder.append("=?")
@@ -1301,16 +1299,15 @@ enum Rfc2047 {
         let encoder: any Rfc2047Encoder = (bLength < qpLength) ? base64Encoder : qpEncoder
 
         let outputLength = encoder.estimateOutputLength(bytes.count)
-        let output = Array(repeating: UInt8(0), count: outputLength)
-        var outputOptional: [UInt8]? = output
+        var output = Array(repeating: UInt8(0), count: outputLength)
         let written: Int
         do {
-            written = try encoder.encode(bytes, startIndex: 0, length: bytes.count, output: &outputOptional)
+            written = try encoder.encode(bytes, startIndex: 0, length: bytes.count, output: &output)
         } catch {
             return segment
         }
 
-        let encodedText = String(bytes: Array(outputOptional?[0..<written] ?? []), encoding: .ascii) ?? segment
+        let encodedText = String(bytes: Array(output[0..<written]), encoding: .ascii) ?? segment
         let charset = CharsetUtils.getMimeCharset(encoding)
         let encodingLetter = String(encoder.encoding)
         return "=?\(charset)?\(encodingLetter)?\(encodedText)?="
@@ -1404,14 +1401,14 @@ enum Rfc2047 {
         case .quotedPrintable:
             let qpPayload = max(4, maxPayload - 2)
             let outputLength = encoder.estimateOutputLength(bytes.count)
-            var output: [UInt8]? = Array(repeating: 0, count: outputLength)
+            var output = Array(repeating: UInt8(0), count: outputLength)
             let written: Int
             do {
                 written = try encoder.encode(bytes, startIndex: 0, length: bytes.count, output: &output)
             } catch {
                 return text
             }
-            let encodedBytes = Array(output?.prefix(written) ?? [])
+            let encodedBytes = Array(output.prefix(written))
             segments = splitQuotedPrintableSegments(encodedBytes, maxPayload: qpPayload)
         }
 
@@ -1489,9 +1486,9 @@ enum Rfc2047 {
             guard !current.isEmpty, let data = current.data(using: encoding) else { return }
             let bytes = Array(data)
             let outputLength = encoder.estimateOutputLength(bytes.count)
-            var output: [UInt8]? = Array(repeating: 0, count: outputLength)
+            var output = Array(repeating: UInt8(0), count: outputLength)
             let written = (try? encoder.encode(bytes, startIndex: 0, length: bytes.count, output: &output)) ?? 0
-            let encoded = String(bytes: output?.prefix(written) ?? [], encoding: .ascii) ?? ""
+            let encoded = String(bytes: output.prefix(written), encoding: .ascii) ?? ""
             segments.append(encoded)
             current = ""
             currentBytes = 0

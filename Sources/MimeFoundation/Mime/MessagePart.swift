@@ -19,7 +19,9 @@ open class MessagePart: MimeEntity {
     }
 
     public convenience init(_ subtype: String) {
-        let contentType = try! ContentType("message", subtype)
+        guard let contentType = try? ContentType("message", subtype) else {
+            preconditionFailure("Invalid subtype '\(subtype)' for message content type")
+        }
         self.init(contentType)
     }
 

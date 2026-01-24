@@ -24,7 +24,7 @@ struct PassThroughDecoderTests {
         let bufferSize = 1024
         let decoder = PassThroughDecoder(encoding: .default)
         var input = [UInt8](repeating: 0, count: bufferSize)
-        var output: [UInt8]? = [UInt8](repeating: 0, count: bufferSize)
+        var output = [UInt8](repeating: 0, count: bufferSize)
 
         for i in 0..<bufferSize {
             input[i] = UInt8(i & 0xFF)
@@ -32,12 +32,12 @@ struct PassThroughDecoderTests {
 
         let n = try! decoder.decode(input, startIndex: 0, length: bufferSize, output: &output)
         #expect(n == bufferSize)
-        #expect(Array(output!.prefix(n)) == input)
+        #expect(Array(output.prefix(n)) == input)
 
         decoder.reset()
 
         let n2 = try! decoder.decode(input, startIndex: 0, length: bufferSize, output: &output)
         #expect(n2 == bufferSize)
-        #expect(Array(output!.prefix(n2)) == input)
+        #expect(Array(output.prefix(n2)) == input)
     }
 }

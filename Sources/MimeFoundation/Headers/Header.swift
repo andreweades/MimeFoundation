@@ -960,10 +960,9 @@ extension Header {
         let encoder: any Rfc2047Encoder = (bLength < qpLength) ? base64Encoder : qpEncoder
 
         let outputLength = encoder.estimateOutputLength(bytes.count)
-        let output = Array(repeating: UInt8(0), count: outputLength)
-        var outputOptional: [UInt8]? = output
-        let written = (try? encoder.encode(bytes, startIndex: 0, length: bytes.count, output: &outputOptional)) ?? 0
-        let encodedText = String(bytes: Array(outputOptional?[0..<written] ?? []), encoding: .ascii) ?? text
+        var output = Array(repeating: UInt8(0), count: outputLength)
+        let written = (try? encoder.encode(bytes, startIndex: 0, length: bytes.count, output: &output)) ?? 0
+        let encodedText = String(bytes: Array(output[0..<written]), encoding: .ascii) ?? text
         let charset = CharsetUtils.getMimeCharset(encoding)
         let encodingLetter = String(encoder.encoding)
         return "=?\(charset)?\(encodingLetter)?\(encodedText)?="

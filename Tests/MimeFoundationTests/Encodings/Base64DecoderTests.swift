@@ -75,13 +75,13 @@ struct Base64DecoderTests {
         for enableHwAccel in [true, false] {
             let decoder = Base64Decoder()
             decoder.enableHardwareAcceleration = enableHwAccel
-            var output: [UInt8]? = [UInt8](repeating: 0, count: 4096)
+            var output = [UInt8](repeating: 0, count: 4096)
 
             for (index, pattern) in base64EncodedPatterns.enumerated() {
                 decoder.reset()
                 let buf = Array(pattern.utf8)
                 let n = try! decoder.decode(buf, startIndex: 0, length: buf.count, output: &output)
-                let actual = String(decoding: output!.prefix(n), as: UTF8.self)
+                let actual = String(decoding: output.prefix(n), as: UTF8.self)
                 #expect(actual == base64DecodedPatterns[index])
             }
 
@@ -90,7 +90,7 @@ struct Base64DecoderTests {
                 let buf = Array(pattern.utf8)
                 let n = try! decoder.decode(buf, startIndex: 0, length: buf.count, output: &output)
                 for i in 0..<n {
-                    #expect(output![i] == UInt8(truncatingIfNeeded: i + index))
+                    #expect(output[i] == UInt8(truncatingIfNeeded: i + index))
                 }
             }
 
@@ -98,7 +98,7 @@ struct Base64DecoderTests {
                 decoder.reset()
                 let buf = Array(pattern.utf8)
                 let n = try! decoder.decode(buf, startIndex: 0, length: buf.count, output: &output)
-                let actual = String(decoding: output!.prefix(n), as: UTF8.self)
+                let actual = String(decoding: output.prefix(n), as: UTF8.self)
                 #expect(actual == base64DecodedPatterns[0])
             }
         }
@@ -112,9 +112,9 @@ struct Base64DecoderTests {
         for enableHwAccel in [true, false] {
             let decoder = Base64Decoder()
             decoder.enableHardwareAcceleration = enableHwAccel
-            var output: [UInt8]? = [UInt8](repeating: 0, count: decoder.estimateOutputLength(data.count))
+            var output = [UInt8](repeating: 0, count: decoder.estimateOutputLength(data.count))
             let n = try! decoder.decode(data, startIndex: 0, length: data.count, output: &output)
-            let actual = String(decoding: output!.prefix(n), as: UTF8.self)
+            let actual = String(decoding: output.prefix(n), as: UTF8.self)
             #expect(actual == expected)
         }
     }

@@ -38,14 +38,8 @@ public final class HexDecoder: MimeDecoder {
         }
     }
 
-    public func decode(_ input: [UInt8]?, startIndex: Int, length: Int, output: inout [UInt8]?) throws -> Int {
+    public func decode(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
-        guard let input = input else {
-            throw MimeCodingError.inputNil
-        }
-        guard var outputBuffer = output else {
-            throw MimeCodingError.outputNil
-        }
 
         var outIndex = 0
         var index = startIndex
@@ -61,7 +55,7 @@ public final class HexDecoder: MimeDecoder {
                         state = .percent
                         break
                     }
-                    outputBuffer[outIndex] = byte
+                    output[outIndex] = byte
                     outIndex += 1
                 }
             case .percent:
@@ -77,12 +71,12 @@ public final class HexDecoder: MimeDecoder {
                     if ByteClassification.isXDigit(byte) && ByteClassification.isXDigit(saved) {
                         let high = ByteClassification.toXDigit(saved)
                         let low = ByteClassification.toXDigit(byte)
-                        outputBuffer[outIndex] = (high << 4) | low
+                        output[outIndex] = (high << 4) | low
                         outIndex += 1
                     } else {
-                        outputBuffer[outIndex] = 0x25
-                        outputBuffer[outIndex + 1] = saved
-                        outputBuffer[outIndex + 2] = byte
+                        output[outIndex] = 0x25
+                        output[outIndex + 1] = saved
+                        output[outIndex + 2] = byte
                         outIndex += 3
                     }
                     state = .passThrough
@@ -90,7 +84,6 @@ public final class HexDecoder: MimeDecoder {
             }
         }
 
-        output = outputBuffer
         return outIndex
     }
 
@@ -99,18 +92,12 @@ public final class HexDecoder: MimeDecoder {
         saved = 0
     }
 
-    private func validateArguments(_ input: [UInt8]?, startIndex: Int, length: Int, output: [UInt8]?) throws {
-        guard let input = input else {
-            throw MimeCodingError.inputNil
-        }
+    private func validateArguments(_ input: [UInt8], startIndex: Int, length: Int, output: [UInt8]) throws {
         if startIndex < 0 || startIndex > input.count {
             throw MimeCodingError.startIndexOutOfRange
         }
         if length < 0 || length > (input.count - startIndex) {
             throw MimeCodingError.lengthOutOfRange
-        }
-        guard let output = output else {
-            throw MimeCodingError.outputNil
         }
         if output.count < estimateOutputLength(length) {
             throw MimeCodingError.outputTooSmall

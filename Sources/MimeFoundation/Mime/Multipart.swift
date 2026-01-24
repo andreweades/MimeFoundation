@@ -110,7 +110,11 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
     }
 
     public convenience init() {
-        try! self.init("mixed")
+        do {
+            try self.init("mixed")
+        } catch {
+            preconditionFailure("Failed to create multipart/mixed - this is a programming error")
+        }
     }
 
     public func setBoundary(_ value: String?) throws {

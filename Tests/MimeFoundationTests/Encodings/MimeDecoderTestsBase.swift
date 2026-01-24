@@ -26,12 +26,8 @@ enum MimeDecoderTestsBase {
     }()
 
     static func assertArgumentExceptions(_ decoder: any MimeDecoder, sourceLocation: SourceLocation = #_sourceLocation) {
-        var output: [UInt8]? = []
-        #expect(throws: (any Error).self, sourceLocation: sourceLocation) {
-            try decoder.decode(nil, startIndex: 0, length: 0, output: &output)
-        }
+        var output = [UInt8]()
 
-        output = []
         #expect(throws: (any Error).self, sourceLocation: sourceLocation) {
             try decoder.decode([], startIndex: -1, length: 0, output: &output)
         }
@@ -39,11 +35,6 @@ enum MimeDecoderTestsBase {
         output = []
         #expect(throws: (any Error).self, sourceLocation: sourceLocation) {
             try decoder.decode([UInt8](repeating: 0, count: 1), startIndex: 0, length: 10, output: &output)
-        }
-
-        var nilOutput: [UInt8]? = nil
-        #expect(throws: (any Error).self, sourceLocation: sourceLocation) {
-            try decoder.decode([UInt8](repeating: 0, count: 1), startIndex: 0, length: 1, output: &nilOutput)
         }
 
         output = []
@@ -54,7 +45,7 @@ enum MimeDecoderTestsBase {
 
     static func cloneAndAssert(_ decoder: any MimeDecoder, sample: [UInt8], sourceLocation: SourceLocation = #_sourceLocation) {
         let prefixLength = min(4, sample.count)
-        var output: [UInt8]? = [UInt8](repeating: 0, count: decoder.estimateOutputLength(sample.count))
+        var output = [UInt8](repeating: 0, count: decoder.estimateOutputLength(sample.count))
         do {
             _ = try decoder.decode(sample, startIndex: 0, length: prefixLength, output: &output)
         } catch {
@@ -64,12 +55,12 @@ enum MimeDecoderTestsBase {
 
         let clone = decoder.clone()
         let remainingLength = sample.count - prefixLength
-        var output1: [UInt8]? = [UInt8](repeating: 0, count: decoder.estimateOutputLength(remainingLength))
-        var output2: [UInt8]? = [UInt8](repeating: 0, count: decoder.estimateOutputLength(remainingLength))
+        var output1 = [UInt8](repeating: 0, count: decoder.estimateOutputLength(remainingLength))
+        var output2 = [UInt8](repeating: 0, count: decoder.estimateOutputLength(remainingLength))
         do {
             let n1 = try decoder.decode(sample, startIndex: prefixLength, length: remainingLength, output: &output1)
             let n2 = try clone.decode(sample, startIndex: prefixLength, length: remainingLength, output: &output2)
-            #expect(Array(output1?.prefix(n1) ?? []) == Array(output2?.prefix(n2) ?? []), sourceLocation: sourceLocation)
+            #expect(Array(output1.prefix(n1)) == Array(output2.prefix(n2)), sourceLocation: sourceLocation)
         } catch {
             Issue.record("Unexpected error: \(error)", sourceLocation: sourceLocation)
         }
@@ -78,18 +69,18 @@ enum MimeDecoderTestsBase {
     static func resetAndAssert(_ decoder: any MimeDecoder, sample: [UInt8], sourceLocation: SourceLocation = #_sourceLocation) {
         let clone = decoder.clone()
         let prefixLength = min(6, sample.count)
-        var output: [UInt8]? = [UInt8](repeating: 0, count: decoder.estimateOutputLength(sample.count))
+        var output = [UInt8](repeating: 0, count: decoder.estimateOutputLength(sample.count))
         do {
             _ = try clone.decode(sample, startIndex: 0, length: prefixLength, output: &output)
             clone.reset()
 
-            var freshOutput: [UInt8]? = [UInt8](repeating: 0, count: decoder.estimateOutputLength(sample.count))
+            var freshOutput = [UInt8](repeating: 0, count: decoder.estimateOutputLength(sample.count))
             let freshCount = try decoder.decode(sample, startIndex: 0, length: sample.count, output: &freshOutput)
 
-            var resetOutput: [UInt8]? = [UInt8](repeating: 0, count: decoder.estimateOutputLength(sample.count))
+            var resetOutput = [UInt8](repeating: 0, count: decoder.estimateOutputLength(sample.count))
             let resetCount = try clone.decode(sample, startIndex: 0, length: sample.count, output: &resetOutput)
 
-            #expect(Array(freshOutput?.prefix(freshCount) ?? []) == Array(resetOutput?.prefix(resetCount) ?? []), sourceLocation: sourceLocation)
+            #expect(Array(freshOutput.prefix(freshCount)) == Array(resetOutput.prefix(resetCount)), sourceLocation: sourceLocation)
         } catch {
             Issue.record("Unexpected error: \(error)", sourceLocation: sourceLocation)
         }

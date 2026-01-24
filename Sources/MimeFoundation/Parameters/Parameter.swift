@@ -73,6 +73,15 @@ public final class Parameter: Equatable, CustomStringConvertible {
         self.alwaysQuote = false
     }
 
+    /// Internal initializer for cloning. Assumes name is already validated.
+    private init(cloning name: String, _ value: String) {
+        self.name = name
+        self.value = value
+        self.encoding = .utf8
+        self.encodingMethod = .default
+        self.alwaysQuote = false
+    }
+
     public convenience init(_ name: String?, _ value: String?) throws {
         guard let name else {
             throw ParameterError.nilName
@@ -156,7 +165,7 @@ public final class Parameter: Equatable, CustomStringConvertible {
     }
 
     public func clone() -> Parameter {
-        let param = try! Parameter(name, value)
+        let param = Parameter(cloning: name, value)
         param.encoding = encoding
         param.encodingMethod = encodingMethod
         param.alwaysQuote = alwaysQuote
@@ -387,9 +396,9 @@ public final class Parameter: Equatable, CustomStringConvertible {
             }
 
             let outputLength = hex.estimateOutputLength(count)
-            var output: [UInt8]? = Array(repeating: 0, count: outputLength)
+            var output = Array(repeating: UInt8(0), count: outputLength)
             let written = (try? hex.encode(bytes, startIndex: 0, length: count, output: &output)) ?? 0
-            let encoded = String(bytes: output?.prefix(written) ?? [], encoding: .ascii) ?? ""
+            let encoded = String(bytes: output.prefix(written), encoding: .ascii) ?? ""
             let encodedCount = encoded.count
 
             if length > 1 && encodedCount > 3 && encodedCount > adjustedMax {
@@ -447,9 +456,9 @@ public final class Parameter: Equatable, CustomStringConvertible {
                 let bytes = CharsetUtils.getBytes(substring, encoding: bestEncoding)
                 let hex = HexEncoder()
                 let outputLength = hex.estimateOutputLength(bytes.count)
-                var output: [UInt8]? = Array(repeating: 0, count: outputLength)
+                var output = Array(repeating: UInt8(0), count: outputLength)
                 let written = (try? hex.encode(bytes, startIndex: 0, length: bytes.count, output: &output)) ?? 0
-                let encoded = String(bytes: output?.prefix(written) ?? [], encoding: .ascii) ?? ""
+                let encoded = String(bytes: output.prefix(written), encoding: .ascii) ?? ""
                 if isFirstValue {
                     next = (true, "\(charset)''\(encoded)")
                     isFirstValue = false
@@ -535,9 +544,9 @@ public final class Parameter: Equatable, CustomStringConvertible {
         let encoder: any Rfc2047Encoder = useQ ? Rfc2047QuotedPrintableEncoder(mode: .text) : Rfc2047Base64Encoder()
 
         let outputLength = encoder.estimateOutputLength(bytes.count)
-        var output: [UInt8]? = Array(repeating: 0, count: outputLength)
+        var output = Array(repeating: UInt8(0), count: outputLength)
         let written = (try? encoder.encode(bytes, startIndex: 0, length: bytes.count, output: &output)) ?? 0
-        let encoded = String(bytes: output?.prefix(written) ?? [], encoding: .ascii) ?? ""
+        let encoded = String(bytes: output.prefix(written), encoding: .ascii) ?? ""
 
         let before = builder.length
         builder.append("=?")

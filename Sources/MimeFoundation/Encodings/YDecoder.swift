@@ -63,10 +63,8 @@ public final class YDecoder: MimeDecoder {
         inputLength
     }
 
-    public func decode(_ input: [UInt8]?, startIndex: Int, length: Int, output: inout [UInt8]?) throws -> Int {
+    public func decode(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
-        guard let input = input else { throw MimeCodingError.inputNil }
-        guard var outputBuffer = output else { throw MimeCodingError.outputNil }
 
         let end = startIndex + length
         var index = startIndex
@@ -75,13 +73,11 @@ public final class YDecoder: MimeDecoder {
         if state != .payload {
             index = scanYBeginMarker(input, startIndex: index, end: end)
             if index >= end {
-                output = outputBuffer
                 return 0
             }
         }
 
         if state == .ended {
-            output = outputBuffer
             return 0
         }
 
@@ -118,11 +114,10 @@ public final class YDecoder: MimeDecoder {
 
             octet &-= 42
             _ = crc.update(octet)
-            outputBuffer[outIndex] = octet
+            output[outIndex] = octet
             outIndex += 1
         }
 
-        output = outputBuffer
         return outIndex
     }
 
@@ -347,11 +342,9 @@ public final class YDecoder: MimeDecoder {
         return index
     }
 
-    private func validateArguments(_ input: [UInt8]?, startIndex: Int, length: Int, output: [UInt8]?) throws {
-        guard let input = input else { throw MimeCodingError.inputNil }
+    private func validateArguments(_ input: [UInt8], startIndex: Int, length: Int, output: [UInt8]) throws {
         if startIndex < 0 || startIndex > input.count { throw MimeCodingError.startIndexOutOfRange }
         if length < 0 || length > (input.count - startIndex) { throw MimeCodingError.lengthOutOfRange }
-        guard let output = output else { throw MimeCodingError.outputNil }
         if output.count < estimateOutputLength(length) { throw MimeCodingError.outputTooSmall }
     }
 }

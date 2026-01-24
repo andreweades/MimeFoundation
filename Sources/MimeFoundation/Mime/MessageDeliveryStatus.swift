@@ -10,6 +10,13 @@ public final class MessageDeliveryStatus: MimePart {
     private var statusGroupsStorage: HeaderListCollection
     private var statusGroupsLoaded = false
 
+    private static var deliveryStatusContentType: ContentType {
+        guard let ct = try? ContentType("message", "delivery-status") else {
+            preconditionFailure("Invalid static content type - this is a programming error")
+        }
+        return ct
+    }
+
     public override init(_ contentType: ContentType) {
         self.statusGroupsStorage = HeaderListCollection()
         super.init(contentType)
@@ -19,8 +26,7 @@ public final class MessageDeliveryStatus: MimePart {
 
     public init() {
         self.statusGroupsStorage = HeaderListCollection()
-        let contentType = try! ContentType("message", "delivery-status")
-        super.init(contentType)
+        super.init(Self.deliveryStatusContentType)
         configureStatusGroups()
         statusGroupsLoaded = true
         updateContentFromStatusGroups()

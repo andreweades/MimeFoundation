@@ -43,6 +43,16 @@ public final class ContentType {
         }
     }
 
+    /// Internal initializer for cloning. Assumes values are already validated.
+    private init(cloning mediaType: String, _ mediaSubtype: String) {
+        self.type = mediaType
+        self.subtype = mediaSubtype
+        self.parameters = ParameterList()
+        self.parameters.changed = { [weak self] _ in
+            self?.onChanged()
+        }
+    }
+
     public var mediaType: String {
         get { type }
         set {
@@ -172,7 +182,7 @@ public final class ContentType {
     }
 
     public func clone() -> ContentType {
-        let cloned = try! ContentType(type, subtype)
+        let cloned = ContentType(cloning: type, subtype)
         for param in parameters {
             try? cloned.parameters.add(param.clone())
         }

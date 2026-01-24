@@ -64,11 +64,11 @@ struct YEncodingTests {
         let encoder = YEncoder()
 
         let needed = encoder.estimateOutputLength(contentLength) + ybegin.count + yend.count
-        var encoded: [UInt8]? = [UInt8](repeating: 0, count: needed)
+        var encoded = [UInt8](repeating: 0, count: needed)
         let encodedLength = try! encoder.flush(content, startIndex: 0, length: contentLength, output: &encoded)
 
         var combined = ybegin
-        combined.append(contentsOf: encoded!.prefix(encodedLength))
+        combined.append(contentsOf: encoded.prefix(encodedLength))
         combined.append(contentsOf: yend)
 
         let checksum = UInt32(bitPattern: encoder.checksum) ^ 0xFFFF_FFFF
@@ -177,7 +177,7 @@ struct YEncodingTests {
         ]
 
         let decoder = YDecoder()
-        var output: [UInt8]? = [UInt8](repeating: 0, count: 1024)
+        var output = [UInt8](repeating: 0, count: 1024)
 
         for i in 0..<inputs.count {
             let input = Array(inputs[i].utf8)
@@ -187,7 +187,7 @@ struct YEncodingTests {
                 expectedChars[index] &-= 42
             }
             let expected = String(decoding: expectedChars, as: UTF8.self)
-            let actual = String(decoding: output!.prefix(n), as: UTF8.self)
+            let actual = String(decoding: output.prefix(n), as: UTF8.self)
             #expect(actual == expected)
             decoder.reset()
         }

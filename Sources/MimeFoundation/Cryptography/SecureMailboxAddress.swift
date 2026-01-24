@@ -20,6 +20,12 @@ public final class SecureMailboxAddress: MailboxAddress {
         super.init(encoding: encoding, name: name, route: route, address: address)
     }
 
+    /// Internal initializer for cloning. Assumes fingerprint is already validated.
+    private init(cloning encoding: String.Encoding, name: String?, route: [String], address: String, fingerprint: String) {
+        self.fingerprint = fingerprint
+        super.init(encoding: encoding, name: name, route: route, address: address)
+    }
+
     public convenience init(name: String?, route: [String], address: String, fingerprint: String) throws {
         try self.init(encoding: .utf8, name: name, route: route, address: address, fingerprint: fingerprint)
     }
@@ -88,7 +94,7 @@ public final class SecureMailboxAddress: MailboxAddress {
 
     public override func clone() -> InternetAddress {
         let routes = Array(route)
-        return try! SecureMailboxAddress(encoding: encoding, name: name, route: routes, address: address, fingerprint: fingerprint)
+        return SecureMailboxAddress(cloning: encoding, name: name, route: routes, address: address, fingerprint: fingerprint)
     }
 
     private static func validateFingerprint(_ fingerprint: String) throws {

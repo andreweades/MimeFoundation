@@ -22,6 +22,13 @@ public enum MimePartError: Error, Equatable {
 }
 
 open class MimePart: MimeEntity {
+    private static var octetStreamContentType: ContentType {
+        guard let ct = try? ContentType("application", "octet-stream") else {
+            preconditionFailure("Invalid static content type - this is a programming error")
+        }
+        return ct
+    }
+
     private var contentDescriptionCache: String?
     private var contentDescriptionLoaded = false
     private var contentDurationCache: Int?
@@ -230,7 +237,7 @@ open class MimePart: MimeEntity {
     }
 
     public convenience init() {
-        try! self.init("application", "octet-stream")
+        self.init(Self.octetStreamContentType)
     }
 
     internal func tryInit(_ obj: Any) -> Bool {

@@ -37,6 +37,15 @@ public final class ContentDisposition {
         }
     }
 
+    /// Internal initializer for cloning. Assumes disposition is already validated.
+    private init(cloning disposition: String) {
+        self.disposition = disposition
+        self.parameters = ParameterList()
+        self.parameters.changed = { [weak self] _ in
+            self?.onChanged()
+        }
+    }
+
     public var fileName: String? {
         get { parameters["filename"] }
         set {
@@ -210,11 +219,10 @@ public final class ContentDisposition {
     }
 
     public func clone() -> ContentDisposition {
-        let cloned = try! ContentDisposition(disposition)
+        let cloned = ContentDisposition(cloning: disposition)
         for param in parameters {
             try? cloned.parameters.add(param.clone())
         }
-        cloned.disposition = disposition
         return cloned
     }
 

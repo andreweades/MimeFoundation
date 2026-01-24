@@ -17,6 +17,13 @@ public enum TextPartError: Error, Equatable {
 }
 
 open class TextPart: MimePart {
+    private static var rtfContentType: ContentType {
+        guard let ct = try? ContentType("text", "rtf") else {
+            preconditionFailure("Invalid static content type - this is a programming error")
+        }
+        return ct
+    }
+
     private var textStorage: String?
     private var textLoaded = false
 
@@ -48,7 +55,9 @@ open class TextPart: MimePart {
     }
 
     public convenience init(_ subtype: String) {
-        let contentType = try! ContentType("text", subtype)
+        guard let contentType = try? ContentType("text", subtype) else {
+            preconditionFailure("Invalid subtype '\(subtype)' for text content type")
+        }
         self.init(contentType)
     }
 
@@ -86,8 +95,7 @@ open class TextPart: MimePart {
         case .enriched:
             self.init("enriched")
         case .richText, .compressedRichText:
-            let contentType = try! ContentType("text", "rtf")
-            self.init(contentType)
+            self.init(Self.rtfContentType)
         }
     }
 

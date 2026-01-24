@@ -13,7 +13,7 @@ public final class QuotedPrintableEncoder: MimeEncoder {
     private var saved: Int = -1
 
     public convenience init() {
-        try! self.init(maxLineLength: 76)
+        self.init(uncheckedMaxLineLength: 76)
     }
 
     public init(maxLineLength: Int) throws {
@@ -22,6 +22,14 @@ public final class QuotedPrintableEncoder: MimeEncoder {
         }
 
         let normalized = min(maxLineLength, 76)
+        self.tripletsPerLine = normalized / 3
+        self.maxLineLength = normalized
+        reset()
+    }
+
+    /// Internal initializer that skips validation. Used for default init.
+    private init(uncheckedMaxLineLength: Int) {
+        let normalized = min(uncheckedMaxLineLength, 76)
         self.tripletsPerLine = normalized / 3
         self.maxLineLength = normalized
         reset()
@@ -53,10 +61,8 @@ public final class QuotedPrintableEncoder: MimeEncoder {
         return ((length / tripletsPerLine) * (maxLineLength + 1)) + ((length % tripletsPerLine) * 3) + 2
     }
 
-    public func encode(_ input: [UInt8]?, startIndex: Int, length: Int, output: inout [UInt8]?) throws -> Int {
+    public func encode(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
-        guard let input = input else { throw MimeCodingError.inputNil }
-        guard var outputBuffer = output else { throw MimeCodingError.outputNil }
 
         var outIndex = 0
         var index = startIndex
@@ -70,13 +76,13 @@ public final class QuotedPrintableEncoder: MimeEncoder {
                 if saved != -1 {
                     let b = UInt8(saved)
                     if ByteClassification.isBlank(b) || !ByteClassification.isQpSafe(b) {
-                        outputBuffer[outIndex] = 0x3D
-                        outputBuffer[outIndex + 1] = Self.hexAlphabet[Int((b >> 4) & 0x0F)]
-                        outputBuffer[outIndex + 2] = Self.hexAlphabet[Int(b & 0x0F)]
+                        output[outIndex] = 0x3D
+                        output[outIndex + 1] = Self.hexAlphabet[Int((b >> 4) & 0x0F)]
+                        output[outIndex + 2] = Self.hexAlphabet[Int(b & 0x0F)]
                         outIndex += 3
                         currentLineLength += 3
                     } else {
-                        outputBuffer[outIndex] = b
+                        output[outIndex] = b
                         outIndex += 1
                         currentLineLength += 1
                     }
@@ -86,17 +92,17 @@ public final class QuotedPrintableEncoder: MimeEncoder {
                 if saved != -1 && saved != 0x0D {
                     let b = UInt8(saved)
                     if ByteClassification.isBlank(b) || !ByteClassification.isQpSafe(b) {
-                        outputBuffer[outIndex] = 0x3D
-                        outputBuffer[outIndex + 1] = Self.hexAlphabet[Int((b >> 4) & 0x0F)]
-                        outputBuffer[outIndex + 2] = Self.hexAlphabet[Int(b & 0x0F)]
+                        output[outIndex] = 0x3D
+                        output[outIndex + 1] = Self.hexAlphabet[Int((b >> 4) & 0x0F)]
+                        output[outIndex + 2] = Self.hexAlphabet[Int(b & 0x0F)]
                         outIndex += 3
                     } else {
-                        outputBuffer[outIndex] = b
+                        output[outIndex] = b
                         outIndex += 1
                     }
                 }
 
-                outputBuffer[outIndex] = 0x0A
+                output[outIndex] = 0x0A
                 outIndex += 1
                 currentLineLength = 0
                 saved = -1
@@ -104,20 +110,20 @@ public final class QuotedPrintableEncoder: MimeEncoder {
                 if saved != -1 {
                     let b = UInt8(saved)
                     if ByteClassification.isQpSafe(b) {
-                        outputBuffer[outIndex] = b
+                        output[outIndex] = b
                         outIndex += 1
                         currentLineLength += 1
                     } else {
-                        outputBuffer[outIndex] = 0x3D
-                        outputBuffer[outIndex + 1] = Self.hexAlphabet[Int((b >> 4) & 0x0F)]
-                        outputBuffer[outIndex + 2] = Self.hexAlphabet[Int(b & 0x0F)]
+                        output[outIndex] = 0x3D
+                        output[outIndex + 1] = Self.hexAlphabet[Int((b >> 4) & 0x0F)]
+                        output[outIndex + 2] = Self.hexAlphabet[Int(b & 0x0F)]
                         outIndex += 3
                         currentLineLength += 3
                     }
 
                     if currentLineLength + 1 >= maxLineLength {
-                        outputBuffer[outIndex] = 0x3D
-                        outputBuffer[outIndex + 1] = 0x0A
+                        output[outIndex] = 0x3D
+                        output[outIndex + 1] = 0x0A
                         outIndex += 2
                         currentLineLength = 0
                     }
@@ -126,40 +132,34 @@ public final class QuotedPrintableEncoder: MimeEncoder {
             }
         }
 
-        output = outputBuffer
         return outIndex
     }
 
-    public func flush(_ input: [UInt8]?, startIndex: Int, length: Int, output: inout [UInt8]?) throws -> Int {
+    public func flush(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
-        guard let input = input else { throw MimeCodingError.inputNil }
-        guard var outputBuffer = output else { throw MimeCodingError.outputNil }
 
         var outIndex = 0
         if length > 0 {
-            let count = try encode(input, startIndex: startIndex, length: length, output: &output)
-            outIndex = count
-            outputBuffer = output ?? outputBuffer
+            outIndex = try encode(input, startIndex: startIndex, length: length, output: &output)
         }
 
         if saved != -1 {
             let c = UInt8(saved)
             if ByteClassification.isBlank(c) || !ByteClassification.isQpSafe(c) {
-                outputBuffer[outIndex] = 0x3D
-                outputBuffer[outIndex + 1] = Self.hexAlphabet[Int((c >> 4) & 0x0F)]
-                outputBuffer[outIndex + 2] = Self.hexAlphabet[Int(c & 0x0F)]
+                output[outIndex] = 0x3D
+                output[outIndex + 1] = Self.hexAlphabet[Int((c >> 4) & 0x0F)]
+                output[outIndex + 2] = Self.hexAlphabet[Int(c & 0x0F)]
                 outIndex += 3
             } else {
-                outputBuffer[outIndex] = c
+                output[outIndex] = c
                 outIndex += 1
             }
-            outputBuffer[outIndex] = 0x3D
-            outputBuffer[outIndex + 1] = 0x0A
+            output[outIndex] = 0x3D
+            output[outIndex + 1] = 0x0A
             outIndex += 2
         }
 
         reset()
-        output = outputBuffer
         return outIndex
     }
 
@@ -168,11 +168,9 @@ public final class QuotedPrintableEncoder: MimeEncoder {
         saved = -1
     }
 
-    private func validateArguments(_ input: [UInt8]?, startIndex: Int, length: Int, output: [UInt8]?) throws {
-        guard let input = input else { throw MimeCodingError.inputNil }
+    private func validateArguments(_ input: [UInt8], startIndex: Int, length: Int, output: [UInt8]) throws {
         if startIndex < 0 || startIndex > input.count { throw MimeCodingError.startIndexOutOfRange }
         if length < 0 || length > (input.count - startIndex) { throw MimeCodingError.lengthOutOfRange }
-        guard let output = output else { throw MimeCodingError.outputNil }
         if output.count < estimateOutputLength(length) { throw MimeCodingError.outputTooSmall }
     }
 }
