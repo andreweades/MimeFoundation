@@ -343,6 +343,35 @@ public final class MimeMessage {
         visitor.visit(self)
     }
 
+    internal func hashBody(_ options: FormatOptions, signatureAlgorithm: DkimSignatureAlgorithm, bodyCanonicalization: DkimCanonicalizationAlgorithm, maxLength: Int) throws -> [UInt8] {
+        let stream = DkimHashStream(signatureAlgorithm, maxLength: maxLength)
+        let filtered = try FilteredStream(stream)
+        let dkimFilter: DkimBodyFilter
+
+        switch bodyCanonicalization {
+        case .relaxed:
+            dkimFilter = DkimRelaxedBodyFilter()
+        case .simple:
+            dkimFilter = DkimSimpleBodyFilter()
+        }
+
+        try filtered.add(options.createNewLineFilter(true))
+        try filtered.add(dkimFilter)
+
+        if let body {
+            try body.writeBody(options, stream: filtered)
+        }
+
+        try filtered.flush()
+
+        if !dkimFilter.lastWasNewLine {
+            let newLine = options.newLineBytes
+            try stream.write(newLine, offset: 0, count: newLine.count)
+        }
+
+        return stream.generateHash()
+    }
+
     public static func load(_ stream: MimeStream?) throws -> MimeMessage {
         guard let stream else {
             throw MimeMessageError.nilStream
