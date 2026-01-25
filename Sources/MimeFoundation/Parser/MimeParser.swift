@@ -51,7 +51,7 @@ open class MimeParser {
         if isEndOfStream {
             return HeaderList()
         }
-        let bytes = Array(data[currentOffset..<data.count])
+        let bytes = data[currentOffset..<data.count]
         if shouldThrowForTruncatedHeaderName(bytes) {
             throw ParseException("Invalid header.", tokenIndex: currentOffset, errorIndex: currentOffset)
         }
@@ -69,8 +69,8 @@ open class MimeParser {
 
     public func parseMessage() throws -> MimeMessage {
         let range = try nextMessageRange()
-        var messageBytes = Array(data[range.start..<range.end])
-        if messageBytes.isEmpty {
+        let messageBytesSlice = data[range.start..<range.end]
+        if messageBytesSlice.isEmpty {
             if format == .mbox {
                 let message = MimeMessage(addDefaults: false)
                 currentOffset = range.end
@@ -81,9 +81,9 @@ open class MimeParser {
             }
             throw ParseException("End of stream.", tokenIndex: currentOffset, errorIndex: currentOffset)
         }
-        messageBytes = try stripByteOrderMarkIfNeeded(messageBytes)
-        try validateHeaderStart(in: messageBytes, errorMessage: "Failed to parse message headers.")
-        let stream = MemoryStream(messageBytes, writable: false)
+        let stripped = try stripByteOrderMarkIfNeeded(messageBytesSlice)
+        try validateHeaderStart(in: stripped, errorMessage: "Failed to parse message headers.")
+        let stream = MemoryStream(Array(stripped), writable: false)
         let message = try MimeMessage.load(options, stream)
         currentOffset = range.end
         if currentOffset >= data.count {
@@ -97,13 +97,14 @@ open class MimeParser {
     }
 
     public func parseEntity() throws -> MimeEntity {
-        var bytes = Array(data[currentOffset..<data.count])
+        let bytes = data[currentOffset..<data.count]
         if bytes.isEmpty {
             throw ParseException("End of stream.", tokenIndex: currentOffset, errorIndex: currentOffset)
         }
-        bytes = try stripByteOrderMarkIfNeeded(bytes)
-        try validateHeaderStart(in: bytes, errorMessage: "Failed to parse entity headers.")
-        let stream = MemoryStream(bytes, writable: false)
+        let stripped = try stripByteOrderMarkIfNeeded(bytes)
+        try validateHeaderStart(in: stripped, errorMessage: "Failed to parse entity headers.")
+        // MemoryStream needs Array or Data, so we must copy here until MemoryStream supports slices or we have a SliceStream
+        let stream = MemoryStream(Array(stripped), writable: false)
         let entity = try MimeEntity.load(options, stream)
         currentOffset = data.count
         isEndOfStream = true
@@ -118,10 +119,10 @@ open class MimeParser {
 // MARK: - Parsing helpers
 
 private extension MimeParser {
-    func shouldThrowForTruncatedHeaderName(_ bytes: [UInt8]) -> Bool {
+    func shouldThrowForTruncatedHeaderName(_ bytes: ArraySlice<UInt8>) -> Bool {
         guard !bytes.isEmpty else { return false }
-        var index = 0
-        while index < bytes.count {
+        var index = bytes.startIndex
+        while index < bytes.endIndex {
             let byte = bytes[index]
             if byte == 0x0D || byte == 0x0A {
                 return false
@@ -131,41 +132,42 @@ private extension MimeParser {
         return !bytes.contains(0x3A)
     }
 
-    func stripByteOrderMarkIfNeeded(_ bytes: [UInt8]) throws -> [UInt8] {
+    func stripByteOrderMarkIfNeeded(_ bytes: ArraySlice<UInt8>) throws -> ArraySlice<UInt8> {
         guard bytes.count >= 2 else {
             return bytes
         }
-        if bytes[0] == 0xEF && bytes[1] == 0xBB {
+        let start = bytes.startIndex
+        if bytes[start] == 0xEF && bytes[start + 1] == 0xBB {
             guard bytes.count >= 3 else {
                 throw ParseException("Invalid byte order mark.", tokenIndex: currentOffset, errorIndex: currentOffset)
             }
-            guard bytes[2] == 0xBF else {
+            guard bytes[start + 2] == 0xBF else {
                 throw ParseException("Invalid byte order mark.", tokenIndex: currentOffset, errorIndex: currentOffset)
             }
             if bytes.count == 3 {
                 throw ParseException("End of stream.", tokenIndex: currentOffset, errorIndex: currentOffset)
             }
-            return Array(bytes[3..<bytes.count])
+            return bytes[(start + 3)..<bytes.endIndex]
         }
         return bytes
     }
 
-    func validateHeaderStart(in bytes: [UInt8], errorMessage: String) throws {
+    func validateHeaderStart(in bytes: ArraySlice<UInt8>, errorMessage: String) throws {
         guard !bytes.isEmpty else {
             throw ParseException("End of stream.", tokenIndex: currentOffset, errorIndex: currentOffset)
         }
-        var index = 0
-        while index < bytes.count {
+        var index = bytes.startIndex
+        while index < bytes.endIndex {
             let byte = bytes[index]
             if byte == 0x0D || byte == 0x0A {
                 break
             }
             index += 1
         }
-        if index == 0 {
+        if index == bytes.startIndex {
             return
         }
-        if !bytes[0..<index].contains(0x3A) {
+        if !bytes[bytes.startIndex..<index].contains(0x3A) {
             throw ParseException(errorMessage, tokenIndex: currentOffset, errorIndex: currentOffset)
         }
     }
@@ -279,7 +281,7 @@ private extension MimeParser {
     }
 
     func parseContentLength(startOffset: Int) -> Int? {
-        let bytes = Array(data[startOffset..<data.count])
+        let bytes = data[startOffset..<data.count]
         let (headers, _) = MimeMessage.parseHeaders(bytes)
         guard let value = headers[.contentLength] else {
             return nil

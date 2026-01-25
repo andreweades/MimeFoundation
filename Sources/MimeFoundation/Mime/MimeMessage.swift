@@ -400,6 +400,10 @@ public final class MimeMessage {
     }
 
     internal static func parseEntity(_ options: ParserOptions, _ bytes: [UInt8]) throws -> MimeEntity? {
+        try parseEntity(options, ArraySlice(bytes))
+    }
+
+    internal static func parseEntity(_ options: ParserOptions, _ bytes: ArraySlice<UInt8>) throws -> MimeEntity? {
         let (headers, bodyBytes) = parseHeaders(bytes)
         if headers.isEmpty && bodyBytes.isEmpty {
             return nil
@@ -407,7 +411,7 @@ public final class MimeMessage {
         return try parseEntity(options, headers, bodyBytes)
     }
 
-    internal static func parseEntity(_ options: ParserOptions, _ headers: HeaderList, _ bodyBytes: [UInt8]) throws -> MimeEntity? {
+    internal static func parseEntity(_ options: ParserOptions, _ headers: HeaderList, _ bodyBytes: ArraySlice<UInt8>) throws -> MimeEntity? {
         func removeAutoContentTypeHeader(from entity: MimeEntity) {
             for index in 0..<entity.headers.count {
                 let header = entity.headers[index]
@@ -469,7 +473,9 @@ public final class MimeMessage {
             }
             applyHeaders(multipart)
             if let boundary = multipart.contentType.boundary, !boundary.isEmpty, !bodyBytes.isEmpty {
-                let split = splitMultipartBody(bodyBytes, boundary: boundary)
+                // splitMultipartBody currently expects [UInt8], we might need to update it or copy here for now if heavy refactor is risky
+                // For now, let's copy only when needed by this specific method
+                let split = splitMultipartBody(Array(bodyBytes), boundary: boundary)
                 if let preamble = split.preamble {
                     multipart.preamble = preamble
                 }
@@ -487,7 +493,7 @@ public final class MimeMessage {
                 }
             }
             if !bodyBytes.isEmpty {
-                multipart.rawBody = bodyBytes
+                multipart.rawBody = Array(bodyBytes)
             }
             entity = multipart
         case ("text", "rfc822-headers"), ("message", "global-headers"):
@@ -516,7 +522,7 @@ public final class MimeMessage {
             applyHeaders(part)
             if !bodyBytes.isEmpty {
                 let encoding = part.contentTransferEncoding
-                part.content = MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
+                part.content = MimeContent(MemoryStream(Array(bodyBytes), writable: false), encoding: encoding)
             }
             entity = part
         case ("message", "disposition-notification"):
@@ -533,7 +539,7 @@ public final class MimeMessage {
             applyHeaders(part)
             if !bodyBytes.isEmpty {
                 let encoding = part.contentTransferEncoding
-                part.content = MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
+                part.content = MimeContent(MemoryStream(Array(bodyBytes), writable: false), encoding: encoding)
             }
             entity = part
         case ("message", "feedback-report"):
@@ -550,7 +556,7 @@ public final class MimeMessage {
             applyHeaders(part)
             if !bodyBytes.isEmpty {
                 let encoding = part.contentTransferEncoding
-                part.content = MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
+                part.content = MimeContent(MemoryStream(Array(bodyBytes), writable: false), encoding: encoding)
             }
             entity = part
         case ("message", "partial"):
@@ -564,14 +570,14 @@ public final class MimeMessage {
             applyHeaders(part)
             if !bodyBytes.isEmpty {
                 let encoding = part.contentTransferEncoding
-                part.content = MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
+                part.content = MimeContent(MemoryStream(Array(bodyBytes), writable: false), encoding: encoding)
             }
             entity = part
         case ("message", _):
             let part = (customEntity as? MessagePart) ?? MessagePart(mediaSubtype.isEmpty ? "rfc822" : mediaSubtype)
             applyHeaders(part)
             if !bodyBytes.isEmpty {
-                part.message = try parse(options, bodyBytes)
+                part.message = try parse(options, Array(bodyBytes))
             }
             entity = part
         case ("text", _), ("application", "rtf"):
@@ -583,7 +589,7 @@ public final class MimeMessage {
             applyHeaders(part)
             if !bodyBytes.isEmpty {
                 let encoding = part.contentTransferEncoding
-                part.content = MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
+                part.content = MimeContent(MemoryStream(Array(bodyBytes), writable: false), encoding: encoding)
             }
             entity = part
         default:
@@ -592,7 +598,7 @@ public final class MimeMessage {
             applyHeaders(part)
             if !bodyBytes.isEmpty {
                 let encoding = part.contentTransferEncoding
-                part.content = MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
+                part.content = MimeContent(MemoryStream(Array(bodyBytes), writable: false), encoding: encoding)
             }
             entity = part
         }
@@ -600,16 +606,25 @@ public final class MimeMessage {
         return entity
     }
 
+    internal static func parseEntity(_ options: ParserOptions, _ headers: HeaderList, _ bodyBytes: [UInt8]) throws -> MimeEntity? {
+        try parseEntity(options, headers, ArraySlice(bodyBytes))
+    }
+
     internal static func parseHeaders(_ bytes: [UInt8]) -> (HeaderList, [UInt8]) {
+        let (headers, bodySlice) = parseHeaders(ArraySlice(bytes))
+        return (headers, Array(bodySlice))
+    }
+
+    internal static func parseHeaders(_ bytes: ArraySlice<UInt8>) -> (HeaderList, ArraySlice<UInt8>) {
         let separator = findHeaderBodySeparator(bytes)
         let headerList = HeaderList()
-        var bodyBytes: [UInt8] = []
+        var bodyBytes: ArraySlice<UInt8> = []
 
-        var headerLimit = bytes.count
+        var headerLimit = bytes.endIndex
         if let separator {
             let lineBreakLength = (bytes[separator.headerEnd] == 0x0D) ? 2 : 1
-            headerLimit = min(bytes.count, separator.headerEnd + lineBreakLength)
-            bodyBytes = Array(bytes[separator.bodyStart..<bytes.count])
+            headerLimit = min(bytes.endIndex, separator.headerEnd + lineBreakLength)
+            bodyBytes = bytes[separator.bodyStart..<bytes.endIndex]
         }
 
         var currentFieldBytes: [UInt8]? = nil
@@ -625,7 +640,7 @@ public final class MimeMessage {
             currentRawValue = []
         }
 
-        var index = 0
+        var index = bytes.startIndex
         while index < headerLimit {
             let lineStart = index
             while index < headerLimit && bytes[index] != 0x0A {
@@ -638,25 +653,27 @@ public final class MimeMessage {
                 index += 1
             }
 
-            var lineBytes = Array(bytes[lineStart..<lineEnd])
+            let lineBytes = bytes[lineStart..<lineEnd]
             var lineBreak: [UInt8] = []
+            var lineContent = Array(lineBytes)
+
             if hasLineFeed {
-                if lineBytes.last == 0x0D {
-                    lineBytes.removeLast()
+                if lineContent.last == 0x0D {
+                    lineContent.removeLast()
                     lineBreak = [0x0D, 0x0A]
                 } else {
                     lineBreak = [0x0A]
                 }
             }
 
-            if lineBytes.isEmpty {
+            if lineContent.isEmpty {
                 finalizeHeader()
                 break
             }
 
-            if lineBytes.first == 0x20 || lineBytes.first == 0x09 {
+            if lineContent.first == 0x20 || lineContent.first == 0x09 {
                 if currentFieldBytes != nil {
-                    currentRawValue.append(contentsOf: lineBytes)
+                    currentRawValue.append(contentsOf: lineContent)
                     currentRawValue.append(contentsOf: lineBreak)
                 }
                 continue
@@ -664,15 +681,15 @@ public final class MimeMessage {
 
             finalizeHeader()
 
-            if let colonIndex = lineBytes.firstIndex(of: UInt8(ascii: ":")) {
-                let fieldBytes = Array(lineBytes[0..<colonIndex])
-                let valueStart = lineBytes.index(after: colonIndex)
-                let rawValue = Array(lineBytes[valueStart..<lineBytes.count]) + lineBreak
+            if let colonIndex = lineContent.firstIndex(of: UInt8(ascii: ":")) {
+                let fieldBytes = Array(lineContent[0..<colonIndex])
+                let valueStart = lineContent.index(after: colonIndex)
+                let rawValue = Array(lineContent[valueStart..<lineContent.count]) + lineBreak
                 currentFieldBytes = fieldBytes
                 currentFieldNameLength = fieldBytes.count
                 currentRawValue = rawValue
             } else {
-                let rawField = lineBytes + lineBreak
+                let rawField = lineContent + lineBreak
                 let header = Header(.default, fieldBytes: rawField, fieldNameLength: rawField.count, rawValue: [])
                 header.isInvalid = true
                 headerList.add(header)
@@ -880,20 +897,22 @@ public final class MimeMessage {
         return recipients
     }
 
-    private static func findHeaderBodySeparator(_ bytes: [UInt8]) -> (headerEnd: Int, bodyStart: Int)? {
+    private static func findHeaderBodySeparator(_ bytes: ArraySlice<UInt8>) -> (headerEnd: Int, bodyStart: Int)? {
         if bytes.count < 2 {
             return nil
         }
-        if bytes[0] == 0x0D, bytes[1] == 0x0A {
-            return (0, 2)
+        let startIndex = bytes.startIndex
+        if bytes[startIndex] == 0x0D, bytes[startIndex + 1] == 0x0A {
+            return (startIndex, startIndex + 2)
         }
-        if bytes[0] == 0x0A {
-            return (0, 1)
+        if bytes[startIndex] == 0x0A {
+            return (startIndex, startIndex + 1)
         }
-        var index = 0
-        while index + 1 < bytes.count {
+        var index = startIndex
+        let endIndex = bytes.endIndex
+        while index + 1 < endIndex {
             if bytes[index] == 0x0D, bytes[index + 1] == 0x0A {
-                if index + 3 < bytes.count,
+                if index + 3 < endIndex,
                    bytes[index + 2] == 0x0D,
                    bytes[index + 3] == 0x0A {
                     return (index, index + 4)
@@ -905,6 +924,10 @@ public final class MimeMessage {
             index += 1
         }
         return nil
+    }
+
+    private static func findHeaderBodySeparator(_ bytes: [UInt8]) -> (headerEnd: Int, bodyStart: Int)? {
+        findHeaderBodySeparator(ArraySlice(bytes))
     }
 
     private static func readAllBytes(from stream: MimeStream) throws -> [UInt8] {

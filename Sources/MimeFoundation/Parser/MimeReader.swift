@@ -307,7 +307,7 @@ private extension MimeReader {
         let beginLineNumber = lineMap.lineNumber(for: start)
         onMimeMessageBegin(start, beginLineNumber)
 
-        let messageBytes = Array(data[start..<end])
+        let messageBytes = data[start..<end]
         let (headers, bodyBytes) = MimeMessage.parseHeaders(messageBytes)
         let headerEndOffset = start + (messageBytes.count - bodyBytes.count)
         let messageEndOffset = end
@@ -336,7 +336,7 @@ private extension MimeReader {
         contentType: ContentType,
         parentContentType: ContentType?,
         headers: HeaderList,
-        bodyBytes: [UInt8],
+        bodyBytes: ArraySlice<UInt8>,
         baseOffset: Int,
         bodyStartOffset: Int,
         bodyEndOffset: Int,
@@ -377,7 +377,7 @@ private extension MimeReader {
     func parseNestedMessage(bodyStartOffset: Int, bodyEndOffset: Int, depth: Int) throws {
         let beginLineNumber = lineMap.lineNumber(for: bodyStartOffset)
         onMimeMessageBegin(bodyStartOffset, beginLineNumber)
-        let bytes = Array(data[bodyStartOffset..<bodyEndOffset])
+        let bytes = data[bodyStartOffset..<bodyEndOffset]
         let (headers, bodyBytes) = MimeMessage.parseHeaders(bytes)
         let headerEndOffset = bodyStartOffset + (bytes.count - bodyBytes.count)
         if let contentType = resolveContentType(headers: headers, parent: nil) {
@@ -433,11 +433,11 @@ private extension MimeReader {
         if startOffset > endOffset {
             return
         }
-        let bytes = Array(data[startOffset..<endOffset])
+        let bytes = data[startOffset..<endOffset]
         let headers: HeaderList
-        let bodyBytes: [UInt8]
+        let bodyBytes: ArraySlice<UInt8>
         let headerEndOffset: Int
-        if bytes.count == 1, bytes[0] == 0x0A || bytes[0] == 0x0D {
+        if bytes.count == 1, bytes[startOffset] == 0x0A || bytes[startOffset] == 0x0D {
             headers = HeaderList()
             bodyBytes = []
             headerEndOffset = startOffset + 1
