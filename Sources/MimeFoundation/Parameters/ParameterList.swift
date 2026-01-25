@@ -19,7 +19,7 @@ public enum ParameterListError: Error, Sendable {
     case unsupportedCharset
 }
 
-public final class ParameterList: RandomAccessCollection, MutableCollection, ExpressibleByArrayLiteral {
+public final class ParameterList: RandomAccessCollection, MutableCollection, ExpressibleByArrayLiteral, Equatable {
     public typealias Element = Parameter
     public typealias Index = Int
 
@@ -779,5 +779,20 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Exp
 
     private func onChanged() {
         changed?(self)
+    }
+
+    public static func == (lhs: ParameterList, rhs: ParameterList) -> Bool {
+        guard lhs.parameters.count == rhs.parameters.count else {
+            return false
+        }
+        for param in lhs.parameters {
+            guard let rhsIndex = rhs.indexOfName(param.name) else {
+                return false
+            }
+            if param != rhs.parameters[rhsIndex] {
+                return false
+            }
+        }
+        return true
     }
 }

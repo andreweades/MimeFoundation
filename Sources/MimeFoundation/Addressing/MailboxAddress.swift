@@ -15,7 +15,7 @@ public enum MailboxAddressError: Error, Sendable {
     case nilAddrspec
 }
 
-public class MailboxAddress: InternetAddress {
+public class MailboxAddress: InternetAddress, Hashable {
     private static let emptySentinels: [UInt8] = []
 
     public static let idnMapping: PunycodeCoding = Punycode()
@@ -328,6 +328,10 @@ public class MailboxAddress: InternetAddress {
             return false
         }
         return name == mailbox.name && addressStorage == mailbox.address && route.description == mailbox.route.description
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(addressStorage.lowercased())
     }
 
     // MARK: Addrspec helpers

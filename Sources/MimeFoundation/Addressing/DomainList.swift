@@ -6,7 +6,7 @@
 
 import Foundation
 
-public final class DomainList: RandomAccessCollection, MutableCollection, CustomStringConvertible {
+public final class DomainList: RandomAccessCollection, MutableCollection, CustomStringConvertible, Equatable {
     public typealias Element = String
     public typealias Index = Int
 
@@ -216,5 +216,9 @@ public final class DomainList: RandomAccessCollection, MutableCollection, Custom
             throw ParseException("Failed to parse domain list.", tokenIndex: 0, errorIndex: index)
         }
         self.init(parsed)
+    }
+
+    public static func == (lhs: DomainList, rhs: DomainList) -> Bool {
+        lhs.domains == rhs.domains
     }
 }

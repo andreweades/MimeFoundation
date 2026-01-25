@@ -13,7 +13,7 @@ public enum ContentDispositionError: Error, Sendable {
     case nilEncoding
 }
 
-public final class ContentDisposition {
+public final class ContentDisposition: Equatable {
     public static let attachment = "attachment"
     public static let formData = "form-data"
     public static let inline = "inline"
@@ -362,5 +362,10 @@ public final class ContentDisposition {
                 throw ContentDispositionError.invalidDisposition
             }
         }
+    }
+
+    public static func == (lhs: ContentDisposition, rhs: ContentDisposition) -> Bool {
+        lhs.disposition.caseInsensitiveCompare(rhs.disposition) == .orderedSame &&
+        lhs.parameters == rhs.parameters
     }
 }

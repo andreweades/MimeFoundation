@@ -14,7 +14,7 @@ public enum HeaderError: Error, Equatable, Sendable {
     case unsupportedCharset
 }
 
-public final class Header: CustomStringConvertible, Equatable {
+public final class Header: CustomStringConvertible, Equatable, Comparable, Hashable {
     public let id: HeaderId
     public let field: String
     public let rawField: [UInt8]
@@ -296,6 +296,14 @@ public final class Header: CustomStringConvertible, Equatable {
 
     public static func == (lhs: Header, rhs: Header) -> Bool {
         lhs.id == rhs.id && lhs.field == rhs.field && lhs.value == rhs.value
+    }
+
+    public static func < (lhs: Header, rhs: Header) -> Bool {
+        lhs.field.caseInsensitiveCompare(rhs.field) == .orderedAscending
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(field.lowercased())
     }
 
     private static func isValidFieldName(_ field: String) -> Bool {

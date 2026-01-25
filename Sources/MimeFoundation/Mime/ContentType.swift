@@ -15,7 +15,7 @@ public enum ContentTypeError: Error, Sendable {
     case nilEncoding
 }
 
-public final class ContentType {
+public final class ContentType: Equatable {
     private var type: String
     private var subtype: String
 
@@ -370,5 +370,11 @@ public final class ContentType {
         }
         try self.init(parsed.mediaType, parsed.mediaSubtype)
         self.parameters = parsed.parameters
+    }
+
+    public static func == (lhs: ContentType, rhs: ContentType) -> Bool {
+        lhs.type.caseInsensitiveCompare(rhs.type) == .orderedSame &&
+        lhs.subtype.caseInsensitiveCompare(rhs.subtype) == .orderedSame &&
+        lhs.parameters == rhs.parameters
     }
 }
