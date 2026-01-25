@@ -10,7 +10,7 @@ open class MimeFilterBase: MimeFilter {
     private var preload: [UInt8] = []
     private var preloadLength: Int = 0
     private var inputBuffer: [UInt8] = []
-    private var outputBuffer: [UInt8] = []
+    internal var outputBuffer: [UInt8] = []
 
     public init() {}
 

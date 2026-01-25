@@ -23,6 +23,7 @@ public protocol MimeVisitor {
     func visit(_ part: MessageFeedbackReport)
     func visit(_ part: MessagePartial)
     func visit(_ part: TextRfc822Headers)
+    func visit(_ part: TnefPart)
     func visit(_ multipart: Multipart)
     func visit(_ multipart: MultipartAlternative)
     func visit(_ multipart: MultipartRelated)
@@ -44,6 +45,7 @@ public extension MimeVisitor {
     func visit(_ part: MessageFeedbackReport) {}
     func visit(_ part: MessagePartial) {}
     func visit(_ part: TextRfc822Headers) {}
+    func visit(_ part: TnefPart) {}
     func visit(_ multipart: Multipart) {}
     func visit(_ multipart: MultipartAlternative) {}
     func visit(_ multipart: MultipartRelated) {}

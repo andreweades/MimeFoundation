@@ -9,6 +9,8 @@ import Foundation
 public protocol TextReadable {
     func readLine() -> String?
     func readToEnd() -> String
+    func read() -> Character?
+    func readBlock(_ buffer: inout [Character], index: Int, count: Int) -> Int
 }
 
 public protocol TextWritable {
@@ -23,6 +25,25 @@ public final class StringReader: TextReadable {
     public init(_ text: String) {
         self.text = text
         self.index = text.startIndex
+    }
+
+    public func read() -> Character? {
+        guard index < text.endIndex else {
+            return nil
+        }
+        let char = text[index]
+        index = text.index(after: index)
+        return char
+    }
+
+    public func readBlock(_ buffer: inout [Character], index startIndex: Int, count: Int) -> Int {
+        var nread = 0
+        while nread < count, index < text.endIndex {
+            buffer[startIndex + nread] = text[index]
+            index = text.index(after: index)
+            nread += 1
+        }
+        return nread
     }
 
     public func readLine() -> String? {

@@ -60,17 +60,51 @@ final class HtmlTokenizer {
     private func parseData() -> HtmlToken? {
         let start = index
         var i = index
+        var result = ""
+        let entityDecoder = HtmlEntityDecoder()
+
         while i < characters.count {
-            if characters[i] == "<" {
+            let c = characters[i]
+            if c == "<" {
                 break
             }
+
+            if decodeCharacterReferences && c == "&" {
+                entityDecoder.reset()
+                var j = i
+                var pushedCount = 0
+                var foundSemicolon = false
+
+                while j < characters.count {
+                    let ec = characters[j]
+                    if entityDecoder.push(ec) {
+                        j += 1
+                        pushedCount += 1
+                        if ec == ";" {
+                            foundSemicolon = true
+                            break
+                        }
+                    } else {
+                        break
+                    }
+                }
+
+                if foundSemicolon {
+                    result.append(entityDecoder.getValue())
+                    i = j
+                    continue
+                }
+            }
+
+            result.append(c)
             i += 1
         }
+
         index = i
-        if start == i {
+        if result.isEmpty && start == i {
             return nil
         }
-        return HtmlDataToken(String(characters[start..<i]))
+        return HtmlDataToken(result)
     }
 
     private func parseDeclaration() -> HtmlToken {
