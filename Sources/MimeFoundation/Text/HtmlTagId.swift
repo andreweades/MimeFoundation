@@ -27,12 +27,13 @@ public enum HtmlTagId: String, Sendable {
     case center = "center"
     case link = "link"
     case hr = "hr"
+    case input = "input"
 }
 
 public enum HtmlTagIdUtils {
     private static let nameToId: [String: HtmlTagId] = {
         var map: [String: HtmlTagId] = [:]
-        for id in [HtmlTagId.a, .blockQuote, .br, .p, .html, .head, .body, .title, .meta, .image, .script, .style, .div, .span, .table, .tbody, .tr, .td, .center, .link, .hr] {
+        for id in [HtmlTagId.a, .blockQuote, .br, .p, .html, .head, .body, .title, .meta, .image, .script, .style, .div, .span, .table, .tbody, .tr, .td, .center, .link, .hr, .input] {
             map[id.rawValue] = id
         }
         return map
@@ -43,7 +44,8 @@ public enum HtmlTagIdUtils {
         .meta,
         .image,
         .hr,
-        .link
+        .link,
+        .input
     ]
 
     public static func toHtmlTagName(_ id: HtmlTagId) -> String {
