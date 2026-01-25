@@ -19,6 +19,7 @@ internal struct LineMap {
     let lines: [LineInfo]
 
     init(_ data: [UInt8]) {
+        #if MIME_UseUnsafe
         self.lines = data.withUnsafeBufferPointer { buffer in
             var items: [LineInfo] = []
             items.reserveCapacity(data.count / 40) // heuristic
@@ -62,6 +63,38 @@ internal struct LineMap {
             
             return items
         }
+        #else
+        var items: [LineInfo] = []
+        var index = 0
+        var lineStart = 0
+        while index < data.count {
+            let byte = data[index]
+            if byte == 0x0D {
+                if index + 1 < data.count, data[index + 1] == 0x0A {
+                    items.append(LineInfo(start: lineStart, end: index, breakLength: 2))
+                    index += 2
+                    lineStart = index
+                    continue
+                } else {
+                    items.append(LineInfo(start: lineStart, end: index, breakLength: 1))
+                    index += 1
+                    lineStart = index
+                    continue
+                }
+            }
+            if byte == 0x0A {
+                items.append(LineInfo(start: lineStart, end: index, breakLength: 1))
+                index += 1
+                lineStart = index
+                continue
+            }
+            index += 1
+        }
+        if lineStart <= data.count {
+            items.append(LineInfo(start: lineStart, end: data.count, breakLength: 0))
+        }
+        self.lines = items
+        #endif
     }
 
     func lineNumber(for offset: Int) -> Int {
