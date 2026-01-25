@@ -43,6 +43,7 @@ message.body = TextPart("plain", "This is the message body.")
 - <doc:Attachments>
 - <doc:MultipartMessages>
 - <doc:EncodingAndCharsets>
+- <doc:TNEFMessages>
 
 ### Security and Cryptography
 
@@ -67,6 +68,7 @@ message.body = TextPart("plain", "This is the message body.")
 - ``TextPart``
 - ``Multipart``
 - ``MessagePart``
+- ``TnefPart``
 
 ### Addressing
 
