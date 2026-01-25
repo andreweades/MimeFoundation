@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum MimeAnonymizerError: Error, Equatable {
+public enum MimeAnonymizerError: Error, Equatable, Sendable {
     case nilOptions
     case nilMessage
     case nilEntity

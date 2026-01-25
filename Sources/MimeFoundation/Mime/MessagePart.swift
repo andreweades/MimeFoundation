@@ -4,7 +4,7 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public enum MessagePartError: Error, Equatable {
+public enum MessagePartError: Error, Equatable, Sendable {
     case nilArgs
     case duplicateMessage
     case invalidArgument

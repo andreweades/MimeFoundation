@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum MultipartError: Error, Equatable {
+public enum MultipartError: Error, Equatable, Sendable {
     case nilSubtype
     case nilArgs
     case invalidArgument

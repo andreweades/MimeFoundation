@@ -8,7 +8,7 @@ import Foundation
 import Crypto
 import _CryptoExtras
 
-public enum DkimPublicKeyLocatorError: Error, Equatable {
+public enum DkimPublicKeyLocatorError: Error, Equatable, Sendable {
     case invalidArgument
 }
 

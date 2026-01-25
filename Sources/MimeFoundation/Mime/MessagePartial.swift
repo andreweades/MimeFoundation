@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum MessagePartialError: Error, Equatable {
+public enum MessagePartialError: Error, Equatable, Sendable {
     case invalidId
     case invalidNumber
     case invalidTotal

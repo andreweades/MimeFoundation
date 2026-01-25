@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum DkimVerifierError: Error, Equatable {
+public enum DkimVerifierError: Error, Equatable, Sendable {
     case invalidArgument
     case malformedHeader(String)
     case unsupportedAlgorithm

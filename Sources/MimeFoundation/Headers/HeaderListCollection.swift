@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum HeaderListCollectionError: Error {
+public enum HeaderListCollectionError: Error, Sendable {
     case nilGroup
     case nilArray
     case indexOutOfRange

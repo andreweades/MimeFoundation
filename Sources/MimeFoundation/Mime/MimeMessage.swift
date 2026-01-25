@@ -5,7 +5,7 @@
 //
 
 import Foundation
-public enum MimeMessageError: Error, Equatable {
+public enum MimeMessageError: Error, Equatable, Sendable {
     case invalidMaxLineLength
     case nilStream
     case nilArgs

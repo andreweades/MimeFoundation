@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum MultipartRelatedError: Error, Equatable {
+public enum MultipartRelatedError: Error, Equatable, Sendable {
     case nilUri
     case nilRoot
     case notFound

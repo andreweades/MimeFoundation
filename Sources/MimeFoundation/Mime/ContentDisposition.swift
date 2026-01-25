@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum ContentDispositionError: Error {
+public enum ContentDispositionError: Error, Sendable {
     case nilDisposition
     case invalidDisposition
     case nilOptions

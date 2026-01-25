@@ -4,11 +4,11 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public enum OptimizedOrdinalComparerError: Error, Equatable {
+public enum OptimizedOrdinalComparerError: Error, Equatable, Sendable {
     case nilString
 }
 
-public struct OptimizedOrdinalIgnoreCaseComparer {
+public struct OptimizedOrdinalIgnoreCaseComparer: Sendable {
     public init() {}
 
     public func equals(_ lhs: String, _ rhs: String) -> Bool {

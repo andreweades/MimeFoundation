@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum MailboxAddressError: Error {
+public enum MailboxAddressError: Error, Sendable {
     case nilEncoding
     case nilRoute
     case nilAddress

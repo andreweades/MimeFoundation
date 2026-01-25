@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum AuthenticationResultsError: Error, Equatable {
+public enum AuthenticationResultsError: Error, Equatable, Sendable {
     case invalidRange
 }
 

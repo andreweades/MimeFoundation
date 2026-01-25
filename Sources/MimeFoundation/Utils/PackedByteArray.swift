@@ -4,7 +4,7 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public enum PackedByteArrayError: Error, Equatable {
+public enum PackedByteArrayError: Error, Equatable, Sendable {
     case nilBuffer
     case indexOutOfRange
 }

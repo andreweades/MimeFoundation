@@ -8,7 +8,7 @@ import Foundation
 import Crypto
 import _CryptoExtras
 
-public enum DkimSignerError: Error, Equatable {
+public enum DkimSignerError: Error, Equatable, Sendable {
     case invalidArgument
     case invalidPrivateKey
     case unsupportedAlgorithm

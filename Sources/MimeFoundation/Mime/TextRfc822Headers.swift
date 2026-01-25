@@ -4,7 +4,7 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public enum TextRfc822HeadersError: Error, Equatable {
+public enum TextRfc822HeadersError: Error, Equatable, Sendable {
     case nilArgs
     case duplicateMessage
     case invalidArgument

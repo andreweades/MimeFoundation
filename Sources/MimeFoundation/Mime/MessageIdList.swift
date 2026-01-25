@@ -4,7 +4,7 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public enum MessageIdListError: Error, Equatable {
+public enum MessageIdListError: Error, Equatable, Sendable {
     case nilId
     case nilArray
     case indexOutOfRange

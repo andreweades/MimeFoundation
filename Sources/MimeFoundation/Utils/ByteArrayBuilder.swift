@@ -4,7 +4,7 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public enum ByteComparison {
+public enum ByteComparison: Sendable {
     case sensitive
     case insensitiveAscii
 }

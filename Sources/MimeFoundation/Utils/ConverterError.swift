@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum ConverterError: Error, Equatable {
+public enum ConverterError: Error, Equatable, Sendable {
     case alreadyRegistered
     case notSupported
 }

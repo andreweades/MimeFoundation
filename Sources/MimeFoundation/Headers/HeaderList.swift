@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum HeaderListChangedAction {
+public enum HeaderListChangedAction: Sendable {
     case added
     case removed
     case changed

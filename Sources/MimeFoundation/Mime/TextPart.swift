@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum TextPartError: Error, Equatable {
+public enum TextPartError: Error, Equatable, Sendable {
     case nilArgs
     case nilCharset
     case nilText

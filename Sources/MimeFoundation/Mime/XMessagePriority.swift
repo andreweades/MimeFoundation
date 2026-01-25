@@ -4,7 +4,7 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public enum XMessagePriority: Int {
+public enum XMessagePriority: Int, Sendable {
     case highest = 1
     case high = 2
     case normal = 3

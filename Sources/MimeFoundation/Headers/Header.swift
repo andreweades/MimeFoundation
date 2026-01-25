@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum HeaderError: Error, Equatable {
+public enum HeaderError: Error, Equatable, Sendable {
     case unknownHeaderId
     case emptyFieldName
     case invalidFieldName

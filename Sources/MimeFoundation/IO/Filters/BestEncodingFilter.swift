@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum BestEncodingFilterError: Error, Equatable {
+public enum BestEncodingFilterError: Error, Equatable, Sendable {
     case invalidMaxLineLength
 }
 

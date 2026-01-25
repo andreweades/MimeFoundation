@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum MultipartReportError: Error, Equatable {
+public enum MultipartReportError: Error, Equatable, Sendable {
     case nilReportType
     case nilArgs
 }

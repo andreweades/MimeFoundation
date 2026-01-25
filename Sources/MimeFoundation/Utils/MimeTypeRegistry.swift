@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum MimeTypeError: Error, Equatable {
+public enum MimeTypeError: Error, Equatable, Sendable {
     case nilFileName
     case nilMimeType
     case emptyMimeType

@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum MimeContentError: Error {
+public enum MimeContentError: Error, Sendable {
     case nilStream
     case streamNotReadable
     case streamNotSeekable

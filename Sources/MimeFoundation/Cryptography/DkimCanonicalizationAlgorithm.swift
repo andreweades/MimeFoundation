@@ -4,7 +4,7 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public enum DkimCanonicalizationAlgorithm {
+public enum DkimCanonicalizationAlgorithm: Sendable {
     case simple
     case relaxed
 }

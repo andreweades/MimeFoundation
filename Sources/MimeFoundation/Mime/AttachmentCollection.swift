@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum AttachmentCollectionError: Error, Equatable {
+public enum AttachmentCollectionError: Error, Equatable, Sendable {
     case nilFileName
     case emptyFileName
     case nilData

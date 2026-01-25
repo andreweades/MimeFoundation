@@ -7,7 +7,7 @@
 import Foundation
 import CryptoKit
 
-public enum MimePartError: Error, Equatable {
+public enum MimePartError: Error, Equatable, Sendable {
     case nilContentType
     case nilMediaType
     case nilMediaSubtype

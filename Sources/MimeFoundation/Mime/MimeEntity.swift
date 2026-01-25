@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum MimeEntityError: Error, Equatable {
+public enum MimeEntityError: Error, Equatable, Sendable {
     case nilContentType
     case invalidContentBase
     case invalidContentId

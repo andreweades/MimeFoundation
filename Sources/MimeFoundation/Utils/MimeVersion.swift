@@ -4,7 +4,7 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public struct MimeVersion: Equatable, CustomStringConvertible {
+public struct MimeVersion: Equatable, CustomStringConvertible, Sendable {
     public let components: [Int]
 
     public init?(components: [Int]) {

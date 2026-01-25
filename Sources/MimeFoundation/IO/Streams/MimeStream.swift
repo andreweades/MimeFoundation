@@ -6,13 +6,13 @@
 
 import Foundation
 
-public enum SeekOrigin {
+public enum SeekOrigin: Sendable {
     case begin
     case current
     case end
 }
 
-public enum StreamError: Error {
+public enum StreamError: Error, Sendable {
     case notSupported
     case invalidArgument
     case outOfRange

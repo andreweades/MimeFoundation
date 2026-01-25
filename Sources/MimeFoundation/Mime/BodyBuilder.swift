@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum BodyBuilderError: Error, Equatable {
+public enum BodyBuilderError: Error, Equatable, Sendable {
     case nilEncoding
 }
 

@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum MimeParserError: Error, Equatable {
+public enum MimeParserError: Error, Equatable, Sendable {
     case nilStream
 }
 

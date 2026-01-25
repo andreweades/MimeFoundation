@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum MimeIteratorError: Error, Equatable {
+public enum MimeIteratorError: Error, Equatable, Sendable {
     case invalidPathSpecifier
     case emptyPathSpecifier
 }

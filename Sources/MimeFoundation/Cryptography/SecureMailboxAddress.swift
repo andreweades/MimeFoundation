@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum SecureMailboxAddressError: Error {
+public enum SecureMailboxAddressError: Error, Sendable {
     case nilFingerprint
     case invalidFingerprint
 }

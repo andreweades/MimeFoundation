@@ -16,7 +16,7 @@ public final class CancellationToken {
     }
 }
 
-public struct OperationCanceledError: Error {
+public struct OperationCanceledError: Error, Sendable {
     public init() {}
 }
 

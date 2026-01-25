@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum ParameterListError: Error {
+public enum ParameterListError: Error, Sendable {
     case nilParameter
     case nilName
     case nilValue

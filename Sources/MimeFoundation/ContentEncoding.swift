@@ -4,7 +4,7 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public enum ContentEncoding: String, CaseIterable {
+public enum ContentEncoding: String, CaseIterable, Sendable {
     case `default`
     case sevenBit
     case eightBit

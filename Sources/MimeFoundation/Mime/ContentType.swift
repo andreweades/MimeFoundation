@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum ContentTypeError: Error {
+public enum ContentTypeError: Error, Sendable {
     case nilMediaType
     case nilMediaSubtype
     case invalidMediaType

@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum CharsetError: Error, Equatable {
+public enum CharsetError: Error, Equatable, Sendable {
     case invalidSequence
     case unsupportedEncoding
     case invalidArgument

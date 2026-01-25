@@ -4,7 +4,7 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public struct ParseException: Error, Equatable {
+public struct ParseException: Error, Equatable, Sendable {
     public let message: String
     public let tokenIndex: Int
     public let errorIndex: Int

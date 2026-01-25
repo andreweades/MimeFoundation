@@ -4,7 +4,7 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public enum MimeCodingError: Error, Equatable {
+public enum MimeCodingError: Error, Equatable, Sendable {
     case startIndexOutOfRange
     case lengthOutOfRange
     case outputTooSmall
@@ -33,7 +33,7 @@ public protocol Rfc2047Encoder {
     func encode(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int
 }
 
-public enum QEncodeMode: UInt8 {
+public enum QEncodeMode: UInt8, Sendable {
     case phrase
     case text
 }
