@@ -52,21 +52,15 @@ public final class MimeContent {
         return filtered
     }
 
-    public func writeTo(_ destination: MimeStream, cancellationToken: CancellationToken? = nil) throws {
+    public func writeTo(_ destination: MimeStream) throws {
         try checkDisposed()
         guard let source = stream else {
             throw MimeContentError.disposed
-        }
-        if cancellationToken?.isCancelled == true {
-            throw OperationCanceledError()
         }
         _ = try source.seek(0, origin: .begin)
 
         var buffer = [UInt8](repeating: 0, count: MimeContent.bufferLength)
         while true {
-            if cancellationToken?.isCancelled == true {
-                throw OperationCanceledError()
-            }
             let read = try source.read(&buffer, offset: 0, count: buffer.count)
             if read == 0 {
                 break
@@ -75,17 +69,29 @@ public final class MimeContent {
         }
     }
 
-    public func writeToAsync(_ destination: MimeStream, cancellationToken: CancellationToken? = nil) async throws {
-        try writeTo(destination, cancellationToken: cancellationToken)
-    }
-
-    public func decodeTo(_ destination: MimeStream, cancellationToken: CancellationToken? = nil) throws {
+    public func writeToAsync(_ destination: MimeStream) async throws {
+        try Task.checkCancellation()
         try checkDisposed()
         guard let source = stream else {
             throw MimeContentError.disposed
         }
-        if cancellationToken?.isCancelled == true {
-            throw OperationCanceledError()
+        _ = try source.seek(0, origin: .begin)
+
+        var buffer = [UInt8](repeating: 0, count: MimeContent.bufferLength)
+        while true {
+            try Task.checkCancellation()
+            let read = try source.read(&buffer, offset: 0, count: buffer.count)
+            if read == 0 {
+                break
+            }
+            try destination.write(buffer, offset: 0, count: read)
+        }
+    }
+
+    public func decodeTo(_ destination: MimeStream) throws {
+        try checkDisposed()
+        guard let source = stream else {
+            throw MimeContentError.disposed
         }
         _ = try source.seek(0, origin: .begin)
 
@@ -95,9 +101,6 @@ public final class MimeContent {
 
         var buffer = [UInt8](repeating: 0, count: MimeContent.bufferLength)
         while true {
-            if cancellationToken?.isCancelled == true {
-                throw OperationCanceledError()
-            }
             let read = try filtered.read(&buffer, offset: 0, count: buffer.count)
             if read == 0 {
                 break
@@ -106,8 +109,27 @@ public final class MimeContent {
         }
     }
 
-    public func decodeToAsync(_ destination: MimeStream, cancellationToken: CancellationToken? = nil) async throws {
-        try decodeTo(destination, cancellationToken: cancellationToken)
+    public func decodeToAsync(_ destination: MimeStream) async throws {
+        try Task.checkCancellation()
+        try checkDisposed()
+        guard let source = stream else {
+            throw MimeContentError.disposed
+        }
+        _ = try source.seek(0, origin: .begin)
+
+        let filtered = try FilteredStream(source)
+        let filter = DecoderFilter.create(encoding)
+        _ = try filtered.add(filter)
+
+        var buffer = [UInt8](repeating: 0, count: MimeContent.bufferLength)
+        while true {
+            try Task.checkCancellation()
+            let read = try filtered.read(&buffer, offset: 0, count: buffer.count)
+            if read == 0 {
+                break
+            }
+            try destination.write(buffer, offset: 0, count: read)
+        }
     }
 
     private func checkDisposed() throws {

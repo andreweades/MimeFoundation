@@ -13,11 +13,11 @@ struct DkimTests {
             self.key = key
         }
 
-        func locatePublicKey(methods: String, domain: String, selector: String, cancellationToken: CancellationToken?) throws -> DkimPublicKey {
+        func locatePublicKey(methods: String, domain: String, selector: String) throws -> DkimPublicKey {
             key
         }
 
-        func locatePublicKeyAsync(methods: String, domain: String, selector: String, cancellationToken: CancellationToken?) async throws -> DkimPublicKey {
+        func locatePublicKeyAsync(methods: String, domain: String, selector: String) async throws -> DkimPublicKey {
             key
         }
     }
@@ -74,7 +74,7 @@ struct DkimTests {
             records[key] = value
         }
 
-        override func locatePublicKey(methods: String, domain: String, selector: String, cancellationToken: CancellationToken? = nil) throws -> DkimPublicKey {
+        override func locatePublicKey(methods: String, domain: String, selector: String) throws -> DkimPublicKey {
             let query = "\(selector)._domainkey.\(domain)"
             guard let value = records[query] else {
                 throw ParseException("Public key parameters not found in DNS TXT record.", tokenIndex: 0, errorIndex: 0)
@@ -82,8 +82,8 @@ struct DkimTests {
             return try Self.getPublicKey(value)
         }
 
-        override func locatePublicKeyAsync(methods: String, domain: String, selector: String, cancellationToken: CancellationToken? = nil) async throws -> DkimPublicKey {
-            try locatePublicKey(methods: methods, domain: domain, selector: selector, cancellationToken: cancellationToken)
+        override func locatePublicKeyAsync(methods: String, domain: String, selector: String) async throws -> DkimPublicKey {
+            try locatePublicKey(methods: methods, domain: domain, selector: selector)
         }
     }
 

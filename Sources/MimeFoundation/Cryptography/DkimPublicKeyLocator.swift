@@ -13,19 +13,19 @@ public enum DkimPublicKeyLocatorError: Error, Equatable, Sendable {
 }
 
 public protocol DkimPublicKeyLocator: AnyObject {
-    func locatePublicKey(methods: String, domain: String, selector: String, cancellationToken: CancellationToken?) throws -> DkimPublicKey
-    func locatePublicKeyAsync(methods: String, domain: String, selector: String, cancellationToken: CancellationToken?) async throws -> DkimPublicKey
+    func locatePublicKey(methods: String, domain: String, selector: String) throws -> DkimPublicKey
+    func locatePublicKeyAsync(methods: String, domain: String, selector: String) async throws -> DkimPublicKey
 }
 
 open class DkimPublicKeyLocatorBase: DkimPublicKeyLocator {
     public init() {}
 
-    open func locatePublicKey(methods: String, domain: String, selector: String, cancellationToken: CancellationToken? = nil) throws -> DkimPublicKey {
+    open func locatePublicKey(methods: String, domain: String, selector: String) throws -> DkimPublicKey {
         fatalError("Subclasses must override locatePublicKey")
     }
 
-    open func locatePublicKeyAsync(methods: String, domain: String, selector: String, cancellationToken: CancellationToken? = nil) async throws -> DkimPublicKey {
-        try locatePublicKey(methods: methods, domain: domain, selector: selector, cancellationToken: cancellationToken)
+    open func locatePublicKeyAsync(methods: String, domain: String, selector: String) async throws -> DkimPublicKey {
+        try locatePublicKey(methods: methods, domain: domain, selector: selector)
     }
 
     static func getPublicKey(_ txt: String?) throws -> DkimPublicKey {

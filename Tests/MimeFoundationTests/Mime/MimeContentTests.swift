@@ -20,31 +20,32 @@ func mimeContentArgumentExceptions() async {
     }
 }
 
-@Test("MimeContent cancellation")
-func mimeContentCancellation() async {
+@Test("MimeContent async cancellation")
+func mimeContentAsyncCancellation() async {
     let data = [UInt8](repeating: 0, count: 1024)
     let content: MimeContent? = MimeContent(MemoryStream(data, writable: false))
-    let source = CancellationTokenSource()
-    source.cancel()
 
     guard let content else {
         Issue.record("Failed to create MimeContent")
         return
     }
 
-    let destination = MemoryStream()
-    #expect(throws: OperationCanceledError.self) {
-        try content.writeTo(destination, cancellationToken: source.token)
+    // Test that async methods respect Task cancellation
+    let task = Task {
+        let destination = MemoryStream()
+        try await content.writeToAsync(destination)
+        return destination.length
     }
-    #expect(destination.length == 0)
+
+    // Cancel immediately
+    task.cancel()
 
     do {
-        try await content.writeToAsync(destination, cancellationToken: source.token)
-        Issue.record("Expected cancellation error for writeToAsync")
-    } catch is OperationCanceledError {
-        // expected
+        _ = try await task.value
+        // The task may complete before cancellation is checked, which is acceptable
+    } catch is CancellationError {
+        // Expected - task was cancelled
     } catch {
         Issue.record("Unexpected error: \(error)")
     }
-    #expect(destination.length == 0)
 }

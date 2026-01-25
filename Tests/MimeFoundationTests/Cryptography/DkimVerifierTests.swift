@@ -12,11 +12,11 @@ struct DkimVerifierTests {
             self.key = key
         }
 
-        func locatePublicKey(methods: String, domain: String, selector: String, cancellationToken: CancellationToken?) throws -> DkimPublicKey {
+        func locatePublicKey(methods: String, domain: String, selector: String) throws -> DkimPublicKey {
             key
         }
 
-        func locatePublicKeyAsync(methods: String, domain: String, selector: String, cancellationToken: CancellationToken?) async throws -> DkimPublicKey {
+        func locatePublicKeyAsync(methods: String, domain: String, selector: String) async throws -> DkimPublicKey {
             key
         }
     }

@@ -38,12 +38,12 @@ open class DkimVerifierBase {
         (enabledSignatureAlgorithms & (1 << algorithm.bitIndex)) != 0
     }
 
-    internal func locatePublicKey(methods: String, domain: String, selector: String, cancellationToken: CancellationToken?) throws -> DkimPublicKey {
-        try publicKeyLocator.locatePublicKey(methods: methods, domain: domain, selector: selector, cancellationToken: cancellationToken)
+    internal func locatePublicKey(methods: String, domain: String, selector: String) throws -> DkimPublicKey {
+        try publicKeyLocator.locatePublicKey(methods: methods, domain: domain, selector: selector)
     }
 
-    internal func locatePublicKeyAsync(methods: String, domain: String, selector: String, cancellationToken: CancellationToken?) async throws -> DkimPublicKey {
-        try await publicKeyLocator.locatePublicKeyAsync(methods: methods, domain: domain, selector: selector, cancellationToken: cancellationToken)
+    internal func locatePublicKeyAsync(methods: String, domain: String, selector: String) async throws -> DkimPublicKey {
+        try await publicKeyLocator.locatePublicKeyAsync(methods: methods, domain: domain, selector: selector)
     }
 
     internal static func writeHeaderRelaxed(options: FormatOptions, stream: MimeStream, header: Header, isDkimSignature: Bool) throws {

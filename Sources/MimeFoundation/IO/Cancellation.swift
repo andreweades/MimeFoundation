@@ -1,31 +1,15 @@
 //
 // Cancellation.swift
 //
-// Simple cancellation primitives for synchronous APIs.
+// Cancellation primitives. For async operations, prefer using Swift's native
+// Task cancellation via `Task.checkCancellation()` and `Task.isCancelled`.
 //
 
 import Foundation
 
-public final class CancellationToken {
-    private var cancelled = false
-
-    public var isCancelled: Bool { cancelled }
-
-    fileprivate func cancel() {
-        cancelled = true
-    }
-}
-
+/// An error indicating that an operation was canceled.
+///
+/// For async operations, prefer using Swift's native `CancellationError` instead.
 public struct OperationCanceledError: Error, Sendable {
     public init() {}
-}
-
-public final class CancellationTokenSource {
-    public let token = CancellationToken()
-
-    public init() {}
-
-    public func cancel() {
-        token.cancel()
-    }
 }
