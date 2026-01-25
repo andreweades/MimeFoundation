@@ -9,7 +9,7 @@ public enum ByteComparison: Sendable {
     case insensitiveAscii
 }
 
-public struct ByteArrayBuilder {
+public struct ByteArrayBuilder: ~Copyable {
     private var buffer: [UInt8]
 
     public init(initialCapacity: Int = 0) {

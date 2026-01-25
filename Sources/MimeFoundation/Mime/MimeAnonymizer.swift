@@ -580,7 +580,7 @@ private extension MimeAnonymizer {
         }
     }
 
-    static func isSafeParameterName(_ name: ByteArrayBuilder) -> Bool {
+    static func isSafeParameterName(_ name: borrowing ByteArrayBuilder) -> Bool {
         return name.equals(ArraySlice(boundaryParameter), comparison: .insensitiveAscii) ||
             name.equals(ArraySlice(charsetParameter), comparison: .insensitiveAscii) ||
             name.equals(ArraySlice(delspParameter), comparison: .insensitiveAscii) ||
