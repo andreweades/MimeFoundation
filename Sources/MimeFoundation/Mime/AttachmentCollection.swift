@@ -7,13 +7,9 @@
 import Foundation
 
 public enum AttachmentCollectionError: Error, Equatable, Sendable {
-    case nilFileName
     case emptyFileName
-    case nilData
-    case nilStream
-    case nilContentType
-    case nilEntity
-    case indexOutOfRange
+    case indexOutOfRange(index: Int, count: Int)
+    case invalidMessage
 }
 
 public final class AttachmentCollection: RandomAccessCollection, MutableCollection, RangeReplaceableCollection {
@@ -56,119 +52,87 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
         set { attachments[position] = newValue }
     }
 
-    public func add(_ entity: MimeEntity?) throws -> MimeEntity {
-        guard let entity else {
-            throw AttachmentCollectionError.nilEntity
-        }
-        return append(entity)
+    public func add(_ entity: MimeEntity) -> MimeEntity {
+        append(entity)
     }
 
-    public func add(_ fileName: String?) throws -> MimeEntity {
-        let fileName = try validateFileName(fileName)
+    public func add(fileName: String) throws -> MimeEntity {
+        try validateFileName(fileName)
         let contentType = contentType(for: fileName)
         let data = try readFileBytes(fileName)
         let attachment = try createAttachment(contentType: contentType, autoDetected: true, path: fileName, data: data)
         return append(attachment)
     }
 
-    public func add(_ fileName: String?, _ contentType: ContentType?) throws -> MimeEntity {
-        let fileName = try validateFileName(fileName)
-        guard let contentType else {
-            throw AttachmentCollectionError.nilContentType
-        }
+    public func add(fileName: String, contentType: ContentType) throws -> MimeEntity {
+        try validateFileName(fileName)
         let data = try readFileBytes(fileName)
         let attachment = try createAttachment(contentType: contentType, autoDetected: false, path: fileName, data: data)
         return append(attachment)
     }
 
-    public func add(_ fileName: String?, _ data: [UInt8]?) throws -> MimeEntity {
-        let fileName = try validateFileName(fileName)
-        guard let data else {
-            throw AttachmentCollectionError.nilData
-        }
+    public func add(fileName: String, data: [UInt8]) throws -> MimeEntity {
+        try validateFileName(fileName)
         let contentType = contentType(for: fileName)
         let attachment = try createAttachment(contentType: contentType, autoDetected: true, path: fileName, data: data)
         return append(attachment)
     }
 
-    public func add(_ fileName: String?, _ data: [UInt8]?, _ contentType: ContentType?) throws -> MimeEntity {
-        let fileName = try validateFileName(fileName)
-        guard let data else {
-            throw AttachmentCollectionError.nilData
-        }
-        guard let contentType else {
-            throw AttachmentCollectionError.nilContentType
-        }
+    public func add(fileName: String, data: [UInt8], contentType: ContentType) throws -> MimeEntity {
+        try validateFileName(fileName)
         let attachment = try createAttachment(contentType: contentType, autoDetected: false, path: fileName, data: data)
         return append(attachment)
     }
 
-    public func add(_ fileName: String?, _ stream: MimeStream?) throws -> MimeEntity {
-        let fileName = try validateFileName(fileName)
-        guard let stream else {
-            throw AttachmentCollectionError.nilStream
-        }
+    public func add(fileName: String, stream: MimeStream) throws -> MimeEntity {
+        try validateFileName(fileName)
         let data = try readAllBytes(from: stream)
         let contentType = contentType(for: fileName)
         let attachment = try createAttachment(contentType: contentType, autoDetected: true, path: fileName, data: data)
         return append(attachment)
     }
 
-    public func add(_ fileName: String?, _ stream: MimeStream?, _ contentType: ContentType?) throws -> MimeEntity {
-        let fileName = try validateFileName(fileName)
-        guard let stream else {
-            throw AttachmentCollectionError.nilStream
-        }
-        guard let contentType else {
-            throw AttachmentCollectionError.nilContentType
-        }
+    public func add(fileName: String, stream: MimeStream, contentType: ContentType) throws -> MimeEntity {
+        try validateFileName(fileName)
         let data = try readAllBytes(from: stream)
         let attachment = try createAttachment(contentType: contentType, autoDetected: false, path: fileName, data: data)
         return append(attachment)
     }
 
-    public func addAsync(_ fileName: String?) async throws -> MimeEntity {
-        try add(fileName)
+    public func addAsync(fileName: String) async throws -> MimeEntity {
+        try add(fileName: fileName)
     }
 
-    public func addAsync(_ fileName: String?, _ contentType: ContentType?) async throws -> MimeEntity {
-        try add(fileName, contentType)
+    public func addAsync(fileName: String, contentType: ContentType) async throws -> MimeEntity {
+        try add(fileName: fileName, contentType: contentType)
     }
 
-    public func addAsync(_ fileName: String?, _ data: [UInt8]?) async throws -> MimeEntity {
-        try add(fileName, data)
+    public func addAsync(fileName: String, data: [UInt8]) async throws -> MimeEntity {
+        try add(fileName: fileName, data: data)
     }
 
-    public func addAsync(_ fileName: String?, _ data: [UInt8]?, _ contentType: ContentType?) async throws -> MimeEntity {
-        try add(fileName, data, contentType)
+    public func addAsync(fileName: String, data: [UInt8], contentType: ContentType) async throws -> MimeEntity {
+        try add(fileName: fileName, data: data, contentType: contentType)
     }
 
-    public func addAsync(_ fileName: String?, _ stream: MimeStream?) async throws -> MimeEntity {
-        try add(fileName, stream)
+    public func addAsync(fileName: String, stream: MimeStream) async throws -> MimeEntity {
+        try add(fileName: fileName, stream: stream)
     }
 
-    public func addAsync(_ fileName: String?, _ stream: MimeStream?, _ contentType: ContentType?) async throws -> MimeEntity {
-        try add(fileName, stream, contentType)
+    public func addAsync(fileName: String, stream: MimeStream, contentType: ContentType) async throws -> MimeEntity {
+        try add(fileName: fileName, stream: stream, contentType: contentType)
     }
 
-    public func contains(_ entity: MimeEntity?) throws -> Bool {
-        guard let entity else {
-            throw AttachmentCollectionError.nilEntity
-        }
-        return attachments.contains(where: { $0 === entity })
+    public func contains(_ entity: MimeEntity) -> Bool {
+        attachments.contains(where: { $0 === entity })
     }
 
-    public func indexOf(_ entity: MimeEntity?) throws -> Int {
-        guard let entity else {
-            throw AttachmentCollectionError.nilEntity
-        }
-        return attachments.firstIndex(where: { $0 === entity }) ?? -1
+    public func indexOf(_ entity: MimeEntity) -> Int {
+        attachments.firstIndex(where: { $0 === entity }) ?? -1
     }
 
-    public func remove(_ entity: MimeEntity?) throws -> Bool {
-        guard let entity else {
-            throw AttachmentCollectionError.nilEntity
-        }
+    @discardableResult
+    public func remove(_ entity: MimeEntity) -> Bool {
         guard let index = attachments.firstIndex(where: { $0 === entity }) else {
             return false
         }
@@ -178,29 +142,23 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
 
     public func remove(at index: Int) throws {
         guard index >= 0 && index < attachments.count else {
-            throw AttachmentCollectionError.indexOutOfRange
+            throw AttachmentCollectionError.indexOutOfRange(index: index, count: attachments.count)
         }
         attachments.remove(at: index)
     }
 
-    public func insert(_ entity: MimeEntity?, at index: Int) throws {
-        guard let entity else {
-            throw AttachmentCollectionError.nilEntity
-        }
+    public func insert(_ entity: MimeEntity, at index: Int) throws {
         guard index >= 0 && index <= attachments.count else {
-            throw AttachmentCollectionError.indexOutOfRange
+            throw AttachmentCollectionError.indexOutOfRange(index: index, count: attachments.count)
         }
         attachments.insert(entity, at: index)
     }
 
-    public func copyTo(_ array: inout [MimeEntity]?, at index: Int) throws {
-        guard array != nil else {
-            throw AttachmentCollectionError.nilEntity
+    public func copyTo(_ array: inout [MimeEntity], startingAt index: Int) throws {
+        guard index >= 0 && index <= array.count else {
+            throw AttachmentCollectionError.indexOutOfRange(index: index, count: array.count)
         }
-        guard index >= 0 && index <= (array?.count ?? 0) else {
-            throw AttachmentCollectionError.indexOutOfRange
-        }
-        array!.insert(contentsOf: attachments, at: index)
+        array.insert(contentsOf: attachments, at: index)
     }
 
     public func clear(_ dispose: Bool = false) {
@@ -217,14 +175,10 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
         return attachment
     }
 
-    private func validateFileName(_ fileName: String?) throws -> String {
-        guard let fileName else {
-            throw AttachmentCollectionError.nilFileName
-        }
+    private func validateFileName(_ fileName: String) throws {
         guard !fileName.isEmpty else {
             throw AttachmentCollectionError.emptyFileName
         }
-        return fileName
     }
 
     private func readFileBytes(_ fileName: String) throws -> [UInt8] {
@@ -259,7 +213,7 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
                 do {
                     let message = try MimeMessage.load(MemoryStream(data, writable: false))
                     if message.headers.count == 0 {
-                        throw AttachmentCollectionError.nilEntity
+                        throw AttachmentCollectionError.invalidMessage
                     }
                     let part = MessagePart()
                     part.message = message
@@ -290,7 +244,7 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
             return attachment
         }
 
-        throw AttachmentCollectionError.nilEntity
+        throw AttachmentCollectionError.invalidMessage
     }
 
     private func createStreamAttachment(contentType: ContentType, data: [UInt8]) throws -> MimeEntity {

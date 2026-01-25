@@ -1239,7 +1239,7 @@ public final class MimeMessage {
         references.clear()
         if let header = headers.tryGetHeader(.references) {
             for msgid in MimeUtils.enumerateReferences(header.rawValue, startIndex: 0, length: header.rawValue.count) {
-                try? references.add(msgid)
+                references.add(msgid)
             }
         }
         references.changed = saved

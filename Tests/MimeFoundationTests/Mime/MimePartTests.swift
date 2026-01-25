@@ -388,7 +388,7 @@ func mimePartTranscodingAsync() async throws {
 func mimePartWriteTo() throws {
     let builder = BodyBuilder()
     let bytes = Array("content".utf8)
-    _ = try builder.attachments.add("filename", MemoryStream(bytes, writable: false))
+    _ = try builder.attachments.add(fileName: "filename", stream: MemoryStream(bytes, writable: false))
     builder.textBody = "This is the text body."
 
     let body = try builder.toMessageBody()
@@ -411,7 +411,7 @@ func mimePartWriteTo() throws {
 func mimePartWriteToAsync() async throws {
     let builder = BodyBuilder()
     let bytes = Array("content".utf8)
-    _ = try builder.attachments.add("filename", MemoryStream(bytes, writable: false))
+    _ = try builder.attachments.add(fileName: "filename", stream: MemoryStream(bytes, writable: false))
     builder.textBody = "This is the text body."
 
     let body = try builder.toMessageBody()

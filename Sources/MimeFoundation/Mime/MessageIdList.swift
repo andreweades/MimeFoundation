@@ -5,9 +5,7 @@
 //
 
 public enum MessageIdListError: Error, Equatable, Sendable {
-    case nilId
-    case nilArray
-    case indexOutOfRange
+    case indexOutOfRange(index: Int, count: Int)
 }
 
 public final class MessageIdList: RandomAccessCollection, MutableCollection, RangeReplaceableCollection, CustomStringConvertible {
@@ -39,44 +37,43 @@ public final class MessageIdList: RandomAccessCollection, MutableCollection, Ran
 
     public var count: Int { items.count }
 
-    public func add(_ id: String?) throws {
-        guard let id else { throw MessageIdListError.nilId }
+    public func add(_ id: String) {
         items.append(MessageIdList.normalize(id))
         onChanged()
     }
 
-    public func addRange(_ ids: [String]?) throws {
-        guard let ids else { throw MessageIdListError.nilArray }
+    public func addRange(_ ids: [String]) {
         items.append(contentsOf: ids.map { MessageIdList.normalize($0) })
         onChanged()
     }
 
-    public func contains(_ id: String?) throws -> Bool {
-        guard let id else { throw MessageIdListError.nilId }
-        return items.contains(id)
+    public func contains(_ id: String) -> Bool {
+        items.contains(id)
     }
 
-    public func copyTo(_ array: inout [String]?, at index: Int) throws {
-        guard array != nil else { throw MessageIdListError.nilArray }
-        guard index >= 0 && index <= (array?.count ?? 0) else { throw MessageIdListError.indexOutOfRange }
-        array!.insert(contentsOf: items, at: index)
+    public func copyTo(_ array: inout [String], startingAt index: Int) throws {
+        guard index >= 0 && index <= array.count else {
+            throw MessageIdListError.indexOutOfRange(index: index, count: array.count)
+        }
+        array.insert(contentsOf: items, at: index)
     }
 
-    public func indexOf(_ id: String?) throws -> Int {
-        guard let id else { throw MessageIdListError.nilId }
-        return items.firstIndex(of: id) ?? -1
+    public func indexOf(_ id: String) -> Int {
+        items.firstIndex(of: id) ?? -1
     }
 
-    public func insert(_ id: String?, at index: Int) throws {
-        guard let id else { throw MessageIdListError.nilId }
-        guard index >= 0 && index <= items.count else { throw MessageIdListError.indexOutOfRange }
+    public func insert(_ id: String, at index: Int) throws {
+        guard index >= 0 && index <= items.count else {
+            throw MessageIdListError.indexOutOfRange(index: index, count: items.count)
+        }
         items.insert(MessageIdList.normalize(id), at: index)
         onChanged()
     }
 
-    public func setItem(at index: Int, _ id: String?) throws {
-        guard let id else { throw MessageIdListError.nilId }
-        guard index >= 0 && index < items.count else { throw MessageIdListError.indexOutOfRange }
+    public func setItem(at index: Int, _ id: String) throws {
+        guard index >= 0 && index < items.count else {
+            throw MessageIdListError.indexOutOfRange(index: index, count: items.count)
+        }
         let normalized = MessageIdList.normalize(id)
         if items[index] == normalized {
             return
@@ -86,8 +83,7 @@ public final class MessageIdList: RandomAccessCollection, MutableCollection, Ran
     }
 
     @discardableResult
-    public func remove(_ id: String?) throws -> Bool {
-        guard let id else { throw MessageIdListError.nilId }
+    public func remove(_ id: String) -> Bool {
         guard let index = items.firstIndex(of: id) else { return false }
         items.remove(at: index)
         onChanged()
@@ -95,7 +91,9 @@ public final class MessageIdList: RandomAccessCollection, MutableCollection, Ran
     }
 
     public func remove(at index: Int) throws {
-        guard index >= 0 && index < items.count else { throw MessageIdListError.indexOutOfRange }
+        guard index >= 0 && index < items.count else {
+            throw MessageIdListError.indexOutOfRange(index: index, count: items.count)
+        }
         items.remove(at: index)
         onChanged()
     }
