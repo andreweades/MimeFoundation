@@ -26,10 +26,8 @@ public struct TnefPropertyTag: Equatable, Sendable {
     }
 
     public var isNamed: Bool {
-        let val = Int(id.rawValue)
         // Named properties have IDs in the range 0x8000 to 0xFFFE
-        // 0x8000 as short is -32768. 0xFFFE as short is -2.
-        return val >= Int(Int16(bitPattern: 0x8000)) && val <= Int(Int16(bitPattern: 0xFFFE))
+        (0x8000...0xFFFE).contains(UInt16(bitPattern: id.rawValue))
     }
 
     public var valueTnefType: TnefPropertyType {

@@ -103,7 +103,7 @@ open class TnefPart: MimePart {
         while try prop.readNextRow() {
             var transmitableDisplayName: String? = nil
             var recipientDisplayName: String? = nil
-            var displayName: String = ""
+            var displayName = ""
             var list: InternetAddressList? = nil
             var addr: String? = nil
 
@@ -149,10 +149,7 @@ open class TnefPart: MimePart {
 
         private var canUseSearchKey: Bool {
             guard let key = searchKey else { return false }
-            return key.uppercased().hasPrefix("SMTP") &&
-                   key.count > addrType.count &&
-                   key.hasPrefix(addrType) &&
-                   key[key.index(key.startIndex, offsetBy: addrType.count)] == ":"
+            return key.uppercased().hasPrefix("SMTP:") && key.hasPrefix(addrType + ":")
         }
 
         func tryGetMailboxAddress() -> MailboxAddress? {

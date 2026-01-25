@@ -10,7 +10,7 @@ public enum AuthenticationResultsError: Error, Equatable, Sendable {
     case invalidRange
 }
 
-public final class AuthenticationResults {
+public final class AuthenticationResults: Codable {
     public private(set) var authenticationServiceIdentifier: String?
     public var instance: Int?
     public var version: Int?
@@ -23,6 +23,28 @@ public final class AuthenticationResults {
     public init(_ authservId: String) {
         authenticationServiceIdentifier = authservId
         results = []
+    }
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case authenticationServiceIdentifier, instance, version, results
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.authenticationServiceIdentifier = try container.decodeIfPresent(String.self, forKey: .authenticationServiceIdentifier)
+        self.instance = try container.decodeIfPresent(Int.self, forKey: .instance)
+        self.version = try container.decodeIfPresent(Int.self, forKey: .version)
+        self.results = try container.decode([AuthenticationMethodResult].self, forKey: .results)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(authenticationServiceIdentifier, forKey: .authenticationServiceIdentifier)
+        try container.encodeIfPresent(instance, forKey: .instance)
+        try container.encodeIfPresent(version, forKey: .version)
+        try container.encode(results, forKey: .results)
     }
 
     public func encode(_ options: FormatOptions, _ builder: inout String, lineLength: Int) {
@@ -757,7 +779,7 @@ public final class AuthenticationResults {
     }
 }
 
-public final class AuthenticationMethodResult {
+public final class AuthenticationMethodResult: Codable {
     public internal(set) var office365AuthenticationServiceIdentifier: String?
     public let method: String
     public var version: Int?
@@ -777,6 +799,36 @@ public final class AuthenticationMethodResult {
         self.method = method
         self.result = result
         self.properties = []
+    }
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case office365AuthenticationServiceIdentifier, method, version, result, resultComment, action, reason, properties
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.office365AuthenticationServiceIdentifier = try container.decodeIfPresent(String.self, forKey: .office365AuthenticationServiceIdentifier)
+        self.method = try container.decode(String.self, forKey: .method)
+        self.version = try container.decodeIfPresent(Int.self, forKey: .version)
+        self.result = try container.decode(String.self, forKey: .result)
+        self.resultComment = try container.decodeIfPresent(String.self, forKey: .resultComment)
+        self.action = try container.decodeIfPresent(String.self, forKey: .action)
+        self.reason = try container.decodeIfPresent(String.self, forKey: .reason)
+        self.properties = try container.decode([AuthenticationMethodProperty].self, forKey: .properties)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(office365AuthenticationServiceIdentifier, forKey: .office365AuthenticationServiceIdentifier)
+        try container.encode(method, forKey: .method)
+        try container.encodeIfPresent(version, forKey: .version)
+        try container.encode(result, forKey: .result)
+        try container.encodeIfPresent(resultComment, forKey: .resultComment)
+        try container.encodeIfPresent(action, forKey: .action)
+        try container.encodeIfPresent(reason, forKey: .reason)
+        try container.encode(properties, forKey: .properties)
     }
 
     internal func encode(_ options: FormatOptions, builder: inout String, lineLength: inout Int) {
@@ -905,7 +957,7 @@ public final class AuthenticationMethodResult {
     }
 }
 
-public final class AuthenticationMethodProperty {
+public final class AuthenticationMethodProperty: Codable {
     private static let tokenSpecials: Set<UInt32> = Set("()<>@,;:\\\"/[]?=".unicodeScalars.map { $0.value })
     private let quoted: Bool?
 
@@ -925,6 +977,27 @@ public final class AuthenticationMethodProperty {
         self.propertyType = ptype
         self.property = property
         self.value = value
+    }
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case propertyType, property, value
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.propertyType = try container.decode(String.self, forKey: .propertyType)
+        self.property = try container.decode(String.self, forKey: .property)
+        self.value = try container.decode(String.self, forKey: .value)
+        self.quoted = nil
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(propertyType, forKey: .propertyType)
+        try container.encode(property, forKey: .property)
+        try container.encode(value, forKey: .value)
     }
 
     internal func appendTokens(_ options: FormatOptions, tokens: inout [String]) {
