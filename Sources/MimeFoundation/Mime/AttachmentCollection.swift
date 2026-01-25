@@ -208,7 +208,7 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
         if contentType.isMimeType("message", "rfc822") {
             if autoDetected, !looksLikeMessage(data) {
                 let fallback = try ContentType("application", "octet-stream")
-                attachment = try createStreamAttachment(contentType: fallback, data: data)
+                attachment = createStreamAttachment(contentType: fallback, data: data)
             } else {
                 do {
                     let message = try MimeMessage.load(MemoryStream(data, writable: false))
@@ -221,7 +221,7 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
                 } catch {
                     if autoDetected {
                         let fallback = try ContentType("application", "octet-stream")
-                        attachment = try createStreamAttachment(contentType: fallback, data: data)
+                        attachment = createStreamAttachment(contentType: fallback, data: data)
                     } else {
                         throw error
                     }
@@ -230,7 +230,7 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
         }
 
         if attachment == nil {
-            attachment = try createStreamAttachment(contentType: contentType, data: data)
+            attachment = createStreamAttachment(contentType: contentType, data: data)
         }
 
         if let attachment {
@@ -247,7 +247,7 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
         throw AttachmentCollectionError.invalidMessage
     }
 
-    private func createStreamAttachment(contentType: ContentType, data: [UInt8]) throws -> MimeEntity {
+    private func createStreamAttachment(contentType: ContentType, data: [UInt8]) -> MimeEntity {
         let isText = contentType.isMimeType("text", "*")
         let part: MimePart
         if isText {
@@ -257,7 +257,7 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
             part = MimePart(contentType)
             part.contentTransferEncoding = .base64
         }
-        part.content = try MimeContent(MemoryStream(data, writable: false))
+        part.content = MimeContent(MemoryStream(data, writable: false))
         return part
     }
 

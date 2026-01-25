@@ -76,7 +76,7 @@ public final class MessagePartial: MimePart {
         var result: [MimeMessage] = []
         for (index, chunk) in chunks.enumerated() {
             let partial = try MessagePartial(id, index + 1, total)
-            partial.content = try MimeContent(MemoryStream(chunk, writable: false), encoding: .default)
+            partial.content = MimeContent(MemoryStream(chunk, writable: false), encoding: .default)
 
             let partMessage = MimeMessage()
             partMessage.subject = message.subject

@@ -4,7 +4,7 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public final class MeasuringStream: ResizableStream {
+public final class MeasuringStream: ResizableStream, WritableStream, SeekableStream {
     private var currentPosition: Int = 0
     private var currentLength: Int = 0
     private var closed = false

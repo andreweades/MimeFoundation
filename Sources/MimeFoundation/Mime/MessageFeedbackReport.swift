@@ -73,7 +73,7 @@ public final class MessageFeedbackReport: MimePart {
             text.append(options.newLine)
         }
         let bytes = Array(text.utf8)
-        content = try? MimeContent(MemoryStream(bytes, writable: false), encoding: .default)
+        content = MimeContent(MemoryStream(bytes, writable: false), encoding: .default)
     }
 
     private static func readDecodedBytes(from content: MimeContent) -> [UInt8] {

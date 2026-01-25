@@ -316,7 +316,7 @@ open class MimeEntity {
         let bytes = try readAllBytes(from: stream)
         let isText = contentType.isMimeType("text", "*")
         let part: MimePart = isText ? TextPart(contentType) : MimePart(contentType)
-        part.content = try MimeContent(MemoryStream(bytes, writable: false), encoding: part.contentTransferEncoding)
+        part.content = MimeContent(MemoryStream(bytes, writable: false), encoding: part.contentTransferEncoding)
         return part
     }
 
@@ -324,7 +324,7 @@ open class MimeEntity {
         if let custom = options.makeEntity(for: contentType) as? MimePart {
             let bytes = try readAllBytes(from: stream)
             custom.contentType = contentType
-            custom.content = try MimeContent(MemoryStream(bytes, writable: false), encoding: custom.contentTransferEncoding)
+            custom.content = MimeContent(MemoryStream(bytes, writable: false), encoding: custom.contentTransferEncoding)
             return custom
         }
         return try load(contentType, stream)

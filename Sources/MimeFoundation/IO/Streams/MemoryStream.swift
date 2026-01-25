@@ -6,7 +6,7 @@
 
 import Foundation
 
-public final class MemoryStream: ResizableStream {
+public final class MemoryStream: ResizableStream, ReadableStream, SeekableStream {
     private var storage: [UInt8]
     private var closed = false
 

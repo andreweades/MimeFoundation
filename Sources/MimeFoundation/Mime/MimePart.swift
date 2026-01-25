@@ -195,7 +195,7 @@ open class MimePart: MimeEntity {
                 if content != nil {
                     throw MimePartError.duplicateContent
                 }
-                content = try MimeContent(stream)
+                content = try MimeContent(stream: stream)
                 continue
             }
             throw MimePartError.invalidArgument

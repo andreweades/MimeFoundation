@@ -7,23 +7,23 @@ import MimeFoundation
 
 @Test("MimeContent argument exceptions")
 func mimeContentArgumentExceptions() async {
-    // Tests with nil have been removed since parameters are now non-optional
+    // Use the throwing initializer with stream: label for dynamic capability checking
 
     let notReadable = CanReadWriteSeekStream(false, false, true)
     #expect(throws: (any Error).self) {
-        _ = try MimeContent(notReadable)
+        _ = try MimeContent(stream: notReadable)
     }
 
     let notSeekable = CanReadWriteSeekStream(true, false, false)
     #expect(throws: (any Error).self) {
-        _ = try MimeContent(notSeekable)
+        _ = try MimeContent(stream: notSeekable)
     }
 }
 
 @Test("MimeContent cancellation")
 func mimeContentCancellation() async {
     let data = [UInt8](repeating: 0, count: 1024)
-    let content = try? MimeContent(MemoryStream(data, writable: false))
+    let content: MimeContent? = MimeContent(MemoryStream(data, writable: false))
     let source = CancellationTokenSource()
     source.cancel()
 

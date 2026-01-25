@@ -516,7 +516,7 @@ public final class MimeMessage {
             applyHeaders(part)
             if !bodyBytes.isEmpty {
                 let encoding = part.contentTransferEncoding
-                part.content = try MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
+                part.content = MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
             }
             entity = part
         case ("message", "disposition-notification"):
@@ -533,7 +533,7 @@ public final class MimeMessage {
             applyHeaders(part)
             if !bodyBytes.isEmpty {
                 let encoding = part.contentTransferEncoding
-                part.content = try MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
+                part.content = MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
             }
             entity = part
         case ("message", "feedback-report"):
@@ -550,7 +550,7 @@ public final class MimeMessage {
             applyHeaders(part)
             if !bodyBytes.isEmpty {
                 let encoding = part.contentTransferEncoding
-                part.content = try MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
+                part.content = MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
             }
             entity = part
         case ("message", "partial"):
@@ -564,7 +564,7 @@ public final class MimeMessage {
             applyHeaders(part)
             if !bodyBytes.isEmpty {
                 let encoding = part.contentTransferEncoding
-                part.content = try MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
+                part.content = MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
             }
             entity = part
         case ("message", _):
@@ -583,7 +583,7 @@ public final class MimeMessage {
             applyHeaders(part)
             if !bodyBytes.isEmpty {
                 let encoding = part.contentTransferEncoding
-                part.content = try MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
+                part.content = MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
             }
             entity = part
         default:
@@ -592,7 +592,7 @@ public final class MimeMessage {
             applyHeaders(part)
             if !bodyBytes.isEmpty {
                 let encoding = part.contentTransferEncoding
-                part.content = try MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
+                part.content = MimeContent(MemoryStream(bodyBytes, writable: false), encoding: encoding)
             }
             entity = part
         }

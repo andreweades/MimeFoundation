@@ -68,7 +68,7 @@ public final class MessageDeliveryStatus: MimePart {
     private func updateContentFromStatusGroups() {
         guard statusGroupsLoaded else { return }
         guard !statusGroupsStorage.isEmpty else {
-            content = try? MimeContent(MemoryStream([], writable: false), encoding: .default)
+            content = MimeContent(MemoryStream([], writable: false), encoding: .default)
             return
         }
 
@@ -87,7 +87,7 @@ public final class MessageDeliveryStatus: MimePart {
         }
 
         let bytes = Array(text.utf8)
-        content = try? MimeContent(MemoryStream(bytes, writable: false), encoding: .default)
+        content = MimeContent(MemoryStream(bytes, writable: false), encoding: .default)
     }
 
     private static func parseStatusGroups(_ bytes: [UInt8]) -> [HeaderList] {

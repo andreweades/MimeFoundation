@@ -4,7 +4,7 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public final class MemoryBlockStream: ResizableStream {
+public final class MemoryBlockStream: ResizableStream, ReadableStream, WritableStream, SeekableStream {
     private var storage: [UInt8] = []
     private var currentPosition: Int = 0
     private var closed = false

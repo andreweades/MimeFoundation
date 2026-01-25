@@ -42,8 +42,7 @@ open class TextPart: MimePart {
         set {
             textLoaded = true
             if let value = newValue {
-                _ = try? setText(.utf8, value)
-                textStorage = value
+                setText(.utf8, value)
             } else {
                 textStorage = nil
                 content = nil
@@ -69,7 +68,7 @@ open class TextPart: MimePart {
 
     public convenience init(_ subtype: String, _ text: String) {
         self.init(subtype)
-        _ = try? setText(.utf8, text)
+        setText(.utf8, text)
     }
 
     public convenience init(_ subtype: String, args: [Any?]) throws {
@@ -124,7 +123,7 @@ open class TextPart: MimePart {
         }
 
         if let text {
-            try setText(encoding ?? .utf8, text)
+            setText(encoding ?? .utf8, text)
         }
     }
 
@@ -238,18 +237,29 @@ open class TextPart: MimePart {
         return ""
     }
 
+    /// Sets the text content using the specified charset name.
+    ///
+    /// - Parameters:
+    ///   - charset: The MIME charset name (e.g., "utf-8", "iso-8859-1").
+    ///   - text: The text content to set.
+    /// - Throws: `TextPartError.unsupportedCharset` if the charset is not recognized.
     public func setText(_ charset: String, _ text: String) throws {
         guard let encoding = CharsetUtils.getEncoding(charset) else {
             throw TextPartError.unsupportedCharset
         }
-        try setText(encoding, text)
+        setText(encoding, text)
         contentType.charset = CharsetUtils.getMimeCharset(encoding)
     }
 
-    public func setText(_ encoding: String.Encoding, _ text: String) throws {
+    /// Sets the text content using the specified encoding.
+    ///
+    /// - Parameters:
+    ///   - encoding: The string encoding to use for converting the text to bytes.
+    ///   - text: The text content to set.
+    public func setText(_ encoding: String.Encoding, _ text: String) {
         let normalized = TextPart.normalizeNewLines(text, newLine: "\r\n")
         let bytes = CharsetUtils.getBytes(normalized, encoding: encoding)
-        content = try MimeContent(MemoryStream(bytes, writable: false))
+        content = MimeContent(MemoryStream(bytes, writable: false))
         textStorage = text
         textLoaded = true
         contentType.charset = CharsetUtils.getMimeCharset(encoding)

@@ -20,7 +20,16 @@ public final class MimeContent {
 
     private var stream: MimeStream?
 
-    public init(_ stream: MimeStream, encoding: ContentEncoding = .default) throws {
+    /// Creates content from a stream with statically-known read and seek capabilities.
+    /// This initializer cannot fail since the stream type guarantees the required capabilities.
+    public init(_ stream: some ContentStream, encoding: ContentEncoding = .default) {
+        self.encoding = encoding
+        self.stream = stream
+    }
+
+    /// Creates content from any MimeStream, throwing if required capabilities are missing.
+    /// Prefer using the non-throwing initializer with `ContentStream` when possible.
+    public init(stream: MimeStream, encoding: ContentEncoding = .default) throws {
         guard stream.canRead else {
             throw MimeContentError.streamNotReadable
         }

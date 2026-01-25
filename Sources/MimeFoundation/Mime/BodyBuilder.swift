@@ -34,7 +34,7 @@ public final class BodyBuilder {
 
         if let textBody {
             let text = TextPart("plain")
-            try text.setText(bodyEncodingStorage, textBody)
+            text.setText(bodyEncodingStorage, textBody)
 
             if htmlBody != nil {
                 let alt = MultipartAlternative()
@@ -48,7 +48,7 @@ public final class BodyBuilder {
 
         if let htmlBody {
             let text = TextPart("html")
-            try text.setText(bodyEncodingStorage, htmlBody)
+            text.setText(bodyEncodingStorage, htmlBody)
             let htmlPart: MimeEntity
 
             if linkedResources.count > 0 {
@@ -86,7 +86,7 @@ public final class BodyBuilder {
 
         if body == nil {
             let text = TextPart("plain")
-            try text.setText(bodyEncodingStorage, "")
+            text.setText(bodyEncodingStorage, "")
             body = text
         }
 
