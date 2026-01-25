@@ -6,17 +6,10 @@
 
 import Foundation
 
-public enum ParameterListError: Error, Sendable {
-    case nilParameter
-    case nilName
-    case nilValue
-    case invalidName
-    case duplicateName
-    case indexOutOfRange
-    case nilArray
-    case insufficientCapacity
-    case nilEncoding
-    case unsupportedCharset
+public enum ParameterListError: Error, Equatable, Sendable {
+    case duplicateName(String)
+    case indexOutOfRange(index: Int, count: Int)
+    case insufficientCapacity(required: Int, available: Int)
 }
 
 public final class ParameterList: RandomAccessCollection, MutableCollection, ExpressibleByArrayLiteral, Equatable {
@@ -96,18 +89,11 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Exp
 
     public func add(_ parameter: Parameter) throws {
         if indexOfName(parameter.name) != nil {
-            throw ParameterListError.duplicateName
+            throw ParameterListError.duplicateName(parameter.name)
         }
         attach(parameter)
         parameters.append(parameter)
         onChanged()
-    }
-
-    public func add(_ parameter: Parameter?) throws {
-        guard let parameter else {
-            throw ParameterListError.nilParameter
-        }
-        try add(parameter)
     }
 
     public func add(_ name: String, _ value: String) throws {
@@ -115,136 +101,59 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Exp
         try add(parameter)
     }
 
-    public func add(_ name: String?, _ value: String?) throws {
-        guard let name else {
-            throw ParameterListError.nilName
-        }
-        guard let value else {
-            throw ParameterListError.nilValue
-        }
-        try add(name, value)
-    }
-
-    public func add(_ encoding: String.Encoding?, _ name: String?, _ value: String?) throws {
-        guard let encoding else {
-            throw ParameterListError.nilEncoding
-        }
-        guard let name else {
-            throw ParameterListError.nilName
-        }
-        guard let value else {
-            throw ParameterListError.nilValue
-        }
+    public func add(encoding: String.Encoding, name: String, value: String) throws {
         let parameter = try Parameter(encoding: encoding, name: name, value: value)
         try add(parameter)
     }
 
-    public func add(_ charset: String?, _ name: String?, _ value: String?) throws {
-        guard let charset else {
-            throw ParameterListError.nilEncoding
-        }
-        guard let name else {
-            throw ParameterListError.nilName
-        }
-        guard let value else {
-            throw ParameterListError.nilValue
-        }
-        do {
-            let parameter = try Parameter(charset: charset, name: name, value: value)
-            try add(parameter)
-        } catch ParameterError.unsupportedCharset {
-            throw ParameterListError.unsupportedCharset
-        }
+    public func add(charset: String, name: String, value: String) throws {
+        let parameter = try Parameter(charset: charset, name: name, value: value)
+        try add(parameter)
     }
 
     public func contains(_ parameter: Parameter) -> Bool {
         parameters.contains(where: { $0 === parameter })
     }
 
-    public func contains(_ parameter: Parameter?) throws -> Bool {
-        guard let parameter else {
-            throw ParameterListError.nilParameter
-        }
-        return contains(parameter)
-    }
-
     public func contains(_ name: String) -> Bool {
         indexOfName(name) != nil
     }
 
-    public func contains(_ name: String?) throws -> Bool {
-        guard let name else {
-            throw ParameterListError.nilName
+    public func copyTo(_ array: inout [Parameter], startingAt arrayIndex: Int) throws {
+        guard arrayIndex >= 0, arrayIndex <= array.count else {
+            throw ParameterListError.indexOutOfRange(index: arrayIndex, count: array.count)
         }
-        return contains(name)
-    }
-
-    public func copyTo(_ array: inout [Parameter]?, _ arrayIndex: Int) throws {
-        guard var target = array else {
-            throw ParameterListError.nilArray
-        }
-        guard arrayIndex >= 0 else {
-            throw ParameterListError.indexOutOfRange
-        }
-        guard arrayIndex + parameters.count <= target.count else {
-            throw ParameterListError.insufficientCapacity
+        guard arrayIndex + parameters.count <= array.count else {
+            throw ParameterListError.insufficientCapacity(required: arrayIndex + parameters.count, available: array.count)
         }
         for (offset, param) in parameters.enumerated() {
-            target[arrayIndex + offset] = param
+            array[arrayIndex + offset] = param
         }
-        array = target
     }
 
     public func indexOf(_ parameter: Parameter) -> Int {
         parameters.firstIndex(where: { $0 === parameter }) ?? -1
     }
 
-    public func indexOf(_ parameter: Parameter?) throws -> Int {
-        guard let parameter else {
-            throw ParameterListError.nilParameter
-        }
-        return indexOf(parameter)
-    }
-
     public func indexOf(_ name: String) -> Int {
         indexOfName(name) ?? -1
     }
 
-    public func indexOf(_ name: String?) throws -> Int {
-        guard let name else {
-            throw ParameterListError.nilName
-        }
-        return indexOfName(name) ?? -1
-    }
-
-    public func insert(_ index: Int, _ parameter: Parameter) throws {
+    public func insert(at index: Int, _ parameter: Parameter) throws {
         guard index >= 0 && index <= parameters.count else {
-            throw ParameterListError.indexOutOfRange
+            throw ParameterListError.indexOutOfRange(index: index, count: parameters.count)
         }
         if indexOfName(parameter.name) != nil {
-            throw ParameterListError.duplicateName
+            throw ParameterListError.duplicateName(parameter.name)
         }
         attach(parameter)
         parameters.insert(parameter, at: index)
         onChanged()
     }
 
-    public func insert(_ index: Int, _ parameter: Parameter?) throws {
-        guard let parameter else {
-            throw ParameterListError.nilParameter
-        }
-        try insert(index, parameter)
-    }
-
-    public func insert(_ index: Int, _ name: String?, _ value: String?) throws {
-        guard let name else {
-            throw ParameterListError.nilName
-        }
-        guard let value else {
-            throw ParameterListError.nilValue
-        }
+    public func insert(at index: Int, name: String, value: String) throws {
         let parameter = try Parameter(name, value)
-        try insert(index, parameter)
+        try insert(at: index, parameter)
     }
 
     @discardableResult
@@ -259,14 +168,6 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Exp
     }
 
     @discardableResult
-    public func remove(_ parameter: Parameter?) throws -> Bool {
-        guard let parameter else {
-            throw ParameterListError.nilParameter
-        }
-        return remove(parameter)
-    }
-
-    @discardableResult
     public func remove(_ name: String) -> Bool {
         guard let index = indexOfName(name) else {
             return false
@@ -277,17 +178,9 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Exp
         return true
     }
 
-    @discardableResult
-    public func remove(_ name: String?) throws -> Bool {
-        guard let name else {
-            throw ParameterListError.nilName
-        }
-        return remove(name)
-    }
-
     public func removeAt(_ index: Int) throws {
         guard index >= 0 && index < parameters.count else {
-            throw ParameterListError.indexOutOfRange
+            throw ParameterListError.indexOutOfRange(index: index, count: parameters.count)
         }
         detach(parameters[index])
         parameters.remove(at: index)
@@ -302,28 +195,18 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Exp
         onChanged()
     }
 
-    public func tryGetValue(_ name: String?, _ parameter: inout Parameter?) throws -> Bool {
-        guard let name else {
-            throw ParameterListError.nilName
+    public func parameter(named name: String) -> Parameter? {
+        guard let index = indexOfName(name) else {
+            return nil
         }
-        if let index = indexOfName(name) {
-            parameter = parameters[index]
-            return true
-        }
-        parameter = nil
-        return false
+        return parameters[index]
     }
 
-    public func tryGetValue(_ name: String?, _ value: inout String?) throws -> Bool {
-        guard let name else {
-            throw ParameterListError.nilName
+    public func value(forParameterNamed name: String) -> String? {
+        guard let index = indexOfName(name) else {
+            return nil
         }
-        if let index = indexOfName(name) {
-            value = parameters[index].value
-            return true
-        }
-        value = nil
-        return false
+        return parameters[index].value
     }
 
     public func toString() -> String {
@@ -748,7 +631,7 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Exp
             }
 
             if let encoding {
-                _ = try? list.add(encoding, param.name, value)
+                _ = try? list.add(encoding: encoding, name: param.name, value: value)
             } else {
                 _ = try? list.add(param.name, value)
             }

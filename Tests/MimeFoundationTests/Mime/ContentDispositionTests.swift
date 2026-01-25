@@ -237,7 +237,7 @@ func contentDispositionMistakenlyQuotedEncodedParameterValues() {
     let filename = "ČPP - žádost o akceptaci smlouvy 12.12.doc"
     let expected = try! ContentDisposition("attachment")
     let encoding = CharsetUtils.getEncoding("ISO-8859-2")!
-    try? expected.parameters.add(encoding, "filename", filename)
+    try? expected.parameters.add(encoding: encoding, name: "filename", value: filename)
 
     assertParse(text, expected)
 }
@@ -278,7 +278,7 @@ func contentDispositionInvalidDataAfterDisposition() {
 func contentDispositionChineseFilename() {
     let expected = " attachment;\n\tfilename*=gb18030''%B2%E2%CA%D4%CE%C4%B1%BE.txt\n"
     let disposition = try! ContentDisposition(ContentDisposition.attachment)
-    try? disposition.parameters.add("GB18030", "filename", "测试文本.txt")
+    try? disposition.parameters.add(charset: "GB18030", name: "filename", value: "测试文本.txt")
 
     var format = FormatOptions.default
     format.newLineFormat = .unix
@@ -290,8 +290,8 @@ func contentDispositionChineseFilename() {
     #expect(parsed != nil)
     #expect(parsed?.fileName == "测试文本.txt")
 
-    var param: Parameter? = nil
-    #expect((try? parsed?.parameters.tryGetValue("filename", &param)) == true)
+    let param = parsed?.parameters.parameter(named: "filename")
+    #expect(param != nil)
     #expect(CharsetUtils.getMimeCharset(param!.encoding) == "gb18030")
 }
 
@@ -299,7 +299,7 @@ func contentDispositionChineseFilename() {
 func contentDispositionChineseFilename2047() {
     let expected = " attachment; filename=\"=?gb18030?b?suLK1M7Esb4udHh0?=\"\n"
     let disposition = try! ContentDisposition(ContentDisposition.attachment)
-    try? disposition.parameters.add("GB18030", "filename", "测试文本.txt")
+    try? disposition.parameters.add(charset: "GB18030", name: "filename", value: "测试文本.txt")
 
     var format = FormatOptions.default
     format.parameterEncodingMethod = .rfc2047
@@ -312,8 +312,8 @@ func contentDispositionChineseFilename2047() {
     #expect(parsed != nil)
     #expect(parsed?.fileName == "测试文本.txt")
 
-    var param: Parameter? = nil
-    #expect((try? parsed?.parameters.tryGetValue("filename", &param)) == true)
+    let param = parsed?.parameters.parameter(named: "filename")
+    #expect(param != nil)
     #expect(CharsetUtils.getMimeCharset(param!.encoding) == "gb18030")
 }
 
@@ -381,21 +381,20 @@ func contentDispositionParameters() {
     #expect(parsed.readDate == atime)
     #expect(parsed.size == 37001)
 
-    var param: Parameter? = nil
     parsed.creationDate = nil
-    #expect((try? parsed.parameters.tryGetValue("creation-date", &param)) == false)
+    #expect(parsed.parameters.parameter(named: "creation-date") == nil)
 
     parsed.modificationDate = nil
-    #expect((try? parsed.parameters.tryGetValue("modification-date", &param)) == false)
+    #expect(parsed.parameters.parameter(named: "modification-date") == nil)
 
     parsed.readDate = nil
-    #expect((try? parsed.parameters.tryGetValue("read-date", &param)) == false)
+    #expect(parsed.parameters.parameter(named: "read-date") == nil)
 
     parsed.fileName = nil
-    #expect((try? parsed.parameters.tryGetValue("filename", &param)) == false)
+    #expect(parsed.parameters.parameter(named: "filename") == nil)
 
     parsed.size = nil
-    #expect((try? parsed.parameters.tryGetValue("size", &param)) == false)
+    #expect(parsed.parameters.parameter(named: "size") == nil)
 
     parsed.isAttachment = false
     #expect(parsed.disposition == ContentDisposition.inline)

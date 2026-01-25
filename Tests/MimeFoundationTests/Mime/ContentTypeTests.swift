@@ -250,7 +250,7 @@ func contentTypeAndContentTransferEncodingOnOneLine() throws {
 func contentTypeEncodedParameterExampleFromRfc2231() throws {
     let text = "application/x-stuff;\n      title*=us-ascii'en-us'This%20is%20%2A%2A%2Afun%2A%2A%2A"
     let expected = try ContentType("application", "x-stuff")
-    try expected.parameters.add(.ascii, "title", "This is ***fun***")
+    try expected.parameters.add(encoding: .ascii, name: "title", value: "This is ***fun***")
     assertParse(text, expected)
 }
 
@@ -258,7 +258,7 @@ func contentTypeEncodedParameterExampleFromRfc2231() throws {
 func contentTypeMultipartEncodedParameterExampleFromRfc2231() throws {
     let text = "application/x-stuff;\n    title*1*=us-ascii'en'This%20is%20even%20more%20;\n    title*2*=%2A%2A%2Afun%2A%2A%2A%20;\n    title*3=\"isn't it!\""
     let expected = try ContentType("application", "x-stuff")
-    try expected.parameters.add(.ascii, "title", "This is even more ***fun*** isn't it!")
+    try expected.parameters.add(encoding: .ascii, name: "title", value: "This is even more ***fun*** isn't it!")
     assertParse(text, expected)
 }
 
@@ -275,7 +275,7 @@ func contentTypeRfc2047EncodedParameterBig5() throws {
     let text = "application/x-stuff;\n    title=\"some chinese characters =?big5?b?pKSk5Q==?= and stuff\"\n"
     let expected = try ContentType("application", "x-stuff")
     let big5 = CharsetUtils.getEncoding("big5") ?? .utf8
-    try expected.parameters.add(big5, "title", "some chinese characters 中文 and stuff")
+    try expected.parameters.add(encoding: big5, name: "title", value: "some chinese characters 中文 and stuff")
     assertParse(text, expected)
 }
 

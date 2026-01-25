@@ -6,13 +6,11 @@
 
 import Foundation
 
-public enum ParameterError: Error, Sendable {
-    case nilEncoding
-    case nilName
+public enum ParameterError: Error, Equatable, Sendable {
     case emptyName
     case invalidName
-    case nilValue
-    case unsupportedCharset
+    case invalidEncodingMethod
+    case unsupportedCharset(String)
 }
 
 public final class Parameter: Equatable, CustomStringConvertible {
@@ -81,7 +79,7 @@ public final class Parameter: Equatable, CustomStringConvertible {
     public init(charset: String, name: String, value: String) throws {
         try Parameter.validateName(name)
         guard let resolved = CharsetUtils.getEncoding(charset) else {
-            throw ParameterError.unsupportedCharset
+            throw ParameterError.unsupportedCharset(charset)
         }
         self.name = name
         self.valueStorage = value
@@ -99,62 +97,10 @@ public final class Parameter: Equatable, CustomStringConvertible {
         self.alwaysQuoteStorage = false
     }
 
-    public convenience init(_ name: String?, _ value: String?) throws {
-        guard let name else {
-            throw ParameterError.nilName
-        }
-        guard let value else {
-            throw ParameterError.nilValue
-        }
-        try self.init(name, value)
-    }
-
-    public convenience init(encoding: String.Encoding?, name: String?, value: String?) throws {
-        guard let encoding else {
-            throw ParameterError.nilEncoding
-        }
-        guard let name else {
-            throw ParameterError.nilName
-        }
-        guard let value else {
-            throw ParameterError.nilValue
-        }
-        try self.init(encoding: encoding, name: name, value: value)
-    }
-
-    public convenience init(charset: String?, name: String?, value: String?) throws {
-        guard let charset else {
-            throw ParameterError.nilEncoding
-        }
-        guard let name else {
-            throw ParameterError.nilName
-        }
-        guard let value else {
-            throw ParameterError.nilValue
-        }
-        try self.init(charset: charset, name: name, value: value)
-    }
-
-    public func setValue(_ value: String?) throws {
-        guard let value else {
-            throw ParameterError.nilValue
-        }
-        self.value = value
-    }
-
-    public func setEncoding(_ encoding: String.Encoding?) throws {
-        guard let encoding else {
-            throw ParameterError.nilEncoding
-        }
-        self.encoding = encoding
-    }
-
     public func setEncodingMethod(_ rawValue: Int) throws {
-        guard rawValue >= 0 && rawValue <= Int(UInt8.max) else {
-            throw ParameterError.invalidName
-        }
-        guard let method = ParameterEncodingMethod(rawValue: UInt8(rawValue)) else {
-            throw ParameterError.invalidName
+        guard rawValue >= 0 && rawValue <= Int(UInt8.max),
+              let method = ParameterEncodingMethod(rawValue: UInt8(rawValue)) else {
+            throw ParameterError.invalidEncodingMethod
         }
         self.encodingMethod = method
     }
@@ -698,10 +644,7 @@ public final class Parameter: Equatable, CustomStringConvertible {
         lineLength += 1
     }
 
-    private static func validateName(_ name: String?) throws {
-        guard let name else {
-            throw ParameterError.nilName
-        }
+    private static func validateName(_ name: String) throws {
         if name.isEmpty {
             throw ParameterError.emptyName
         }

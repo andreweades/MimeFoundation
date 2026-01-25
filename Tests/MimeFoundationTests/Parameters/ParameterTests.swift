@@ -9,58 +9,37 @@ import MimeFoundation
 func parameterArgumentExceptions() {
     let invalid = "X-测试文本"
 
-    #expect(throws: (any Error).self) {
-        _ = try Parameter(encoding: nil, name: "name", value: "value")
-    }
-    #expect(throws: (any Error).self) {
-        _ = try Parameter(encoding: .utf8, name: nil, value: "value")
-    }
-    #expect(throws: (any Error).self) {
+    // Empty name
+    #expect(throws: ParameterError.emptyName) {
         _ = try Parameter(encoding: .utf8, name: "", value: "value")
     }
-    #expect(throws: (any Error).self) {
-        _ = try Parameter(encoding: .utf8, name: invalid, value: "value")
-    }
-    #expect(throws: (any Error).self) {
-        _ = try Parameter(encoding: .utf8, name: "name", value: nil)
-    }
-    #expect(throws: (any Error).self) {
-        _ = try Parameter(charset: nil, name: "name", value: "value")
-    }
-    #expect(throws: (any Error).self) {
-        _ = try Parameter(charset: "utf-8", name: nil, value: "value")
-    }
-    #expect(throws: (any Error).self) {
+    #expect(throws: ParameterError.emptyName) {
         _ = try Parameter(charset: "utf-8", name: "", value: "value")
     }
-    #expect(throws: (any Error).self) {
-        _ = try Parameter(charset: "utf-8", name: invalid, value: "value")
-    }
-    #expect(throws: (any Error).self) {
-        _ = try Parameter(charset: "utf-8", name: "name", value: nil)
-    }
-    #expect(throws: (any Error).self) {
-        _ = try Parameter(nil, "value")
-    }
-    #expect(throws: (any Error).self) {
+    #expect(throws: ParameterError.emptyName) {
         _ = try Parameter("", "value")
     }
-    #expect(throws: (any Error).self) {
+
+    // Invalid name (non-ASCII or invalid characters)
+    #expect(throws: ParameterError.invalidName) {
+        _ = try Parameter(encoding: .utf8, name: invalid, value: "value")
+    }
+    #expect(throws: ParameterError.invalidName) {
+        _ = try Parameter(charset: "utf-8", name: invalid, value: "value")
+    }
+    #expect(throws: ParameterError.invalidName) {
         _ = try Parameter(invalid, "value")
     }
-    #expect(throws: (any Error).self) {
-        _ = try Parameter("name", nil)
+
+    // Unsupported charset
+    #expect(throws: ParameterError.self) {
+        _ = try Parameter(charset: "invalid-charset", name: "name", value: "value")
     }
 
+    // Invalid encoding method
     let parameter = try? Parameter("name", "value")
     if let parameter {
-        #expect(throws: (any Error).self) {
-            try parameter.setValue(nil)
-        }
-        #expect(throws: (any Error).self) {
-            try parameter.setEncoding(nil)
-        }
-        #expect(throws: (any Error).self) {
+        #expect(throws: ParameterError.invalidEncodingMethod) {
             try parameter.setEncodingMethod(512)
         }
     } else {

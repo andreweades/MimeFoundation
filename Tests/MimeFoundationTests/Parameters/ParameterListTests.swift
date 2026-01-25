@@ -9,133 +9,68 @@ import Testing
 func parameterListArgumentExceptions() {
     let invalid = "X-测试文本"
     let list = ParameterList()
-    var parameter: Parameter? = nil
-    var value: String? = nil
 
-    #expect(throws: (any Error).self) {
-        try list.add(nil as String.Encoding?, "name", "value")
-    }
-    #expect(throws: (any Error).self) {
-        try list.add(.utf8, nil, "value")
-    }
-    #expect(throws: (any Error).self) {
-        try list.add(.utf8, "", "value")
-    }
-    #expect(throws: (any Error).self) {
-        try list.add(.utf8, invalid, "value")
-    }
-    #expect(throws: (any Error).self) {
-        try list.add(.utf8, "name", nil)
-    }
-    #expect(throws: (any Error).self) {
-        try list.add(nil as String?, "name", "value")
-    }
-    #expect(throws: (any Error).self) {
-        try list.add("utf-8", nil, "value")
-    }
-    #expect(throws: (any Error).self) {
-        try list.add("utf-8", "", "value")
-    }
-    #expect(throws: (any Error).self) {
-        try list.add("utf-8", invalid, "value")
-    }
-    #expect(throws: (any Error).self) {
-        try list.add("utf-8", "name", nil)
-    }
-    #expect(throws: (any Error).self) {
-        try list.add(nil as String?, "value")
-    }
-    #expect(throws: (any Error).self) {
+    // Empty name
+    #expect(throws: ParameterError.emptyName) {
         try list.add("", "value")
     }
-    #expect(throws: (any Error).self) {
-        try list.add(invalid, "value")
+    #expect(throws: ParameterError.emptyName) {
+        try list.add(encoding: .utf8, name: "", value: "value")
     }
-    #expect(throws: (any Error).self) {
-        try list.add("name", nil)
-    }
-    #expect(throws: (any Error).self) {
-        try list.add(nil as Parameter?)
+    #expect(throws: ParameterError.emptyName) {
+        try list.add(charset: "utf-8", name: "", value: "value")
     }
 
+    // Invalid name
+    #expect(throws: ParameterError.invalidName) {
+        try list.add(invalid, "value")
+    }
+    #expect(throws: ParameterError.invalidName) {
+        try list.add(encoding: .utf8, name: invalid, value: "value")
+    }
+    #expect(throws: ParameterError.invalidName) {
+        try list.add(charset: "utf-8", name: invalid, value: "value")
+    }
+
+    // Duplicate name
     try? list.add("name", "x-value")
-    #expect(throws: (any Error).self) {
+    #expect(throws: ParameterListError.self) {
         try list.add("name", "value")
     }
-    #expect(throws: (any Error).self) {
+    #expect(throws: ParameterListError.self) {
         let dup = try Parameter("name", "value")
         try list.add(dup)
     }
     list.clear()
 
-    #expect(throws: (any Error).self) {
-        _ = try list.contains(nil as Parameter?)
-    }
-    #expect(throws: (any Error).self) {
-        _ = try list.contains(nil as String?)
-    }
-
-    var emptyArray: [Parameter]? = []
-    #expect(throws: (any Error).self) {
-        try list.copyTo(&emptyArray, -1)
-    }
-    var nilArray: [Parameter]? = nil
-    #expect(throws: (any Error).self) {
-        try list.copyTo(&nilArray, 0)
+    // Index out of range for copyTo
+    var emptyArray: [Parameter] = []
+    #expect(throws: ParameterListError.self) {
+        try list.copyTo(&emptyArray, startingAt: -1)
     }
 
-    #expect(throws: (any Error).self) {
-        _ = try list.indexOf(nil as Parameter?)
-    }
-    #expect(throws: (any Error).self) {
-        _ = try list.indexOf(nil as String?)
-    }
-
+    // Index out of range for insert
     try? list.add("x-name", "value")
-    #expect(throws: (any Error).self) {
-        try list.insert(-1, Parameter("name", "value"))
+    #expect(throws: ParameterListError.self) {
+        try list.insert(at: -1, try Parameter("name", "value"))
     }
-    #expect(throws: (any Error).self) {
-        try list.insert(-1, "field", "value")
+    #expect(throws: ParameterListError.self) {
+        try list.insert(at: -1, name: "field", value: "value")
     }
-    #expect(throws: (any Error).self) {
-        try list.insert(0, nil, "value")
+
+    // Duplicate on insert
+    #expect(throws: ParameterListError.self) {
+        try list.insert(at: 0, name: "x-name", value: "x-value")
     }
-    #expect(throws: (any Error).self) {
-        try list.insert(0, "", "value")
-    }
-    #expect(throws: (any Error).self) {
-        try list.insert(0, invalid, "value")
-    }
-    #expect(throws: (any Error).self) {
-        try list.insert(0, "name", nil)
-    }
-    #expect(throws: (any Error).self) {
-        try list.insert(0, nil as Parameter?)
-    }
-    #expect(throws: (any Error).self) {
-        try list.insert(0, "x-name", "x-value")
-    }
-    #expect(throws: (any Error).self) {
+    #expect(throws: ParameterListError.self) {
         let dup = try Parameter("x-name", "x-value")
-        try list.insert(0, dup)
+        try list.insert(at: 0, dup)
     }
     list.clear()
 
-    #expect(throws: (any Error).self) {
-        _ = try list.remove(nil as Parameter?)
-    }
-    #expect(throws: (any Error).self) {
-        _ = try list.remove(nil as String?)
-    }
-    #expect(throws: (any Error).self) {
+    // Index out of range for removeAt
+    #expect(throws: ParameterListError.self) {
         try list.removeAt(-1)
-    }
-    #expect(throws: (any Error).self) {
-        _ = try list.tryGetValue(nil, &parameter)
-    }
-    #expect(throws: (any Error).self) {
-        _ = try list.tryGetValue(nil, &value)
     }
 }
 
@@ -149,7 +84,7 @@ func parameterListBasicFunctionality() {
 
     let abc = try! Parameter("abc", "0")
     try? list.add(abc)
-    try? list.add(.utf8, "def", "1")
+    try? list.add(encoding: .utf8, name: "def", value: "1")
     try? list.add("ghi", "2")
 
     #expect(list.count == 3)
@@ -174,32 +109,29 @@ func parameterListBasicFunctionality() {
     #expect(list["dEf"] == "1")
     #expect(list["GHi"] == "2")
 
-    var parameter: Parameter? = nil
-    var value: String? = nil
-    _ = try? list.tryGetValue("Abc", &parameter)
-    #expect(parameter?.name == "abc")
-    _ = try? list.tryGetValue("Abc", &value)
-    #expect(value == "0")
+    // Test parameter/value lookup by name
+    #expect(list.parameter(named: "Abc")?.name == "abc")
+    #expect(list.value(forParameterNamed: "Abc") == "0")
 
     if let xyz {
         #expect(list.remove(xyz) == false)
-        try? list.insert(0, xyz)
+        try? list.insert(at: 0, xyz)
         #expect(list.remove(xyz) == true)
 
         #expect(list.remove("xyz") == false)
-        try? list.insert(0, xyz)
+        try? list.insert(at: 0, xyz)
         #expect(list.remove("xyz") == true)
     }
 
-    var array: [Parameter]? = Array(repeating: try! Parameter("tmp", "0"), count: list.count)
-    try? list.copyTo(&array, 0)
-    #expect(array?[0].name == "abc")
-    #expect(array?[1].name == "def")
-    #expect(array?[2].name == "ghi")
+    var array: [Parameter] = Array(repeating: try! Parameter("tmp", "0"), count: list.count)
+    try? list.copyTo(&array, startingAt: 0)
+    #expect(array[0].name == "abc")
+    #expect(array[1].name == "def")
+    #expect(array[2].name == "ghi")
 
     var index = 0
     for param in list {
-        #expect(param == array?[index])
+        #expect(param == array[index])
         index += 1
     }
 
@@ -207,11 +139,9 @@ func parameterListBasicFunctionality() {
     #expect(list.count == 0)
 
     try? list.add("xyz", "3")
-    if let arr = array {
-        try? list.insert(0, arr[2])
-        try? list.insert(0, arr[1].name, arr[1].value)
-        try? list.insert(0, arr[0])
-    }
+    try? list.insert(at: 0, array[2])
+    try? list.insert(at: 0, name: array[1].name, value: array[1].value)
+    try? list.insert(at: 0, array[0])
 
     #expect(list.count == 4)
     #expect(list[0].name == "abc")
