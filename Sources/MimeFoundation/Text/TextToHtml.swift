@@ -67,13 +67,13 @@ public final class TextToHtml: TextConverter {
         tagContext.writeTag(htmlWriter, writeAttributes: true)
     }
 
-    private static func unquote(_ line: String, quoteDepth: inout Int) -> String {
+    private static func unquote(_ line: String) -> (line: String, quoteDepth: Int) {
         var index = 0
         let chars = Array(line)
-        quoteDepth = 0
+        var quoteDepth = 0
 
         if chars.isEmpty || chars[0] != ">" {
-            return line
+            return (line, 0)
         }
 
         repeat {
@@ -85,10 +85,10 @@ public final class TextToHtml: TextConverter {
         } while index < chars.count && chars[index] == ">"
 
         if index >= chars.count {
-            return ""
+            return ("", quoteDepth)
         }
 
-        return String(chars[index..<chars.count])
+        return (String(chars[index..<chars.count]), quoteDepth)
     }
 
     private static func suppressContent(_ stack: [TextToHtmlTagContext]) -> Bool {
@@ -162,8 +162,7 @@ public final class TextToHtml: TextConverter {
         var currentQuoteDepth = 0
 
         while let rawLine = reader.readLine() {
-            var quoteDepth = 0
-            let line = Self.unquote(rawLine, quoteDepth: &quoteDepth)
+            let (line, quoteDepth) = Self.unquote(rawLine)
 
             while currentQuoteDepth < quoteDepth {
                 let ctx = TextToHtmlTagContext(tag: .blockQuote)

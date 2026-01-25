@@ -265,9 +265,10 @@ public class TnefPropertyReader {
             try loadValueCount()
             propertyIndex += 1
 
-            if !tryGetPropertyValueLength(&rawValueLength) {
+            guard let length = getPropertyValueLength() else {
                 return false
             }
+            rawValueLength = length
 
             rawValueOffset = reader.streamOffset
 
@@ -305,9 +306,10 @@ public class TnefPropertyReader {
             return false
         }
 
-        if !tryGetPropertyValueLength(&rawValueLength) {
+        guard let length = getPropertyValueLength() else {
             return false
         }
+        rawValueLength = length
 
         rawValueOffset = reader.streamOffset
         valueIndex += 1
@@ -380,28 +382,26 @@ public class TnefPropertyReader {
         }
     }
 
-    private func tryGetPropertyValueLength(_ length: inout Int) -> Bool {
+    private func getPropertyValueLength() -> Int? {
         switch propertyTagValue.type {
         case .unspecified, .null:
-            length = 0
+            return 0
         case .boolean, .error, .long, .r4, .i2:
-            length = 4
+            return 4
         case .currency, .double, .i8, .appTime, .sysTime:
-            length = 8
+            return 8
         case .classId:
-            length = 16
+            return 16
         case .unicode, .string8, .binary, .object:
             if let val = try? reader.peekInt32() {
-                length = 4 + ((Int(val) + 3) & ~3)
+                return 4 + ((Int(val) + 3) & ~3)
             } else {
-                length = 4
+                return 4
             }
         default:
             reader.setComplianceError(.unsupportedPropertyType)
-            length = 0
-            return false
+            return nil
         }
-        return true
     }
 
     /// Read the value as a boolean.

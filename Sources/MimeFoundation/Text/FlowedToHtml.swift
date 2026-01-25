@@ -64,16 +64,21 @@ public final class FlowedToHtml: TextConverter {
         }
     }
 
+    private struct WriterState {
+        var stack: [FlowedToHtmlTagContext] = []
+        var currentQuoteDepth: Int = 0
+    }
+
     private static func defaultHtmlTagCallback(_ tagContext: HtmlTagContext, _ htmlWriter: HtmlWriter) {
         tagContext.writeTag(htmlWriter, writeAttributes: true)
     }
 
-    private static func unquote(_ line: [Character], quoteDepth: inout Int) -> ArraySlice<Character> {
+    private static func unquote(_ line: [Character]) -> (content: ArraySlice<Character>, quoteDepth: Int) {
         var index = 0
-        quoteDepth = 0
+        var quoteDepth = 0
 
         if line.isEmpty {
-            return line[index...]
+            return (line[index...], 0)
         }
 
         while index < line.count && line[index] == ">" {
@@ -86,10 +91,10 @@ public final class FlowedToHtml: TextConverter {
         }
 
         if index >= line.count {
-            return line[line.count..<line.count]
+            return (line[line.count..<line.count], quoteDepth)
         }
 
-        return line[index...]
+        return (line[index...], quoteDepth)
     }
 
     private static func suppressContent(_ stack: [FlowedToHtmlTagContext]) -> Bool {
@@ -141,22 +146,22 @@ public final class FlowedToHtml: TextConverter {
         }
     }
 
-    private func writeParagraph(_ htmlWriter: HtmlWriter, _ stack: inout [FlowedToHtmlTagContext], currentQuoteDepth: inout Int, paragraph: String, quoteDepth: Int) {
+    private func writeParagraph(_ htmlWriter: HtmlWriter, state: inout WriterState, paragraph: String, quoteDepth: Int) {
         let callback = htmlTagCallback ?? Self.defaultHtmlTagCallback
 
-        while currentQuoteDepth < quoteDepth {
+        while state.currentQuoteDepth < quoteDepth {
             let ctx = FlowedToHtmlTagContext(tag: .blockQuote)
             callback(ctx, htmlWriter)
-            currentQuoteDepth += 1
-            stack.append(ctx)
+            state.currentQuoteDepth += 1
+            state.stack.append(ctx)
         }
 
-        while quoteDepth < currentQuoteDepth {
-            guard let ctx = stack.popLast() else {
+        while quoteDepth < state.currentQuoteDepth {
+            guard let ctx = state.stack.popLast() else {
                 break
             }
 
-            if !Self.suppressContent(stack) && !ctx.deleteEndTag {
+            if !Self.suppressContent(state.stack) && !ctx.deleteEndTag {
                 ctx.setIsEndTag(true)
                 if ctx.invokeCallbackForEndTag {
                     callback(ctx, htmlWriter)
@@ -166,11 +171,11 @@ public final class FlowedToHtml: TextConverter {
             }
 
             if ctx.tagId == .blockQuote {
-                currentQuoteDepth -= 1
+                state.currentQuoteDepth -= 1
             }
         }
 
-        if Self.suppressContent(stack) {
+        if Self.suppressContent(state.stack) {
             return
         }
 
@@ -215,15 +220,13 @@ public final class FlowedToHtml: TextConverter {
 
         let htmlWriter = HtmlWriter(writer)
         let callback = htmlTagCallback ?? Self.defaultHtmlTagCallback
-        var stack: [FlowedToHtmlTagContext] = []
+        var state = WriterState()
         var paragraph = ""
-        var currentQuoteDepth = 0
         var paragraphQuoteDepth = -1
 
         while let line = reader.readLine() {
             let chars = Array(line)
-            var quoteDepth = 0
-            var unquoted = Self.unquote(chars, quoteDepth: &quoteDepth)
+            var (unquoted, quoteDepth) = Self.unquote(chars)
 
             if quoteDepth == 0, let first = unquoted.first, first == " " {
                 unquoted = unquoted.dropFirst()
@@ -232,7 +235,7 @@ public final class FlowedToHtml: TextConverter {
             if paragraph.isEmpty {
                 paragraphQuoteDepth = quoteDepth
             } else if quoteDepth != paragraphQuoteDepth {
-                writeParagraph(htmlWriter, &stack, currentQuoteDepth: &currentQuoteDepth, paragraph: paragraph, quoteDepth: paragraphQuoteDepth)
+                writeParagraph(htmlWriter, state: &state, paragraph: paragraph, quoteDepth: paragraphQuoteDepth)
                 paragraphQuoteDepth = quoteDepth
                 paragraph = ""
             }
@@ -242,7 +245,7 @@ public final class FlowedToHtml: TextConverter {
             }
 
             if unquoted.isEmpty || unquoted.last != " " {
-                writeParagraph(htmlWriter, &stack, currentQuoteDepth: &currentQuoteDepth, paragraph: paragraph, quoteDepth: paragraphQuoteDepth)
+                writeParagraph(htmlWriter, state: &state, paragraph: paragraph, quoteDepth: paragraphQuoteDepth)
                 paragraphQuoteDepth = 0
                 paragraph = ""
             } else if deleteSpace, !paragraph.isEmpty {
@@ -251,10 +254,10 @@ public final class FlowedToHtml: TextConverter {
         }
 
         if !paragraph.isEmpty {
-            writeParagraph(htmlWriter, &stack, currentQuoteDepth: &currentQuoteDepth, paragraph: paragraph, quoteDepth: paragraphQuoteDepth)
+            writeParagraph(htmlWriter, state: &state, paragraph: paragraph, quoteDepth: paragraphQuoteDepth)
         }
 
-        for ctx in stack.reversed() {
+        for ctx in state.stack.reversed() {
             ctx.setIsEndTag(true)
             if ctx.invokeCallbackForEndTag {
                 callback(ctx, htmlWriter)

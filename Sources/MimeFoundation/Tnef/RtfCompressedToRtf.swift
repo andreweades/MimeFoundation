@@ -55,10 +55,9 @@ public class RtfCompressedToRtf: MimeFilterBase {
         return Int(crc32.checksum) == checksum
     }
 
-    private func tryReadInt32(_ buffer: [UInt8], index: inout Int, endIndex: Int, value: inout Int) -> Bool {
+    private func tryReadInt32(_ buffer: [UInt8], index: inout Int, endIndex: Int) -> Int? {
         if index == endIndex {
-            value = saved
-            return false
+            return nil
         }
 
         var nread = (saved >> 24) & 0xFF
@@ -70,15 +69,15 @@ public class RtfCompressedToRtf: MimeFilterBase {
             nread += 1
         }
 
-        value = Int(Int32(truncatingIfNeeded: saved))
+        let value = Int(Int32(truncatingIfNeeded: saved))
 
         if nread == 4 {
             saved = 0
-            return true
+            return value
         }
 
         saved |= (nread << 24)
-        return false
+        return nil
     }
 
     public override func filter(_ input: [UInt8], startIndex: Int, length: Int, outputIndex: inout Int, outputLength: inout Int, flush: Bool) -> [UInt8] {
@@ -86,39 +85,42 @@ public class RtfCompressedToRtf: MimeFilterBase {
         var index = startIndex
 
         if state == .compressedSize {
-            if !tryReadInt32(input, index: &index, endIndex: endIndex, value: &compressedSize) {
+            guard let value = tryReadInt32(input, index: &index, endIndex: endIndex) else {
                 outputLength = 0
                 outputIndex = 0
                 return input
             }
+            compressedSize = value - 12
             state = .uncompressedSize
-            compressedSize -= 12
         }
 
         if state == .uncompressedSize {
-            if !tryReadInt32(input, index: &index, endIndex: endIndex, value: &uncompressedSize) {
+            guard let value = tryReadInt32(input, index: &index, endIndex: endIndex) else {
                 outputLength = 0
                 outputIndex = 0
                 return input
             }
+            uncompressedSize = value
             state = .magic
         }
 
         if state == .magic {
-            if !tryReadInt32(input, index: &index, endIndex: endIndex, value: &compressionMode) {
+            guard let value = tryReadInt32(input, index: &index, endIndex: endIndex) else {
                 outputLength = 0
                 outputIndex = 0
                 return input
             }
+            compressionMode = value
             state = .crc32
         }
 
         if state == .crc32 {
-            if !tryReadInt32(input, index: &index, endIndex: endIndex, value: &checksum) {
+            guard let value = tryReadInt32(input, index: &index, endIndex: endIndex) else {
                 outputLength = 0
                 outputIndex = 0
                 return input
             }
+            checksum = value
             state = .beginControlRun
         }
 

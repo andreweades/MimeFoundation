@@ -31,20 +31,29 @@ public class HtmlTextPreviewer: TextPreviewer {
         return false
     }
 
-    private static func append(_ preview: inout String, previewLength: inout Int, maximumLength: Int, value: String, lwsp: inout Bool) -> Bool {
+    private static func append(
+        to preview: inout String,
+        length: Int,
+        maximumLength: Int,
+        value: String,
+        lastWasSpace: Bool
+    ) -> (isFull: Bool, newLength: Int, newLastWasSpace: Bool) {
         let chars = Array(value)
         var i = 0
-        while i < chars.count && previewLength < maximumLength {
+        var currentLength = length
+        var lwsp = lastWasSpace
+
+        while i < chars.count && currentLength < maximumLength {
             let c = chars[i]
             if isWhiteSpace(c) {
                 if !lwsp {
                     preview.append(" ")
-                    previewLength += 1
+                    currentLength += 1
                     lwsp = true
                 }
             } else {
                 preview.append(c)
-                previewLength += 1
+                currentLength += 1
                 lwsp = false
             }
             i += 1
@@ -55,11 +64,10 @@ public class HtmlTextPreviewer: TextPreviewer {
                 preview.removeLast()
                 preview.append("\u{2026}")
             }
-            lwsp = false
-            return true
+            return (true, currentLength, false)
         }
 
-        return false
+        return (false, currentLength, lwsp)
     }
 
     private class HtmlTagContext {
@@ -116,14 +124,20 @@ public class HtmlTextPreviewer: TextPreviewer {
                         switch tag.id {
                         case .image:
                             if let attr = tag.attributes.first(where: { $0.id == .alt }), let value = attr.value {
-                                full = Self.append(&preview, previewLength: &previewLength, maximumLength: maximumPreviewLength, value: prefix + value, lwsp: &lwsp)
+                                let result = Self.append(to: &preview, length: previewLength, maximumLength: maximumPreviewLength, value: prefix + value, lastWasSpace: lwsp)
+                                full = result.isFull
+                                previewLength = result.newLength
+                                lwsp = result.newLastWasSpace
                                 prefix = ""
                             }
                         case .li:
                             if let ctx = Self.getListItemContext(stack) {
                                 if ctx.tagId == .ol {
                                     ctx.listIndex += 1
-                                    full = Self.append(&preview, previewLength: &previewLength, maximumLength: maximumPreviewLength, value: " \(ctx.listIndex). ", lwsp: &lwsp)
+                                    let result = Self.append(to: &preview, length: previewLength, maximumLength: maximumPreviewLength, value: " \(ctx.listIndex). ", lastWasSpace: lwsp)
+                                    full = result.isFull
+                                    previewLength = result.newLength
+                                    lwsp = result.newLastWasSpace
                                     prefix = ""
                                 } else {
                                     prefix = " "
@@ -152,7 +166,10 @@ public class HtmlTextPreviewer: TextPreviewer {
             case .data:
                 if body && !Self.suppressContent(stack) {
                     guard let dataToken = token as? HtmlDataToken else { break }
-                    full = Self.append(&preview, previewLength: &previewLength, maximumLength: maximumPreviewLength, value: prefix + dataToken.data, lwsp: &lwsp)
+                    let result = Self.append(to: &preview, length: previewLength, maximumLength: maximumPreviewLength, value: prefix + dataToken.data, lastWasSpace: lwsp)
+                    full = result.isFull
+                    previewLength = result.newLength
+                    lwsp = result.newLastWasSpace
                     prefix = ""
                 }
             default:

@@ -12,7 +12,7 @@ public final class DkimVerifier: DkimVerifierBase {
     }
 
     public func verify(_ options: FormatOptions, _ message: MimeMessage, _ dkimSignature: Header, cancellationToken: CancellationToken? = nil) throws -> Bool {
-        try verifyInternal(options: options, message: message, dkimSignature: dkimSignature, doAsync: false, cancellationToken: cancellationToken)
+        try verifyInternal(options: options, message: message, dkimSignature: dkimSignature, cancellationToken: cancellationToken)
     }
 
     public func verify(_ message: MimeMessage, _ dkimSignature: Header, cancellationToken: CancellationToken? = nil) throws -> Bool {
@@ -27,7 +27,7 @@ public final class DkimVerifier: DkimVerifierBase {
         try await verifyAsync(.default, message, dkimSignature, cancellationToken: cancellationToken)
     }
 
-    private func verifyInternal(options: FormatOptions, message: MimeMessage, dkimSignature: Header, doAsync: Bool, cancellationToken: CancellationToken?) throws -> Bool {
+    private func verifyInternal(options: FormatOptions, message: MimeMessage, dkimSignature: Header, cancellationToken: CancellationToken?) throws -> Bool {
         var options = options.copy()
         options.newLineFormat = .dos
 
@@ -47,12 +47,7 @@ public final class DkimVerifier: DkimVerifierBase {
             return false
         }
 
-        let key: DkimPublicKey
-        if doAsync {
-            fatalError("Use verifyAsync for async verification.")
-        } else {
-            key = try locatePublicKey(methods: validated.q, domain: validated.d, selector: validated.s, cancellationToken: cancellationToken)
-        }
+        let key = try locatePublicKey(methods: validated.q, domain: validated.d, selector: validated.s, cancellationToken: cancellationToken)
 
         if case .rsa(let rsa) = key {
             if rsa.keySizeInBits < minimumRsaKeyLength {
