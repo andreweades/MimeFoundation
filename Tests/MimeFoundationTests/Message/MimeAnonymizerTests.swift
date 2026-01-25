@@ -336,7 +336,7 @@ xxxx
     message.headers[.inReplyTo] = "<id.1@mimekit.net>"
 
     let multipart = try Multipart("mixed")
-    try multipart.setBoundary("----=_NextPart_000_003F_01CE98CE.6E826F90")
+    multipart.setBoundary("----=_NextPart_000_003F_01CE98CE.6E826F90")
 
     let text = TextPart("plain")
     text.text = "This is a test message\r\n"

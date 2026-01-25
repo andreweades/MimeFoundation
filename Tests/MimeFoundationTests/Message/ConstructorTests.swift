@@ -96,7 +96,7 @@ func multipartAlternativeConstructor() throws {
 func mimePartContentObject() throws {
     let data = Array("abcd".utf8)
 
-    let content = try MimeContent(MemoryStream(data, writable: false), encoding: .binary)
+    let content = MimeContent(MemoryStream(data, writable: false), encoding: .binary)
     let part = try MimePart("application", "octet-stream", content)
 
     let checksum = try part.computeContentMd5()

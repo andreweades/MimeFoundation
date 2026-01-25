@@ -146,7 +146,7 @@ func textPartLatin1() throws {
     let bytes = CharsetUtils.getBytes(text, encoding: latin1)
     let memory = MemoryStream(bytes, writable: false)
     let part = TextPart("plain")
-    part.content = try MimeContent(memory)
+    part.content = MimeContent(memory)
 
     #expect(part.text == text)
 
@@ -165,7 +165,7 @@ func textPartUTF16BE() throws {
     bytes.append(contentsOf: CharsetUtils.getBytes(text, encoding: .utf16BigEndian))
     let memory = MemoryStream(bytes, writable: false)
     let part = TextPart("plain")
-    part.content = try MimeContent(memory)
+    part.content = MimeContent(memory)
 
     let value = part.text ?? ""
     #expect(String(value.dropFirst()) == expected)
@@ -185,7 +185,7 @@ func textPartUTF16LE() throws {
     bytes.append(contentsOf: CharsetUtils.getBytes(text, encoding: .utf16LittleEndian))
     let memory = MemoryStream(bytes, writable: false)
     let part = TextPart("plain")
-    part.content = try MimeContent(memory)
+    part.content = MimeContent(memory)
 
     let value = part.text ?? ""
     #expect(String(value.dropFirst()) == expected)

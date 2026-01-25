@@ -44,7 +44,7 @@ func multipartBasicFunctionality() throws {
     #expect(multipart.boundary == "__Next_Part_123")
 
     let generic = try MimePart("application", "octet-stream")
-    generic.content = try MimeContent(MemoryStream())
+    generic.content = MimeContent(MemoryStream())
     generic.isAttachment = true
 
     let plain = TextPart("plain")
