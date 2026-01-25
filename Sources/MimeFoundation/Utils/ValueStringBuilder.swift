@@ -5,14 +5,14 @@
 //
 
 public struct ValueStringBuilder: CustomStringConvertible {
-    private var buffer: [UInt16]
+    private var buffer: String
 
     public init() {
-        buffer = []
+        buffer = ""
     }
 
     public init(initialCapacity: Int) {
-        buffer = []
+        buffer = ""
         if initialCapacity > 0 {
             buffer.reserveCapacity(initialCapacity)
         }
@@ -23,20 +23,17 @@ public struct ValueStringBuilder: CustomStringConvertible {
     }
 
     public var description: String {
-        asString()
+        buffer
     }
 
     public subscript(index: Int) -> Character {
         get {
-            precondition(index >= 0 && index < buffer.count, "index out of range")
-            let scalar = UnicodeScalar(buffer[index]) ?? UnicodeScalar(0xFFFD)!
-            return Character(scalar)
+            let strIndex = buffer.index(buffer.startIndex, offsetBy: index)
+            return buffer[strIndex]
         }
         set {
-            precondition(index >= 0 && index < buffer.count, "index out of range")
-            let units = Array(String(newValue).utf16)
-            precondition(units.count == 1, "ValueStringBuilder only supports single UTF-16 code unit assignment")
-            buffer[index] = units[0]
+            let strIndex = buffer.index(buffer.startIndex, offsetBy: index)
+            buffer.replaceSubrange(strIndex...strIndex, with: String(newValue))
         }
     }
 
@@ -49,17 +46,14 @@ public struct ValueStringBuilder: CustomStringConvertible {
     }
 
     public mutating func append(_ character: Character) {
-        let units = Array(String(character).utf16)
-        if !units.isEmpty {
-            buffer.append(contentsOf: units)
-        }
+        buffer.append(character)
     }
 
     public mutating func append(_ string: String?) {
         guard let string = string, !string.isEmpty else {
             return
         }
-        buffer.append(contentsOf: string.utf16)
+        buffer.append(string)
     }
 
     public mutating func appendJoin(separator: Character, values: [String]) {
@@ -75,20 +69,18 @@ public struct ValueStringBuilder: CustomStringConvertible {
         guard let string = string, !string.isEmpty else {
             return
         }
+        // Clamping/Precondition logic
         precondition(index >= 0 && index <= buffer.count, "index out of range")
-        let units = Array(string.utf16)
-        buffer.insert(contentsOf: units, at: index)
+        let strIndex = buffer.index(buffer.startIndex, offsetBy: index)
+        buffer.insert(contentsOf: string, at: strIndex)
     }
 
     public func asString() -> String {
-        if buffer.isEmpty {
-            return ""
-        }
-        return String(decoding: buffer, as: UTF16.self)
+        buffer
     }
 
     public mutating func toString() -> String {
-        let result = asString()
+        let result = buffer
         clear()
         return result
     }

@@ -1,7 +1,7 @@
 //
 // MimeReaderTests.swift
 //
-
+import os
 import Foundation
 import Testing
 @testable import MimeFoundation
@@ -320,6 +320,32 @@ func mimeReaderContentLengthMbox() throws {
     var options = ParserOptions.default
     options.respectContentLength = true
     try testMbox(options: options, baseName: "content-length")
+}
+
+@Test("MimeReader Performance content-length mbox")
+func perfMimeReaderContentLengthMbox() throws {
+    let signposter = OSSignposter(subsystem: "MimeFoundationTest", category: .pointsOfInterest)
+
+    let duration = Duration(secondsComponent: 10, attosecondsComponent: 0)
+    var options = ParserOptions.default
+    options.respectContentLength = true
+
+    var now = ContinuousClock.now
+    var outerIterations = 0
+    let start = ContinuousClock.now
+
+    let interval = signposter.beginInterval("perfMimeReaderContentLengthMbox")
+    repeat {
+        try testMbox(options: options, baseName: "content-length")
+        outerIterations += 1
+        now = .now
+    } while (start.duration(to: now) < duration)
+    let elapsed = start.duration(to: now)
+    let attoseconds = Double(elapsed.components.attoseconds)
+    let seconds = Double(elapsed.components.seconds)
+    let throughput = Double(outerIterations) / (seconds + attoseconds / 1e18)
+    signposter.endInterval("perfMimeReaderContentLengthMbox", interval, "\(throughput) throughput calls/s")
+
 }
 
 @Test("MimeReader content-length mbox async")

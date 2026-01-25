@@ -20,6 +20,7 @@ let includeBenchmarks = isModernMacOS && (ProcessInfo.processInfo.environment["M
 
 var dependencies: [Package.Dependency] = [
     .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0"),
+    .package(url: "https://github.com/apple/swift-certificates.git", from: "1.0.0"),
 ]
 
 var targets: [Target] = [
@@ -27,7 +28,8 @@ var targets: [Target] = [
         name: "MimeFoundation",
         dependencies: [
             .product(name: "Crypto", package: "swift-crypto"),
-            .product(name: "_CryptoExtras", package: "swift-crypto")
+            .product(name: "_CryptoExtras", package: "swift-crypto"),
+            .product(name: "X509", package: "swift-certificates")
         ]
     ),
     .testTarget(

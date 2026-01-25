@@ -27,6 +27,9 @@ public protocol MimeVisitor {
     func visit(_ multipart: MultipartAlternative)
     func visit(_ multipart: MultipartRelated)
     func visit(_ multipart: MultipartReport)
+    func visit(_ signature: ApplicationPkcs7Signature)
+    @available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *)
+    func visit(_ signed: MultipartSigned)
 }
 
 public extension MimeVisitor {
@@ -44,6 +47,9 @@ public extension MimeVisitor {
     func visit(_ multipart: MultipartAlternative) {}
     func visit(_ multipart: MultipartRelated) {}
     func visit(_ multipart: MultipartReport) {}
+    func visit(_ signature: ApplicationPkcs7Signature) {}
+    @available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *)
+    func visit(_ signed: MultipartSigned) {}
 }
 
 open class MimeEntity {

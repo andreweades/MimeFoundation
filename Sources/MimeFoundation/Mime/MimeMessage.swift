@@ -580,6 +580,17 @@ public final class MimeMessage {
                 part.message = try parse(options, Array(bodyBytes))
             }
             entity = part
+        case ("application", "pkcs7-signature"), ("application", "x-pkcs7-signature"):
+            let part = (customEntity as? ApplicationPkcs7Signature) ?? ApplicationPkcs7Signature()
+            if let contentType {
+                part.contentType = contentType
+            }
+            applyHeaders(part)
+            if !bodyBytes.isEmpty {
+                let encoding = part.contentTransferEncoding
+                part.content = MimeContent(MemoryStream(Array(bodyBytes), writable: false), encoding: encoding)
+            }
+            entity = part
         case ("text", _), ("application", "rtf"):
             let subtype = mediaSubtype.isEmpty ? "plain" : mediaSubtype
             let part = (customEntity as? TextPart) ?? TextPart(subtype)
@@ -713,6 +724,12 @@ public final class MimeMessage {
             return MultipartRelated()
         case "report":
             return MultipartReport()
+        case "signed":
+            if #available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *) {
+                return MultipartSigned()
+            } else {
+                return try Multipart(subtype)
+            }
         default:
             return try Multipart(subtype)
         }

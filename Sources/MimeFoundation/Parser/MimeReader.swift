@@ -19,36 +19,49 @@ internal struct LineMap {
     let lines: [LineInfo]
 
     init(_ data: [UInt8]) {
-        var items: [LineInfo] = []
-        var index = 0
-        var lineStart = 0
-        while index < data.count {
-            let byte = data[index]
-            if byte == 0x0D {
-                if index + 1 < data.count, data[index + 1] == 0x0A {
-                    items.append(LineInfo(start: lineStart, end: index, breakLength: 2))
-                    index += 2
-                    lineStart = index
-                    continue
-                } else {
+        self.lines = data.withUnsafeBufferPointer { buffer in
+            var items: [LineInfo] = []
+            items.reserveCapacity(data.count / 40) // heuristic
+            
+            guard let baseAddress = buffer.baseAddress else {
+                if data.isEmpty {
+                    return [LineInfo(start: 0, end: 0, breakLength: 0)]
+                }
+                return [] 
+            }
+            
+            let count = buffer.count
+            var index = 0
+            var lineStart = 0
+            
+            while index < count {
+                let byte = baseAddress[index]
+                
+                if byte == 0x0D { // CR
+                    if index + 1 < count && baseAddress[index + 1] == 0x0A { // CRLF
+                        items.append(LineInfo(start: lineStart, end: index, breakLength: 2))
+                        index += 2
+                        lineStart = index
+                    } else { // CR only
+                        items.append(LineInfo(start: lineStart, end: index, breakLength: 1))
+                        index += 1
+                        lineStart = index
+                    }
+                } else if byte == 0x0A { // LF
                     items.append(LineInfo(start: lineStart, end: index, breakLength: 1))
                     index += 1
                     lineStart = index
-                    continue
+                } else {
+                    index += 1
                 }
             }
-            if byte == 0x0A {
-                items.append(LineInfo(start: lineStart, end: index, breakLength: 1))
-                index += 1
-                lineStart = index
-                continue
+            
+            if lineStart <= count {
+                items.append(LineInfo(start: lineStart, end: count, breakLength: 0))
             }
-            index += 1
+            
+            return items
         }
-        if lineStart <= data.count {
-            items.append(LineInfo(start: lineStart, end: data.count, breakLength: 0))
-        }
-        self.lines = items
     }
 
     func lineNumber(for offset: Int) -> Int {
