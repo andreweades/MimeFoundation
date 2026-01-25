@@ -6,6 +6,11 @@
 
 import Foundation
 @_spi(CMS) import X509
+#if canImport(Security)
+import Security
+#endif
+import Crypto
+import _CryptoExtras
 
 /// Represents a signer for CMS (Cryptographic Message Syntax) operations.
 ///
@@ -148,6 +153,345 @@ public struct CmsSigner: Sendable {
             digestAlgorithm: digestAlgorithm
         )
     }
+
+    #if canImport(Security)
+    /// Creates a CMS signer from PKCS#12 data.
+    ///
+    /// PKCS#12 (also known as PFX) is a binary format for storing a certificate
+    /// and its private key together, protected by a password.
+    ///
+    /// - Parameters:
+    ///   - pkcs12Data: The PKCS#12 data.
+    ///   - password: The password to decrypt the PKCS#12 data.
+    ///   - digestAlgorithm: The digest algorithm to use. Defaults to SHA-256.
+    /// - Throws: `SecureMimeError` if the PKCS#12 data cannot be loaded or parsed.
+    ///
+    /// - Note: This initializer is only available on Apple platforms.
+    ///
+    /// - Important: Due to key format incompatibilities between Apple's Security framework
+    ///   and swift-crypto, this initializer may fail to convert the private key. If you
+    ///   encounter this issue, convert your PKCS#12 to PEM format using OpenSSL:
+    ///   ```
+    ///   openssl pkcs12 -in file.p12 -nocerts -nodes -out key.pem
+    ///   openssl pkcs12 -in file.p12 -clcerts -nokeys -out cert.pem
+    ///   ```
+    ///   Then use `init(certificatePath:privateKeyPath:)` instead.
+    public init(
+        pkcs12Data: Data,
+        password: String,
+        digestAlgorithm: DigestAlgorithm = .sha256
+    ) throws {
+        // Import the PKCS#12 data using SecPKCS12Import
+        let options: [String: Any] = [
+            kSecImportExportPassphrase as String: password
+        ]
+
+        var items: CFArray?
+        let status = SecPKCS12Import(pkcs12Data as CFData, options as CFDictionary, &items)
+
+        guard status == errSecSuccess else {
+            throw SecureMimeError.pkcs12LoadFailed("SecPKCS12Import failed with status: \(status)")
+        }
+
+        guard let itemsArray = items as? [[String: Any]], !itemsArray.isEmpty else {
+            throw SecureMimeError.pkcs12LoadFailed("No items found in PKCS#12 data")
+        }
+
+        // Get the first identity
+        guard let identityRef = itemsArray[0][kSecImportItemIdentity as String] else {
+            throw SecureMimeError.pkcs12LoadFailed("No identity found in PKCS#12 data")
+        }
+
+        let identity = identityRef as! SecIdentity
+
+        // Extract certificate from identity
+        var secCertificate: SecCertificate?
+        let certStatus = SecIdentityCopyCertificate(identity, &secCertificate)
+        guard certStatus == errSecSuccess, let cert = secCertificate else {
+            throw SecureMimeError.pkcs12LoadFailed("Failed to extract certificate from identity")
+        }
+
+        // Convert SecCertificate to swift-certificates Certificate
+        do {
+            self.certificate = try Certificate(cert)
+        } catch {
+            throw SecureMimeError.invalidCertificate("Failed to convert certificate: \(error)")
+        }
+
+        // Extract private key from identity
+        var secKey: SecKey?
+        let keyStatus = SecIdentityCopyPrivateKey(identity, &secKey)
+        guard keyStatus == errSecSuccess, let privateKeyRef = secKey else {
+            throw SecureMimeError.pkcs12LoadFailed("Failed to extract private key from identity")
+        }
+
+        // Convert SecKey to swift-certificates Certificate.PrivateKey using SecItemExport
+        self.privateKey = try Self.exportSecKeyToPrivateKey(privateKeyRef, password: password)
+
+        // Extract certificate chain if present
+        if let chainRefs = itemsArray[0][kSecImportItemCertChain as String] as? [SecCertificate] {
+            var chain: [Certificate] = []
+            for chainCert in chainRefs {
+                // Skip the end-entity certificate (it's the same as self.certificate)
+                let chainCertData = SecCertificateCopyData(chainCert) as Data
+                let selfCertData = SecCertificateCopyData(cert) as Data
+                if chainCertData != selfCertData {
+                    if let converted = try? Certificate(chainCert) {
+                        chain.append(converted)
+                    }
+                }
+            }
+            self.certificateChain = chain
+        } else {
+            self.certificateChain = []
+        }
+
+        self.digestAlgorithm = digestAlgorithm
+    }
+
+    /// Creates a CMS signer from a PKCS#12 file.
+    ///
+    /// - Parameters:
+    ///   - pkcs12Path: Path to the PKCS#12 file (.p12 or .pfx).
+    ///   - password: The password to decrypt the PKCS#12 file.
+    ///   - digestAlgorithm: The digest algorithm to use. Defaults to SHA-256.
+    /// - Throws: `SecureMimeError` if the file cannot be read or parsed.
+    ///
+    /// - Note: This initializer is only available on Apple platforms.
+    public init(
+        pkcs12Path: String,
+        password: String,
+        digestAlgorithm: DigestAlgorithm = .sha256
+    ) throws {
+        let data: Data
+        do {
+            data = try Data(contentsOf: URL(fileURLWithPath: pkcs12Path))
+        } catch {
+            throw SecureMimeError.fileReadFailed("Failed to read PKCS#12 file: \(error.localizedDescription)")
+        }
+
+        try self.init(
+            pkcs12Data: data,
+            password: password,
+            digestAlgorithm: digestAlgorithm
+        )
+    }
+
+    /// Exports a SecKey to a Certificate.PrivateKey.
+    ///
+    /// This method attempts multiple export formats to find one that swift-crypto can parse.
+    private static func exportSecKeyToPrivateKey(_ secKey: SecKey, password: String) throws -> Certificate.PrivateKey {
+        // Get the key type and size
+        guard let attributes = SecKeyCopyAttributes(secKey) as? [String: Any] else {
+            throw SecureMimeError.invalidPrivateKey("Failed to get key attributes")
+        }
+
+        let keyType = attributes[kSecAttrKeyType as String] as? String
+        let keySize = attributes[kSecAttrKeySizeInBits as String] as? Int ?? 0
+
+        // Try exporting to PEM format (PKCS#8 wrapped with PEM armor)
+        var exportedData: CFData?
+        var exportStatus = SecItemExport(
+            secKey,
+            .formatPEMSequence,
+            .pemArmour,
+            nil,
+            &exportedData
+        )
+
+        if exportStatus == errSecSuccess, let pemData = exportedData as Data?,
+           let pemString = String(data: pemData, encoding: .utf8) {
+            // Try parsing as PEM
+            if let privateKey = try? Certificate.PrivateKey(pemEncoded: pemString) {
+                return privateKey
+            }
+        }
+
+        // Try BSAFE format (PKCS#8 DER)
+        exportStatus = SecItemExport(
+            secKey,
+            .formatBSAFE,
+            [],
+            nil,
+            &exportedData
+        )
+
+        if exportStatus == errSecSuccess, let data = exportedData as Data? {
+            // Try to parse as PKCS#8 DER
+            if let privateKey = try? Certificate.PrivateKey(derBytes: Array(data)) {
+                return privateKey
+            }
+        }
+
+        // Try OpenSSL format (SEC1 for EC, PKCS#1 for RSA)
+        exportStatus = SecItemExport(
+            secKey,
+            .formatOpenSSL,
+            [],
+            nil,
+            &exportedData
+        )
+
+        if exportStatus == errSecSuccess, let data = exportedData as Data? {
+            // Try to parse the data based on key type
+            if let privateKey = try? convertKeyData(data, keyType: keyType, keySize: keySize) {
+                return privateKey
+            }
+        }
+
+        // Try SecKeyCopyExternalRepresentation (raw format)
+        var error: Unmanaged<CFError>?
+        if let keyData = SecKeyCopyExternalRepresentation(secKey, &error) as Data? {
+            if let privateKey = try? convertKeyData(keyData, keyType: keyType, keySize: keySize) {
+                return privateKey
+            }
+        }
+
+        // If all exports fail, throw a descriptive error
+        throw SecureMimeError.invalidPrivateKey(
+            "Cannot convert private key from PKCS#12 to swift-crypto format. " +
+            "To use PKCS#12 credentials, extract the key to PEM format using: " +
+            "openssl pkcs12 -in file.p12 -nocerts -nodes -out key.pem"
+        )
+    }
+
+    /// Converts raw key data to a Certificate.PrivateKey based on key type.
+    private static func convertKeyData(_ keyData: Data, keyType: String?, keySize: Int) throws -> Certificate.PrivateKey {
+        // Convert based on key type
+        if keyType == kSecAttrKeyTypeRSA as String {
+            // RSA key - try PKCS#1 format
+            let rsaKey = try _RSA.Signing.PrivateKey(derRepresentation: keyData)
+            return Certificate.PrivateKey(rsaKey)
+        } else if keyType == kSecAttrKeyTypeECSECPrimeRandom as String {
+            // EC key - SecKeyCopyExternalRepresentation returns X9.63 format:
+            // 04 || X || Y || K for private keys
+            // Where K is the private scalar at the end
+            return try convertECKeyData(keyData, keySize: keySize)
+        } else {
+            throw SecureMimeError.invalidPrivateKey("Unsupported key type: \(keyType ?? "unknown")")
+        }
+    }
+
+    /// Converts EC key data from Security framework format to swift-crypto.
+    private static func convertECKeyData(_ keyData: Data, keySize: Int) throws -> Certificate.PrivateKey {
+        // Calculate expected sizes
+        let scalarSize: Int
+        switch keySize {
+        case 256: scalarSize = 32
+        case 384: scalarSize = 48
+        case 521: scalarSize = 66  // ceil(521/8)
+        default:
+            throw SecureMimeError.invalidPrivateKey("Unsupported EC key size: \(keySize)")
+        }
+
+        // X9.63 private key: 1 (prefix) + scalarSize (X) + scalarSize (Y) + scalarSize (K)
+        let expectedX963Size = 1 + 3 * scalarSize
+
+        // Try DER/PKCS#8 format first (most common from Security framework export)
+        // DER-encoded keys are typically larger due to ASN.1 overhead
+        if keyData.count > expectedX963Size {
+            switch keySize {
+            case 256:
+                if let key = try? P256.Signing.PrivateKey(derRepresentation: keyData) {
+                    return Certificate.PrivateKey(key)
+                }
+            case 384:
+                if let key = try? P384.Signing.PrivateKey(derRepresentation: keyData) {
+                    return Certificate.PrivateKey(key)
+                }
+            case 521:
+                if let key = try? P521.Signing.PrivateKey(derRepresentation: keyData) {
+                    return Certificate.PrivateKey(key)
+                }
+            default:
+                break
+            }
+        }
+
+        // Try x963Representation (raw format from SecKeyCopyExternalRepresentation)
+        if keyData.count == expectedX963Size {
+            switch keySize {
+            case 256:
+                if let key = try? P256.Signing.PrivateKey(x963Representation: keyData) {
+                    return Certificate.PrivateKey(key)
+                }
+            case 384:
+                if let key = try? P384.Signing.PrivateKey(x963Representation: keyData) {
+                    return Certificate.PrivateKey(key)
+                }
+            case 521:
+                if let key = try? P521.Signing.PrivateKey(x963Representation: keyData) {
+                    return Certificate.PrivateKey(key)
+                }
+            default:
+                break
+            }
+        }
+
+        // Try rawRepresentation (just the scalar)
+        if keyData.count == scalarSize {
+            switch keySize {
+            case 256:
+                let key = try P256.Signing.PrivateKey(rawRepresentation: keyData)
+                return Certificate.PrivateKey(key)
+            case 384:
+                let key = try P384.Signing.PrivateKey(rawRepresentation: keyData)
+                return Certificate.PrivateKey(key)
+            case 521:
+                let key = try P521.Signing.PrivateKey(rawRepresentation: keyData)
+                return Certificate.PrivateKey(key)
+            default:
+                break
+            }
+        }
+
+        // Try extracting the scalar from the end of X9.63 format
+        if keyData.count == expectedX963Size {
+            let scalarStart = keyData.count - scalarSize
+            let scalarData = keyData.suffix(from: scalarStart)
+            switch keySize {
+            case 256:
+                if let key = try? P256.Signing.PrivateKey(rawRepresentation: scalarData) {
+                    return Certificate.PrivateKey(key)
+                }
+            case 384:
+                if let key = try? P384.Signing.PrivateKey(rawRepresentation: scalarData) {
+                    return Certificate.PrivateKey(key)
+                }
+            case 521:
+                if let key = try? P521.Signing.PrivateKey(rawRepresentation: scalarData) {
+                    return Certificate.PrivateKey(key)
+                }
+            default:
+                break
+            }
+        }
+
+        throw SecureMimeError.invalidPrivateKey(
+            "EC key data format not recognized. Size: \(keyData.count), expected X9.63 size: \(expectedX963Size)"
+        )
+    }
+
+    /// Converts a SecKey to a Certificate.PrivateKey.
+    private static func convertSecKeyToPrivateKey(_ secKey: SecKey) throws -> Certificate.PrivateKey {
+        // Get the key type and size
+        guard let attributes = SecKeyCopyAttributes(secKey) as? [String: Any] else {
+            throw SecureMimeError.invalidPrivateKey("Failed to get key attributes")
+        }
+
+        let keyType = attributes[kSecAttrKeyType as String] as? String
+        let keySize = attributes[kSecAttrKeySizeInBits as String] as? Int ?? 0
+
+        // Export the key data
+        var error: Unmanaged<CFError>?
+        guard let keyData = SecKeyCopyExternalRepresentation(secKey, &error) as Data? else {
+            let errorDesc = error?.takeRetainedValue().localizedDescription ?? "Unknown error"
+            throw SecureMimeError.invalidPrivateKey("Failed to export private key: \(errorDesc)")
+        }
+
+        return try convertKeyData(keyData, keyType: keyType, keySize: keySize)
+    }
+    #endif
 
     /// Returns the signature algorithm to use based on the private key type and digest algorithm.
     internal var signatureAlgorithm: Certificate.SignatureAlgorithm {

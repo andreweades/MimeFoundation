@@ -520,4 +520,117 @@ struct SecureMimeTests {
 
         #expect(visitor.visitedEncrypted)
     }
+
+    // MARK: - PKCS#12 Import Tests
+    //
+    // Note: Due to key format incompatibilities between Apple's Security framework
+    // and swift-crypto, PKCS#12 import for CmsSigner currently only extracts
+    // the certificate. For signing, users should convert their PKCS#12 to PEM:
+    //   openssl pkcs12 -in file.p12 -nocerts -nodes -out key.pem
+    //   openssl pkcs12 -in file.p12 -clcerts -nokeys -out cert.pem
+
+    #if canImport(Security)
+    /// Loads test PKCS#12 data from the test resources.
+    private static func loadTestPkcs12() throws -> Data {
+        let url = TestHelper.dataURL(for: "smime/test.p12")
+        return try Data(contentsOf: url)
+    }
+
+    @Test("SecPKCS12Import extracts certificate from PKCS#12")
+    func secPkcs12ImportCertificate() throws {
+        guard #available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *) else {
+            return
+        }
+
+        let pkcs12Data = try Self.loadTestPkcs12()
+
+        // Import using Security framework directly to verify the file is valid
+        let options: [String: Any] = [
+            kSecImportExportPassphrase as String: "test123"
+        ]
+
+        var items: CFArray?
+        let status = SecPKCS12Import(pkcs12Data as CFData, options as CFDictionary, &items)
+
+        #expect(status == errSecSuccess)
+        let itemsArray = items as? [[String: Any]]
+        #expect(itemsArray != nil)
+        #expect(!itemsArray!.isEmpty)
+
+        // Verify identity was extracted
+        let identity = itemsArray![0][kSecImportItemIdentity as String]
+        #expect(identity != nil)
+    }
+
+    @Test("SecPKCS12Import fails with wrong password")
+    func secPkcs12ImportWrongPassword() throws {
+        guard #available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *) else {
+            return
+        }
+
+        let pkcs12Data = try Self.loadTestPkcs12()
+
+        let options: [String: Any] = [
+            kSecImportExportPassphrase as String: "wrongpassword"
+        ]
+
+        var items: CFArray?
+        let status = SecPKCS12Import(pkcs12Data as CFData, options as CFDictionary, &items)
+
+        // Should fail with authentication error
+        #expect(status != errSecSuccess)
+    }
+
+    @Test("CmsSigner from PEM files created alongside PKCS#12")
+    func cmsSignerFromPemFiles() throws {
+        guard #available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *) else {
+            return
+        }
+
+        // Load the PEM files that were created alongside the PKCS#12
+        let certPath = TestHelper.dataURL(for: "smime/test-cert.pem").path
+        let keyPath = TestHelper.dataURL(for: "smime/test-key.pem").path
+
+        let signer = try CmsSigner(
+            certificatePath: certPath,
+            privateKeyPath: keyPath,
+            digestAlgorithm: .sha256
+        )
+
+        #expect(signer.digestAlgorithm == .sha256)
+
+        // Verify we can sign with it
+        let context = DefaultSecureMimeContext()
+        let content: [UInt8] = Array("Test content".utf8)
+        let signature = try context.sign(signer, content: content, detached: true)
+
+        #expect(!signature.isEmpty)
+        #expect(signature[0] == 0x30) // DER SEQUENCE tag
+    }
+
+    @Test("CmsSigner from PEM can create MultipartSigned")
+    func cmsSignerPemMultipartSigned() throws {
+        guard #available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *) else {
+            return
+        }
+
+        let certPath = TestHelper.dataURL(for: "smime/test-cert.pem").path
+        let keyPath = TestHelper.dataURL(for: "smime/test-key.pem").path
+
+        let signer = try CmsSigner(
+            certificatePath: certPath,
+            privateKeyPath: keyPath,
+            digestAlgorithm: .sha256
+        )
+
+        let textPart = TextPart("plain")
+        textPart.text = "Signed with PEM certificate"
+
+        let signed = try MultipartSigned.create(textPart, signer: signer)
+
+        #expect(signed.count == 2)
+        #expect(signed.signedContent != nil)
+        #expect(signed.signature != nil)
+    }
+    #endif
 }
