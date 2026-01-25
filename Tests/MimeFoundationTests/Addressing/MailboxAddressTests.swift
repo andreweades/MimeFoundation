@@ -51,14 +51,6 @@ func mailboxArgumentExceptions() {
     }
 
     #expect(throws: (any Error).self) {
-        _ = try mailbox.compareTo(optional: nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try mailbox.toString(optional: nil, encode: true)
-    }
-
-    #expect(throws: (any Error).self) {
         _ = try MailboxAddress.encodeAddrspec(nil)
     }
 
@@ -519,22 +511,22 @@ func mailboxIsInternational() {
 
     var mailbox = MailboxAddress(name: "Unit Test", address: "點看@domain.com")
     #expect(mailbox.isInternational)
-    #expect(mailbox.toString(options, encode: true) == "Unit Test <點看@domain.com>")
+    #expect(mailbox.formatted(with: options, encoded: true) == "Unit Test <點看@domain.com>")
 
     mailbox = MailboxAddress(name: "Unit Test", address: "user@名がドメイン.com")
     #expect(mailbox.isInternational)
-    #expect(mailbox.toString(options, encode: true) == "Unit Test <user@名がドメイン.com>")
+    #expect(mailbox.formatted(with: options, encoded: true) == "Unit Test <user@名がドメイン.com>")
 
     mailbox = MailboxAddress(name: "Unit Test", address: "user@" + idn.encode("名がドメイン.com"))
     #expect(mailbox.isInternational)
-    #expect(mailbox.toString(options, encode: true) == "Unit Test <user@名がドメイン.com>")
+    #expect(mailbox.formatted(with: options, encoded: true) == "Unit Test <user@名がドメイン.com>")
 
     mailbox = MailboxAddress(name: "Unit Test", address: "user@domain.com")
     #expect(mailbox.isInternational == false)
     mailbox.route.add("route1")
     mailbox.route.add("名がドメイン.com")
     #expect(mailbox.isInternational)
-    #expect(mailbox.toString(options, encode: true) == "Unit Test <@route1,@名がドメイン.com:user@domain.com>")
+    #expect(mailbox.formatted(with: options, encoded: true) == "Unit Test <@route1,@名がドメイン.com:user@domain.com>")
 }
 
 @Test("Mailbox IDN encoding helpers")
@@ -566,13 +558,13 @@ func mailboxRoutedAddress() {
     mailbox.route.add("forward.com")
     mailbox.route.add("geek.net")
 
-    #expect(mailbox.toString(.default, encode: true).replacingOccurrences(of: "\r\n", with: "\n") == expected)
+    #expect(mailbox.formatted(with: FormatOptions.default, encoded: true).replacingOccurrences(of: "\r\n", with: "\n") == expected)
 
     assertParse(expected)
 
     mailbox.name = nil
-    #expect(mailbox.toString(.default, encode: true) == expectedNoName)
-    #expect(mailbox.toString(.default, encode: false) == expectedNoName)
+    #expect(mailbox.formatted(with: FormatOptions.default, encoded: true) == expectedNoName)
+    #expect(mailbox.formatted(with: FormatOptions.default, encoded: false) == expectedNoName)
 }
 
 @Test("Mailbox international routed address")
@@ -583,10 +575,10 @@ func mailboxInternationalRoutedAddress() {
     let mailbox = MailboxAddress(name: "User Name", route: route, address: "user@domain.com")
     var options = FormatOptions.default
 
-    #expect(mailbox.toString(options, encode: true) == expectedIdn)
+    #expect(mailbox.formatted(with: options, encoded: true) == expectedIdn)
 
     options.international = true
-    #expect(mailbox.toString(options, encode: true) == expected)
+    #expect(mailbox.formatted(with: options, encoded: true) == expected)
 }
 
 @Test("Mailbox excessive angle brackets")

@@ -39,9 +39,6 @@ public final class InternetAddressList: RandomAccessCollection, MutableCollectio
     public subscript(position: Int) -> InternetAddress {
         get { list[position] }
         set {
-            guard position >= 0 && position < list.count else {
-                fatalError("index out of range")
-            }
             list[position].changed = nil
             newValue.changed = { [weak self] _ in
                 self?.onChanged()
@@ -158,7 +155,7 @@ public final class InternetAddressList: RandomAccessCollection, MutableCollectio
             if idx > 0 {
                 builder.append(", ")
             }
-            builder.append(address.toString(options, encode: false))
+            builder.append(address.formatted(with: options, encoded: false))
         }
         return builder
     }
@@ -188,13 +185,6 @@ public final class InternetAddressList: RandomAccessCollection, MutableCollectio
             return lhs.list[i] < rhs.list[i]
         }
         return lhs.list.count < rhs.list.count
-    }
-
-    public func compareTo(_ other: InternetAddressList) -> Int {
-        if self == other {
-            return 0
-        }
-        return self < other ? -1 : 1
     }
 
     internal var changed: ((InternetAddressList) -> Void)?

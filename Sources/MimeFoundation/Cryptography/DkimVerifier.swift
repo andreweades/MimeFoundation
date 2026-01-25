@@ -28,7 +28,7 @@ public final class DkimVerifier: DkimVerifierBase {
     }
 
     private func verifyInternal(options: FormatOptions, message: MimeMessage, dkimSignature: Header, doAsync: Bool, cancellationToken: CancellationToken?) throws -> Bool {
-        var options = options.clone()
+        var options = options.copy()
         options.newLineFormat = .dos
 
         guard dkimSignature.id == .dkimSignature else {
@@ -64,7 +64,7 @@ public final class DkimVerifier: DkimVerifierBase {
     }
 
     private func verifyInternalAsync(options: FormatOptions, message: MimeMessage, dkimSignature: Header, cancellationToken: CancellationToken?) async throws -> Bool {
-        var options = options.clone()
+        var options = options.copy()
         options.newLineFormat = .dos
 
         guard dkimSignature.id == .dkimSignature else {

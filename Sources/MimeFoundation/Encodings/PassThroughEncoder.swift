@@ -15,7 +15,7 @@ public final class PassThroughEncoder: MimeEncoder {
         passthroughEncoding
     }
 
-    public func clone() -> any MimeEncoder {
+    public func copy() -> any MimeEncoder {
         PassThroughEncoder(encoding: passthroughEncoding)
     }
 

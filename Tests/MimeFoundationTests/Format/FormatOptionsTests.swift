@@ -11,7 +11,7 @@ func formatOptionsDefaultsAndClone() {
     #expect(options.maxLineLength == FormatOptions.defaultMaxLineLength)
     #expect(options.newLine == (options.newLineFormat == .unix ? "\n" : "\r\n"))
 
-    var clone = options.clone()
+    var clone = options.copy()
     clone.international = true
     #expect(clone.international)
     #expect(!options.international)

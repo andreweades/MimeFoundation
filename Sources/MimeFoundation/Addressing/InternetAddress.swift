@@ -26,24 +26,25 @@ public class InternetAddress: Comparable, Equatable, CustomStringConvertible {
         self.name = name
     }
 
-    public func clone() -> InternetAddress {
-        fatalError("Subclasses must override clone().")
+    public func copy() -> InternetAddress {
+        fatalError("Subclasses must override copy().")
     }
 
     internal func encode(_ options: FormatOptions, builder: inout String, firstToken: inout Bool, lineLength: inout Int) {
         fatalError("Subclasses must override encode().")
     }
 
-    public func toString(_ options: FormatOptions, encode: Bool) -> String {
-        fatalError("Subclasses must override toString().")
-    }
-
-    public func toString(encode: Bool) -> String {
-        toString(FormatOptions.default, encode: encode)
+    /// Formats the address as a string with the specified options.
+    /// - Parameters:
+    ///   - options: The formatting options to use.
+    ///   - encoded: Whether to encode non-ASCII characters.
+    /// - Returns: The formatted address string.
+    public func formatted(with options: FormatOptions = .default, encoded: Bool = false) -> String {
+        fatalError("Subclasses must override formatted(with:encoded:).")
     }
 
     public var description: String {
-        toString(encode: false)
+        formatted(with: .default, encoded: false)
     }
 
     internal var changed: ((InternetAddress) -> Void)?
@@ -53,14 +54,14 @@ public class InternetAddress: Comparable, Equatable, CustomStringConvertible {
     }
 
     public static func < (lhs: InternetAddress, rhs: InternetAddress) -> Bool {
-        lhs.compareTo(rhs) < 0
+        lhs.compare(to: rhs) < 0
     }
 
     public static func == (lhs: InternetAddress, rhs: InternetAddress) -> Bool {
-        lhs.equals(rhs)
+        lhs.isEqual(to: rhs)
     }
 
-    public func compareTo(_ other: InternetAddress) -> Int {
+    internal func compare(to other: InternetAddress) -> Int {
         let lhsName = name ?? ""
         let rhsName = other.name ?? ""
         let nameCompare = lhsName.caseInsensitiveCompare(rhsName)
@@ -103,7 +104,7 @@ public class InternetAddress: Comparable, Equatable, CustomStringConvertible {
         return 0
     }
 
-    public func equals(_ other: InternetAddress?) -> Bool {
+    internal func isEqual(to other: InternetAddress?) -> Bool {
         return false
     }
 

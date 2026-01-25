@@ -18,12 +18,12 @@ public final class UUEncoder: MimeEncoder {
         .uuEncode
     }
 
-    public func clone() -> any MimeEncoder {
-        let clone = UUEncoder()
-        clone.lineBuffer = lineBuffer
-        clone.savedBytes = savedBytes
-        clone.uulen = uulen
-        return clone
+    public func copy() -> any MimeEncoder {
+        let copied = UUEncoder()
+        copied.lineBuffer = lineBuffer
+        copied.savedBytes = savedBytes
+        copied.uulen = uulen
+        return copied
     }
 
     public func estimateOutputLength(_ inputLength: Int) -> Int {

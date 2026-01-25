@@ -86,7 +86,7 @@ public final class DkimSigner: DkimSignerBase {
     }
 
     private func dkimSign(_ options: FormatOptions, message: MimeMessage, headers: [String]) throws {
-        var signingOptions = options.clone()
+        var signingOptions = options.copy()
         signingOptions.newLineFormat = .dos
         signingOptions.ensureNewLine = true
 

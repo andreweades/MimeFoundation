@@ -48,10 +48,10 @@ public final class Crc32 {
         self.crc = initialValue
     }
 
-    public func clone() -> Crc32 {
-        let clone = Crc32(initialValue: initialValue)
-        clone.crc = crc
-        return clone
+    public func copy() -> Crc32 {
+        let copied = Crc32(initialValue: initialValue)
+        copied.crc = crc
+        return copied
     }
 
     public var checksum: Int32 {

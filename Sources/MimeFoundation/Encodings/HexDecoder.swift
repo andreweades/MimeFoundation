@@ -20,11 +20,11 @@ public final class HexDecoder: MimeDecoder {
         .default
     }
 
-    public func clone() -> any MimeDecoder {
-        let clone = HexDecoder()
-        clone.state = state
-        clone.saved = saved
-        return clone
+    public func copy() -> any MimeDecoder {
+        let copied = HexDecoder()
+        copied.state = state
+        copied.saved = saved
+        return copied
     }
 
     public func estimateOutputLength(_ inputLength: Int) -> Int {

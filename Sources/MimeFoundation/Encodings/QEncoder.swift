@@ -16,7 +16,7 @@ public final class QEncoder: MimeEncoder {
         .quotedPrintable
     }
 
-    public func clone() -> any MimeEncoder {
+    public func copy() -> any MimeEncoder {
         QEncoder(mode: mode)
     }
 

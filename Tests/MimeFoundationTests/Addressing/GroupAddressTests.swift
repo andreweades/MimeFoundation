@@ -59,10 +59,10 @@ func groupClone() {
     group.members.add(inner)
     group.members.add(MailboxAddress(name: "Third Name", address: "third@address.com"))
 
-    let clone = group.clone()
-    #expect(group.compareTo(clone) == 0)
+    let clone = group.copy()
+    #expect(group == clone)
 
-    let actual = clone.toString(options, encode: true)
+    let actual = clone.formatted(with: options, encoded: true)
     #expect(actual == encoded)
 }
 

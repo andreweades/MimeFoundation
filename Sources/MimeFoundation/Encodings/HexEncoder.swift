@@ -13,7 +13,7 @@ public final class HexEncoder: MimeEncoder {
         .default
     }
 
-    public func clone() -> any MimeEncoder {
+    public func copy() -> any MimeEncoder {
         HexEncoder()
     }
 

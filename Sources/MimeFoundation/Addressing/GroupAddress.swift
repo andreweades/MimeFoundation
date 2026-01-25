@@ -33,9 +33,9 @@ public final class GroupAddress: InternetAddress {
         self.init(encoding: .utf8, name: name)
     }
 
-    public override func clone() -> InternetAddress {
-        let clonedMembers = members.map { $0.clone() }
-        return GroupAddress(encoding: encoding, name: name, members: InternetAddressList(clonedMembers))
+    public override func copy() -> InternetAddress {
+        let copiedMembers = members.map { $0.copy() }
+        return GroupAddress(encoding: encoding, name: name, members: InternetAddressList(copiedMembers))
     }
 
     internal override func encode(_ options: FormatOptions, builder: inout String, firstToken: inout Bool, lineLength: inout Int) {
@@ -73,8 +73,8 @@ public final class GroupAddress: InternetAddress {
         lineLength += 1
     }
 
-    public override func toString(_ options: FormatOptions, encode: Bool) -> String {
-        if encode {
+    public override func formatted(with options: FormatOptions = .default, encoded: Bool = false) -> String {
+        if encoded {
             var builder = ""
             var lineLength = 0
             var firstToken = true
@@ -95,7 +95,7 @@ public final class GroupAddress: InternetAddress {
         return builder
     }
 
-    public override func equals(_ other: InternetAddress?) -> Bool {
+    internal override func isEqual(to other: InternetAddress?) -> Bool {
         guard let group = other as? GroupAddress else {
             return false
         }

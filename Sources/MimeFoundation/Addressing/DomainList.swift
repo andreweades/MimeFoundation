@@ -32,9 +32,6 @@ public final class DomainList: RandomAccessCollection, MutableCollection, Custom
     public subscript(position: Int) -> String {
         get { domains[position] }
         set {
-            guard position >= 0 && position < domains.count else {
-                fatalError("index out of range")
-            }
             domains[position] = newValue
             onChanged()
         }

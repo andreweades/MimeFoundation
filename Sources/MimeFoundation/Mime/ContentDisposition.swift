@@ -218,12 +218,12 @@ public final class ContentDisposition {
         return builder.asString()
     }
 
-    public func clone() -> ContentDisposition {
-        let cloned = ContentDisposition(cloning: disposition)
+    public func copy() -> ContentDisposition {
+        let copied = ContentDisposition(cloning: disposition)
         for param in parameters {
-            try? cloned.parameters.add(param.clone())
+            try? copied.parameters.add(param.copy())
         }
-        return cloned
+        return copied
     }
 
     public var changed: (() -> Void)?

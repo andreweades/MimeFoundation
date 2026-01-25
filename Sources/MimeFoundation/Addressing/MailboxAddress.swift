@@ -213,9 +213,9 @@ public class MailboxAddress: InternetAddress {
         return false
     }
 
-    public override func clone() -> InternetAddress {
-        let clonedRoute = DomainList(route)
-        return MailboxAddress(encoding: encoding, name: name, route: clonedRoute, address: addressStorage, at: atIndex)
+    public override func copy() -> InternetAddress {
+        let copiedRoute = DomainList(route)
+        return MailboxAddress(encoding: encoding, name: name, route: copiedRoute, address: addressStorage, at: atIndex)
     }
 
     public func getAddress(_ idnEncode: Bool) -> String {
@@ -298,8 +298,8 @@ public class MailboxAddress: InternetAddress {
         }
     }
 
-    public override func toString(_ options: FormatOptions, encode: Bool) -> String {
-        if encode {
+    public override func formatted(with options: FormatOptions = .default, encoded: Bool = false) -> String {
+        if encoded {
             var builder = ""
             var lineLength = 0
             var firstToken = true
@@ -307,7 +307,7 @@ public class MailboxAddress: InternetAddress {
             return builder
         }
 
-        var routeValue = route.toString()
+        var routeValue = route.description
         if !routeValue.isEmpty {
             routeValue += ":"
         }
@@ -323,25 +323,11 @@ public class MailboxAddress: InternetAddress {
         return addressStorage
     }
 
-    public func toString(optional options: FormatOptions?, encode: Bool) throws -> String {
-        guard let options else {
-            throw MailboxAddressError.nilOptions
-        }
-        return toString(options, encode: encode)
-    }
-
-    public func compareTo(optional other: InternetAddress?) throws -> Int {
-        guard let other else {
-            throw MailboxAddressError.nilMailbox
-        }
-        return compareTo(other)
-    }
-
-    public override func equals(_ other: InternetAddress?) -> Bool {
+    internal override func isEqual(to other: InternetAddress?) -> Bool {
         guard let mailbox = other as? MailboxAddress else {
             return false
         }
-        return name == mailbox.name && addressStorage == mailbox.address && route.toString() == mailbox.route.toString()
+        return name == mailbox.name && addressStorage == mailbox.address && route.description == mailbox.route.description
     }
 
     // MARK: Addrspec helpers

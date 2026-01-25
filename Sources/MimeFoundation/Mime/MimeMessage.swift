@@ -309,7 +309,7 @@ public final class MimeMessage {
         }
         let combinedHeaders = HeaderList()
         for header in headers {
-            combinedHeaders.add(header.clone())
+            combinedHeaders.add(header.copy())
         }
         if let body {
             for header in body.headers where header.field.lowercased().hasPrefix("content-") {
@@ -320,7 +320,7 @@ public final class MimeMessage {
                 } else if combinedHeaders.contains(field: header.field) {
                     continue
                 }
-                combinedHeaders.add(header.clone())
+                combinedHeaders.add(header.copy())
             }
         }
 
@@ -408,7 +408,7 @@ public final class MimeMessage {
         if !bodyBytes.isEmpty {
             let entityHeaders = HeaderList()
             for header in headerList where header.field.lowercased().hasPrefix("content-") {
-                entityHeaders.add(header.clone())
+                entityHeaders.add(header.copy())
             }
             message.body = try parseEntity(options, entityHeaders, bodyBytes)
         }

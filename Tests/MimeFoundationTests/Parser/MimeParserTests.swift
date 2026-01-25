@@ -14,7 +14,7 @@ private func assertSerialization(_ message: MimeMessage, _ format: NewLineFormat
         }
     }
 
-    var options = FormatOptions.default.clone()
+    var options = FormatOptions.default.copy()
     options.newLineFormat = format
     let memory = MemoryStream()
     try message.writeTo(options, memory)
@@ -23,7 +23,7 @@ private func assertSerialization(_ message: MimeMessage, _ format: NewLineFormat
 }
 
 private func assertSerialization(_ entity: MimeEntity, _ format: NewLineFormat, _ expected: String) throws {
-    var options = FormatOptions.default.clone()
+    var options = FormatOptions.default.copy()
     options.newLineFormat = format
     let memory = MemoryStream()
     try entity.writeTo(options, memory)
@@ -39,7 +39,7 @@ private func assertSerializationAsync(_ message: MimeMessage, _ format: NewLineF
         }
     }
 
-    var options = FormatOptions.default.clone()
+    var options = FormatOptions.default.copy()
     options.newLineFormat = format
     let memory = MemoryStream()
     try message.writeTo(options, memory)
@@ -48,7 +48,7 @@ private func assertSerializationAsync(_ message: MimeMessage, _ format: NewLineF
 }
 
 private func assertSerializationAsync(_ entity: MimeEntity, _ format: NewLineFormat, _ expected: String) async throws {
-    var options = FormatOptions.default.clone()
+    var options = FormatOptions.default.copy()
     options.newLineFormat = format
     let memory = MemoryStream()
     try await entity.writeToAsync(options, memory)

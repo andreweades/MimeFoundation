@@ -32,13 +32,13 @@ public final class UUDecoder: MimeDecoder {
         .uuEncode
     }
 
-    public func clone() -> any MimeDecoder {
-        let clone = UUDecoder(payloadOnly: payloadOnly)
-        clone.state = state
-        clone.nsaved = nsaved
-        clone.uulen = uulen
-        clone.saved = saved
-        return clone
+    public func copy() -> any MimeDecoder {
+        let copied = UUDecoder(payloadOnly: payloadOnly)
+        copied.state = state
+        copied.nsaved = nsaved
+        copied.uulen = uulen
+        copied.saved = saved
+        return copied
     }
 
     public func estimateOutputLength(_ inputLength: Int) -> Int {

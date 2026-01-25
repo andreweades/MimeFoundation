@@ -53,7 +53,7 @@ enum MimeDecoderTestsBase {
             return
         }
 
-        let clone = decoder.clone()
+        let clone = decoder.copy()
         let remainingLength = sample.count - prefixLength
         var output1 = [UInt8](repeating: 0, count: decoder.estimateOutputLength(remainingLength))
         var output2 = [UInt8](repeating: 0, count: decoder.estimateOutputLength(remainingLength))
@@ -67,7 +67,7 @@ enum MimeDecoderTestsBase {
     }
 
     static func resetAndAssert(_ decoder: any MimeDecoder, sample: [UInt8], sourceLocation: SourceLocation = #_sourceLocation) {
-        let clone = decoder.clone()
+        let clone = decoder.copy()
         let prefixLength = min(6, sample.count)
         var output = [UInt8](repeating: 0, count: decoder.estimateOutputLength(sample.count))
         do {

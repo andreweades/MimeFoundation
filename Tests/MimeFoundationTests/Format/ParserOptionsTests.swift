@@ -52,7 +52,7 @@ func parserOptionsParsingCustomMimeType() throws {
         CustomTextHtmlPart(contentType)
     }
 
-    options = options.clone()
+    options = options.copy()
 
     let text = TextPart("html")
     text.text = "<html>this is some html and stuff</html>"
@@ -72,7 +72,7 @@ func parserOptionsParsingCustomMimeTypeAsync() async throws {
         CustomTextHtmlPart(contentType)
     }
 
-    options = options.clone()
+    options = options.copy()
 
     let text = TextPart("html")
     text.text = "<html>this is some html and stuff</html>"

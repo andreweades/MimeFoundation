@@ -46,18 +46,8 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
     public var isReadOnly: Bool { false }
 
     public subscript(position: Int) -> MimeEntity {
-        get {
-            guard position >= 0 && position < attachments.count else {
-                fatalError("Index out of range")
-            }
-            return attachments[position]
-        }
-        set {
-            guard position >= 0 && position < attachments.count else {
-                fatalError("Index out of range")
-            }
-            attachments[position] = newValue
-        }
+        get { attachments[position] }
+        set { attachments[position] = newValue }
     }
 
     public func add(_ entity: MimeEntity?) throws -> MimeEntity {

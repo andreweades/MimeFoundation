@@ -58,12 +58,12 @@ func mimeMessageWithHeaders() throws {
     _ = DateUtils.tryParse(timestamp, date: &date)
 
     #expect(msg.from.count == 1)
-    #expect(msg.from[0].toString(encode: false) == "\"Federico Di Gregorio\" <fog@dndg.it>")
+    #expect(msg.from[0].formatted(with: FormatOptions.default, encoded: false) == "\"Federico Di Gregorio\" <fog@dndg.it>")
     #expect(msg.to.count == 1)
-    #expect(msg.to[0].toString(encode: false) == "jeff@xamarin.com")
+    #expect(msg.to[0].formatted(with: FormatOptions.default, encoded: false) == "jeff@xamarin.com")
     #expect(msg.cc.count == 2)
-    #expect(msg.cc[0].toString(encode: false) == "fog@dndg.it")
-    #expect(msg.cc[1].toString(encode: false) == "gg@dndg.it")
+    #expect(msg.cc[0].formatted(with: FormatOptions.default, encoded: false) == "fog@dndg.it")
+    #expect(msg.cc[1].formatted(with: FormatOptions.default, encoded: false) == "gg@dndg.it")
     #expect(msg.subject == "Hello")
     #expect(msg.date == date)
 }
@@ -81,10 +81,10 @@ func generateMultipleMessages() throws {
     }
 
     #expect(msgs.count == 2)
-    #expect(msgs[0].from[0].toString(encode: false) == "\"Federico Di Gregorio\" <fog@dndg.it>")
-    #expect(msgs[1].from[0].toString(encode: false) == "\"Federico Di Gregorio\" <fog@dndg.it>")
-    #expect(msgs[0].to[0].toString(encode: false) == "jeff@xamarin.com")
-    #expect(msgs[1].to[0].toString(encode: false) == "gg@dndg.it")
+    #expect(msgs[0].from[0].formatted(with: FormatOptions.default, encoded: false) == "\"Federico Di Gregorio\" <fog@dndg.it>")
+    #expect(msgs[1].from[0].formatted(with: FormatOptions.default, encoded: false) == "\"Federico Di Gregorio\" <fog@dndg.it>")
+    #expect(msgs[0].to[0].formatted(with: FormatOptions.default, encoded: false) == "jeff@xamarin.com")
+    #expect(msgs[1].to[0].formatted(with: FormatOptions.default, encoded: false) == "gg@dndg.it")
 }
 
 @Test("Multipart alternative constructor")

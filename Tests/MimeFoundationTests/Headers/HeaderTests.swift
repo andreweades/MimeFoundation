@@ -65,7 +65,7 @@ func headerToString() {
 @Test("Header cloning")
 func headerClone() {
     let header = Header(.comments, value: "These are some comments.")
-    let clone = header.clone()
+    let clone = header.copy()
     #expect(clone.id == header.id)
     #expect(clone.field == header.field)
     #expect(clone.value == header.value)

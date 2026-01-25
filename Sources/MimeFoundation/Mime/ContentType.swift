@@ -181,12 +181,12 @@ public final class ContentType {
         changed?()
     }
 
-    public func clone() -> ContentType {
-        let cloned = ContentType(cloning: type, subtype)
+    public func copy() -> ContentType {
+        let copied = ContentType(cloning: type, subtype)
         for param in parameters {
-            try? cloned.parameters.add(param.clone())
+            try? copied.parameters.add(param.copy())
         }
-        return cloned
+        return copied
     }
 
     public func toString(_ options: FormatOptions?, _ encoding: String.Encoding?, _ encode: Bool) throws -> String {

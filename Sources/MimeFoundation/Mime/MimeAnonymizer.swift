@@ -400,7 +400,7 @@ public final class MimeAnonymizer {
     private func mergeHeaders(_ headers: HeaderList, _ body: MimeEntity?) -> HeaderList {
         let merged = HeaderList()
         for header in headers {
-            merged.add(header.clone())
+            merged.add(header.copy())
         }
         if let body {
             if headers[.mimeVersion] == nil && !body.headers.isEmpty {
@@ -414,7 +414,7 @@ public final class MimeAnonymizer {
                 } else if merged.contains(field: header.field) {
                     continue
                 }
-                merged.add(header.clone())
+                merged.add(header.copy())
             }
         }
         return merged

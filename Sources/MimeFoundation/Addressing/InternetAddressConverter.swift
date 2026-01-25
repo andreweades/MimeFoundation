@@ -32,7 +32,7 @@ public struct InternetAddressConverter: Sendable {
         guard destinationType == String.self, let address = value as? InternetAddress else {
             throw ConverterError.notSupported
         }
-        return address.toString(encode: false)
+        return address.formatted(with: .default, encoded: false)
     }
 
     public func isValid(_ value: Any?) -> Bool {

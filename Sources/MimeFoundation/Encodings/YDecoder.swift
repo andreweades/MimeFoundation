@@ -49,14 +49,14 @@ public final class YDecoder: MimeDecoder {
         .default
     }
 
-    public func clone() -> any MimeDecoder {
-        let clone = YDecoder(payloadOnly: initial == .payload)
-        clone.crc = crc.clone()
-        clone.escaped = escaped
-        clone.state = state
-        clone.octet = octet
-        clone.eoln = eoln
-        return clone
+    public func copy() -> any MimeDecoder {
+        let copied = YDecoder(payloadOnly: initial == .payload)
+        copied.crc = crc.copy()
+        copied.escaped = escaped
+        copied.state = state
+        copied.octet = octet
+        copied.eoln = eoln
+        return copied
     }
 
     public func estimateOutputLength(_ inputLength: Int) -> Int {

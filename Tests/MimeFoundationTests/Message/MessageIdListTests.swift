@@ -75,7 +75,7 @@ func messageIdListBasic() throws {
     #expect(list[1] == "id1@localhost")
     #expect(list[2] == "id2@localhost")
 
-    let clone = list.clone()
+    let clone = list.copy()
     #expect(clone.count == 3)
     #expect(clone[0] == "id0@localhost")
     #expect(clone[1] == "id1@localhost")

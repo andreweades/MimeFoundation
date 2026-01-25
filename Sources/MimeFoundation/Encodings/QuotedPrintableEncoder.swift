@@ -46,7 +46,7 @@ public final class QuotedPrintableEncoder: MimeEncoder {
         .quotedPrintable
     }
 
-    public func clone() -> any MimeEncoder {
+    public func copy() -> any MimeEncoder {
         QuotedPrintableEncoder(tripletsPerLine: tripletsPerLine,
                                maxLineLength: maxLineLength,
                                currentLineLength: currentLineLength,

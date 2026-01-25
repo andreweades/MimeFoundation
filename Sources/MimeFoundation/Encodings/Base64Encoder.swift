@@ -35,14 +35,14 @@ public final class Base64Encoder: MimeEncoder {
         .base64
     }
 
-    public func clone() -> any MimeEncoder {
-        let clone = Base64Encoder(uncheckedMaxLineLength: quartetsPerLine * 4)
-        clone.enableHardwareAcceleration = enableHardwareAcceleration
-        clone.quartets = quartets
-        clone.saved1 = saved1
-        clone.saved2 = saved2
-        clone.saved = saved
-        return clone
+    public func copy() -> any MimeEncoder {
+        let copied = Base64Encoder(uncheckedMaxLineLength: quartetsPerLine * 4)
+        copied.enableHardwareAcceleration = enableHardwareAcceleration
+        copied.quartets = quartets
+        copied.saved1 = saved1
+        copied.saved2 = saved2
+        copied.saved = saved
+        return copied
     }
 
     public func estimateOutputLength(_ inputLength: Int) -> Int {

@@ -27,13 +27,13 @@ public final class Base64Decoder: MimeDecoder {
         .base64
     }
 
-    public func clone() -> any MimeDecoder {
-        let clone = Base64Decoder()
-        clone.enableHardwareAcceleration = enableHardwareAcceleration
-        clone.previous = previous
-        clone.saved = saved
-        clone.bytes = bytes
-        return clone
+    public func copy() -> any MimeDecoder {
+        let copied = Base64Decoder()
+        copied.enableHardwareAcceleration = enableHardwareAcceleration
+        copied.previous = previous
+        copied.saved = saved
+        copied.bytes = bytes
+        return copied
     }
 
     public func estimateOutputLength(_ inputLength: Int) -> Int {

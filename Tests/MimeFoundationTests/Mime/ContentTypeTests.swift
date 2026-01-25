@@ -92,7 +92,7 @@ func contentTypeClone() {
     let original = try! ContentType("text", "plain")
     original.charset = "iso-8859-1"
     original.name = "clone-me.txt"
-    let clone = original.clone()
+    let clone = original.copy()
 
     #expect(clone.mediaType == original.mediaType)
     #expect(clone.mediaSubtype == original.mediaSubtype)

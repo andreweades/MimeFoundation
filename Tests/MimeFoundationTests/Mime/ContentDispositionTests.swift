@@ -91,7 +91,7 @@ func contentDispositionClone() {
     original.readDate = DateTimeOffset(year: 2024, month: 2, day: 3, hour: 10, minute: 0, second: 0, offsetMinutes: 0)
     original.fileName = "clone-me.txt"
     original.size = 10
-    let clone = original.clone()
+    let clone = original.copy()
 
     #expect(clone.disposition == original.disposition)
     #expect(clone.parameters.count == original.parameters.count)

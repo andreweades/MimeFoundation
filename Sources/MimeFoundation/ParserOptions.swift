@@ -40,7 +40,7 @@ public struct ParserOptions: Sendable {
         self.mimeTypeFactories = [:]
     }
 
-    public func clone() -> ParserOptions {
+    public func copy() -> ParserOptions {
         self
     }
 

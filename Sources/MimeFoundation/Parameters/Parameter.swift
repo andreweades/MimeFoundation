@@ -164,7 +164,7 @@ public final class Parameter: Equatable, CustomStringConvertible {
         }
     }
 
-    public func clone() -> Parameter {
+    public func copy() -> Parameter {
         let param = Parameter(cloning: name, value)
         param.encoding = encoding
         param.encodingMethod = encodingMethod

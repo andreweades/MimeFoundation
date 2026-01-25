@@ -17,7 +17,7 @@ private func assertInternetAddressListsEqual(_ text: String, _ expected: Interne
 
     for index in 0..<expected.count {
         #expect(type(of: result[index]) == type(of: expected[index]))
-        #expect(result[index].toString(encode: false) == expected[index].toString(encode: false))
+        #expect(result[index].formatted(with: FormatOptions.default, encoded: false) == expected[index].formatted(with: FormatOptions.default, encoded: false))
     }
 
     let encoded = result.toString(unixFormatOptions(), encode: true)
@@ -592,27 +592,27 @@ func internetAddressListCompareTo() {
         MailboxAddress(name: "Joey", address: "joey@friends.com")
     ])
 
-    #expect(list1.compareTo(list2) > 0)
-    #expect(list2.compareTo(list1) < 0)
+    #expect(list1 > list2)
+    #expect(list2 < list1)
 
     let mailbox = MailboxAddress(name: "Joe", address: "joe@inter.net")
     let group = GroupAddress(name: "Joe", members: [
         MailboxAddress(name: "Joe", address: "joe@inter.net")
     ])
 
-    #expect(mailbox.compareTo(group) < 0)
-    #expect(group.compareTo(mailbox) > 0)
-    #expect(mailbox.compareTo(group.members[0]) == 0)
+    #expect(mailbox < group)
+    #expect(group > mailbox)
+    #expect(mailbox == group.members[0])
 
     let alice = MailboxAddress(name: "", address: "alice@example.com")
     let bob = MailboxAddress(name: "", address: "bob@example.com")
-    #expect(alice.compareTo(bob) < 0)
-    #expect(bob.compareTo(alice) > 0)
+    #expect(alice < bob)
+    #expect(bob > alice)
 
     let alexa = MailboxAddress(name: "", address: "alexa@example.com")
     let alex = MailboxAddress(name: "", address: "alex@example.com")
-    #expect(alex.compareTo(alexa) < 0)
-    #expect(alexa.compareTo(alex) > 0)
+    #expect(alex < alexa)
+    #expect(alexa > alex)
 }
 
 @Test("InternetAddressList parse mailbox with escaped at symbol")
@@ -908,8 +908,8 @@ func internetAddressListParsesMailboxes() {
     list = try? InternetAddressList(parsing: text)
     #expect(list != nil)
     #expect(list?.count == 2)
-    #expect(list?[0].toString(.default, encode: false) == "\"Alice\" <alice@example.com>")
-    #expect(list?[1].toString(.default, encode: false) == "\"Bob\" <bob@example.com>")
+    #expect(list?[0].formatted(with: FormatOptions.default, encoded: false) == "\"Alice\" <alice@example.com>")
+    #expect(list?[1].formatted(with: FormatOptions.default, encoded: false) == "\"Bob\" <bob@example.com>")
 
     let parsed = try? InternetAddressList(parsing: text)
     #expect(parsed?.count == 2)

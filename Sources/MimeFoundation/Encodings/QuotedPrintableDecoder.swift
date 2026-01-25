@@ -28,11 +28,11 @@ public final class QuotedPrintableDecoder: MimeDecoder {
         .quotedPrintable
     }
 
-    public func clone() -> any MimeDecoder {
-        let clone = QuotedPrintableDecoder(rfc2047: rfc2047)
-        clone.state = state
-        clone.saved = saved
-        return clone
+    public func copy() -> any MimeDecoder {
+        let copied = QuotedPrintableDecoder(rfc2047: rfc2047)
+        copied.state = state
+        copied.saved = saved
+        return copied
     }
 
     public func estimateOutputLength(_ inputLength: Int) -> Int {

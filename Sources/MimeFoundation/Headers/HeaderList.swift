@@ -35,9 +35,6 @@ public final class HeaderList: RandomAccessCollection, MutableCollection, Custom
     public subscript(position: Int) -> Header {
         get { headers[position] }
         set {
-            guard position >= 0 && position < headers.count else {
-                fatalError("index out of range")
-            }
             headers[position].changed = nil
             attach(newValue)
             headers[position] = newValue

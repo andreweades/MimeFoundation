@@ -105,10 +105,15 @@ public final class MessageIdList: RandomAccessCollection, MutableCollection, Cus
         onChanged()
     }
 
+    public func copy() -> MessageIdList {
+        let copied = MessageIdList()
+        copied.items = items
+        return copied
+    }
+
+    @available(*, deprecated, renamed: "copy()")
     public func clone() -> MessageIdList {
-        let clone = MessageIdList()
-        clone.items = items
-        return clone
+        copy()
     }
 
     public func toString() -> String {

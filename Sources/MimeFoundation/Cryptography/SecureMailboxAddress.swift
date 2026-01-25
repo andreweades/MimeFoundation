@@ -92,7 +92,7 @@ public final class SecureMailboxAddress: MailboxAddress {
         try self.init(name: name, address: address, fingerprint: fingerprint)
     }
 
-    public override func clone() -> InternetAddress {
+    public override func copy() -> InternetAddress {
         let routes = Array(route)
         return SecureMailboxAddress(cloning: encoding, name: name, route: routes, address: address, fingerprint: fingerprint)
     }

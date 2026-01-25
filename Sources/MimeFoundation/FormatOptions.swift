@@ -40,7 +40,7 @@ public struct FormatOptions: Sendable {
         newLineFormat == .unix ? [0x0A] : [0x0D, 0x0A]
     }
 
-    public func clone() -> FormatOptions {
+    public func copy() -> FormatOptions {
         self
     }
 }

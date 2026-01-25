@@ -37,11 +37,11 @@ public final class YEncoder: MimeEncoder {
         .default
     }
 
-    public func clone() -> any MimeEncoder {
-        let clone = YEncoder(uncheckedMaxLineLength: lineLength)
-        clone.crc = crc.clone()
-        clone.octets = octets
-        return clone
+    public func copy() -> any MimeEncoder {
+        let copied = YEncoder(uncheckedMaxLineLength: lineLength)
+        copied.crc = crc.copy()
+        copied.octets = octets
+        return copied
     }
 
     public func estimateOutputLength(_ inputLength: Int) -> Int {

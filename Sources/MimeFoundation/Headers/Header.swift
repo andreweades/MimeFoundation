@@ -240,13 +240,13 @@ public final class Header: CustomStringConvertible, Equatable {
         onChanged()
     }
 
-    public func clone() -> Header {
-        let clone = Header(options, id, field, rawValueStorage)
-        clone.explicitRawValue = explicitRawValue
-        clone.textValue = textValue
-        clone.encoding = encoding
-        clone.isInvalid = isInvalid
-        return clone
+    public func copy() -> Header {
+        let copied = Header(options, id, field, rawValueStorage)
+        copied.explicitRawValue = explicitRawValue
+        copied.textValue = textValue
+        copied.encoding = encoding
+        copied.isInvalid = isInvalid
+        return copied
     }
 
     public static func unfold(_ text: String?) -> String {
