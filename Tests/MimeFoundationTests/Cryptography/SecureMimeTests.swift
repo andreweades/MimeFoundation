@@ -632,5 +632,72 @@ struct SecureMimeTests {
         #expect(signed.signedContent != nil)
         #expect(signed.signature != nil)
     }
+
+    @Test("Generate signed message for OpenSSL verification")
+    func generateSignedMessageForOpenSSL() throws {
+        guard #available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *) else {
+            return
+        }
+
+        // Load the PEM files
+        let certPath = TestHelper.dataURL(for: "smime/test-cert.pem").path
+        let keyPath = TestHelper.dataURL(for: "smime/test-key.pem").path
+
+        let signer = try CmsSigner(
+            certificatePath: certPath,
+            privateKeyPath: keyPath,
+            digestAlgorithm: .sha256
+        )
+
+        // Create a complete MIME message
+        let message = MimeMessage()
+        message.from.add(MailboxAddress(name: "Test Sender", address: "sender@example.com"))
+        message.to.add(MailboxAddress(name: "Test Recipient", address: "recipient@example.com"))
+        message.subject = "S/MIME Signed Test Message"
+
+        let textPart = TextPart("plain")
+        textPart.text = "This is a test message that has been digitally signed using S/MIME.\n\nIt should be verifiable with OpenSSL."
+
+        // Sign the message
+        let signed = try MultipartSigned.create(textPart, signer: signer)
+        message.body = signed
+
+        // Write to temp file for OpenSSL verification
+        let tempDir = FileManager.default.temporaryDirectory
+        let messagePath = tempDir.appendingPathComponent("signed-message.eml")
+        let certDestPath = tempDir.appendingPathComponent("test-cert.pem")
+
+        // Serialize the message
+        let stream = MemoryStream()
+        try message.writeTo(stream)
+        let messageData = stream.toByteArray()
+
+        try Data(messageData).write(to: messagePath)
+
+        // Copy the certificate for verification (remove existing first)
+        try? FileManager.default.removeItem(at: certDestPath)
+        try FileManager.default.copyItem(
+            at: URL(fileURLWithPath: certPath),
+            to: certDestPath
+        )
+
+        print("""
+
+        ============================================================
+        Signed message written to: \(messagePath.path)
+        Certificate written to: \(certDestPath.path)
+
+        To verify with OpenSSL, run:
+        openssl smime -verify -in "\(messagePath.path)" -CAfile "\(certDestPath.path)" -noverify
+
+        Note: -noverify skips CA chain validation (self-signed cert)
+        ============================================================
+
+        """)
+
+        // Basic verification that the message was created correctly
+        #expect(message.body is MultipartSigned)
+        #expect(messageData.count > 0)
+    }
     #endif
 }

@@ -294,9 +294,14 @@ open class SecureMimeContext: @unchecked Sendable {
     // MARK: - Helpers
 
     /// Serializes a MIME entity to bytes for signing/verification.
+    ///
+    /// S/MIME requires CRLF line endings for the canonicalized content.
+    /// This method ensures proper formatting regardless of platform.
     internal func serializeEntity(_ entity: MimeEntity) throws -> [UInt8] {
+        var options = FormatOptions.default
+        options.newLineFormat = .dos  // S/MIME requires CRLF
         let stream = MemoryStream()
-        try entity.writeTo(stream)
+        try entity.writeTo(options, stream)
         return stream.toByteArray()
     }
 
