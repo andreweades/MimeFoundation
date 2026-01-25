@@ -407,4 +407,117 @@ struct SecureMimeTests {
 
         #expect(parsed is ApplicationPkcs7Signature)
     }
+
+    // MARK: - ApplicationPkcs7Mime Tests
+
+    @Test("ApplicationPkcs7Mime creation")
+    func applicationPkcs7MimeCreation() {
+        let mime = ApplicationPkcs7Mime()
+
+        #expect(mime.contentType.isMimeType("application", "pkcs7-mime"))
+        #expect(mime.contentTransferEncoding == .base64)
+    }
+
+    @Test("ApplicationPkcs7Mime with smime-type")
+    func applicationPkcs7MimeWithSmimeType() {
+        let mime = ApplicationPkcs7Mime(smimeType: .envelopedData)
+
+        #expect(mime.smimeType == .envelopedData)
+        #expect(mime.contentType.parameters["smime-type"] == "enveloped-data")
+    }
+
+    @Test("Parser creates ApplicationPkcs7Mime for application/pkcs7-mime")
+    func parserCreatesApplicationPkcs7Mime() throws {
+        let mime = ApplicationPkcs7Mime([0x30, 0x00], smimeType: .envelopedData)
+
+        // Serialize and re-parse
+        let stream = MemoryStream()
+        try mime.writeTo(stream)
+
+        let parsed = try MimeMessage.parseEntity(.default, stream.toByteArray())
+
+        #expect(parsed is ApplicationPkcs7Mime)
+        if let parsedMime = parsed as? ApplicationPkcs7Mime {
+            #expect(parsedMime.smimeType == .envelopedData)
+        }
+    }
+
+    // MARK: - CmsRecipient Tests
+
+    @Test("CmsRecipient creation")
+    func cmsRecipientCreation() throws {
+        guard #available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *) else {
+            return
+        }
+
+        let (certificate, _) = try Self.createTestCertificateAndKey()
+
+        let recipient = CmsRecipient(certificate: certificate)
+
+        #expect(recipient.certificate == certificate)
+    }
+
+    @Test("CmsRecipientCollection operations")
+    func cmsRecipientCollectionOperations() throws {
+        guard #available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *) else {
+            return
+        }
+
+        let (cert1, _) = try Self.createTestCertificateAndKey()
+        let (cert2, _) = try Self.createTestCertificateAndKey()
+
+        var collection = CmsRecipientCollection()
+        #expect(collection.isEmpty)
+
+        collection.add(CmsRecipient(certificate: cert1))
+        #expect(collection.count == 1)
+
+        collection.add(certificate: cert2)
+        #expect(collection.count == 2)
+    }
+
+    // MARK: - Encryption Context Tests
+
+    @Test("DefaultSecureMimeContext does not support encryption")
+    func defaultContextNoEncryption() throws {
+        guard #available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *) else {
+            return
+        }
+
+        let context = DefaultSecureMimeContext()
+
+        #expect(!context.supportsEncryption)
+        #expect(!context.supportsDecryption)
+    }
+
+    #if os(macOS)
+    @Test("AppleSecureMimeContext supports encryption on macOS")
+    func appleContextSupportsEncryption() throws {
+        guard #available(macOS 11.0, *) else {
+            return
+        }
+
+        let context = AppleSecureMimeContext()
+
+        #expect(context.supportsEncryption)
+        #expect(context.supportsDecryption)
+    }
+    #endif
+
+    @Test("MimeVisitor visits ApplicationPkcs7Mime")
+    func mimeVisitorVisitsEncryptedMime() {
+        class TestVisitor: MimeVisitor {
+            var visitedEncrypted = false
+
+            func visit(_ encryptedMime: ApplicationPkcs7Mime) {
+                visitedEncrypted = true
+            }
+        }
+
+        let mime = ApplicationPkcs7Mime()
+        let visitor = TestVisitor()
+        mime.accept(visitor)
+
+        #expect(visitor.visitedEncrypted)
+    }
 }

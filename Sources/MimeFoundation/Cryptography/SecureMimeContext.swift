@@ -180,6 +180,117 @@ open class SecureMimeContext: @unchecked Sendable {
         return (signatures, contentEntity)
     }
 
+    // MARK: - Encryption
+
+    /// Encrypts the provided content bytes for the specified recipients.
+    ///
+    /// - Parameters:
+    ///   - recipients: The recipients who will be able to decrypt the message.
+    ///   - content: The content bytes to encrypt.
+    /// - Returns: The encrypted CMS content bytes.
+    /// - Throws: `SecureMimeError.unsupportedAlgorithm` if encryption is not supported.
+    ///
+    /// - Note: The default implementation throws an error. Subclasses that support
+    ///   encryption (like `AppleSecureMimeContext` on macOS) override this method.
+    open func encrypt(
+        recipients: CmsRecipientCollection,
+        content: [UInt8]
+    ) throws -> [UInt8] {
+        throw SecureMimeError.unsupportedAlgorithm("Encryption is not supported by this context. Use AppleSecureMimeContext on macOS.")
+    }
+
+    /// Encrypts a MIME entity for the specified recipients.
+    ///
+    /// - Parameters:
+    ///   - recipients: The recipients who will be able to decrypt the message.
+    ///   - entity: The MIME entity to encrypt.
+    /// - Returns: An `ApplicationPkcs7Mime` containing the encrypted content.
+    /// - Throws: `SecureMimeError` if encryption fails.
+    open func encrypt(
+        recipients: CmsRecipientCollection,
+        entity: MimeEntity
+    ) throws -> ApplicationPkcs7Mime {
+        let contentBytes = try serializeEntity(entity)
+        let encryptedBytes = try encrypt(recipients: recipients, content: contentBytes)
+        return ApplicationPkcs7Mime(encryptedBytes, smimeType: .envelopedData)
+    }
+
+    /// Signs and encrypts a MIME entity.
+    ///
+    /// - Parameters:
+    ///   - signer: The CMS signer for signing.
+    ///   - recipients: The recipients who will be able to decrypt the message.
+    ///   - entity: The MIME entity to sign and encrypt.
+    /// - Returns: An `ApplicationPkcs7Mime` containing the signed and encrypted content.
+    /// - Throws: `SecureMimeError` if signing or encryption fails.
+    ///
+    /// - Note: The message is first signed, then the signed message is encrypted.
+    open func signAndEncrypt(
+        signer: CmsSigner,
+        recipients: CmsRecipientCollection,
+        entity: MimeEntity
+    ) throws -> ApplicationPkcs7Mime {
+        // First, create a signed message
+        let signedMultipart = try MultipartSigned.create(entity, signer: signer, context: self)
+
+        // Then encrypt the signed message
+        return try encrypt(recipients: recipients, entity: signedMultipart)
+    }
+
+    // MARK: - Decryption
+
+    /// Decrypts the provided CMS encrypted content.
+    ///
+    /// - Parameter encryptedBytes: The encrypted CMS content bytes.
+    /// - Returns: The decrypted content bytes.
+    /// - Throws: `SecureMimeError.unsupportedAlgorithm` if decryption is not supported.
+    ///
+    /// - Note: The default implementation throws an error. Subclasses that support
+    ///   decryption (like `AppleSecureMimeContext` on macOS) override this method.
+    open func decrypt(encryptedBytes: [UInt8]) throws -> [UInt8] {
+        throw SecureMimeError.unsupportedAlgorithm("Decryption is not supported by this context. Use AppleSecureMimeContext on macOS.")
+    }
+
+    /// Decrypts an `ApplicationPkcs7Mime` entity.
+    ///
+    /// - Parameter encryptedPart: The encrypted MIME part.
+    /// - Returns: The decrypted MIME entity.
+    /// - Throws: `SecureMimeError` if decryption fails.
+    open func decrypt(encryptedPart: ApplicationPkcs7Mime) throws -> MimeEntity {
+        let encryptedBytes = try encryptedPart.getContentBytes()
+        let decryptedBytes = try decrypt(encryptedBytes: encryptedBytes)
+
+        // Parse the decrypted content as a MIME entity
+        guard let entity = try MimeMessage.parseEntity(.default, decryptedBytes) else {
+            throw SecureMimeError.invalidSignatureData("Failed to parse decrypted content as MIME entity")
+        }
+
+        return entity
+    }
+
+    /// Decrypts and verifies an encrypted and signed message.
+    ///
+    /// - Parameters:
+    ///   - encryptedPart: The encrypted MIME part.
+    ///   - trustRoots: The certificate store containing trusted root certificates.
+    /// - Returns: A tuple containing the verification results and the decrypted content.
+    /// - Throws: `SecureMimeError` if decryption or verification fails.
+    open func decryptAndVerify(
+        encryptedPart: ApplicationPkcs7Mime,
+        trustRoots: CertificateStore
+    ) async throws -> (signatures: DigitalSignatureCollection, content: MimeEntity) {
+        // First decrypt
+        let decryptedEntity = try decrypt(encryptedPart: encryptedPart)
+
+        // Check if the decrypted content is a signed message
+        if let signedMultipart = decryptedEntity as? MultipartSigned {
+            return try await verify(multipartSigned: signedMultipart, trustRoots: trustRoots)
+        }
+
+        // Not signed, return with empty signatures
+        return (DigitalSignatureCollection([]), decryptedEntity)
+    }
+
     // MARK: - Helpers
 
     /// Serializes a MIME entity to bytes for signing/verification.
@@ -188,4 +299,10 @@ open class SecureMimeContext: @unchecked Sendable {
         try entity.writeTo(stream)
         return stream.toByteArray()
     }
+
+    /// Returns whether this context supports encryption.
+    open var supportsEncryption: Bool { false }
+
+    /// Returns whether this context supports decryption.
+    open var supportsDecryption: Bool { false }
 }
