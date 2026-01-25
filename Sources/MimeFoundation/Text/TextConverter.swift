@@ -30,19 +30,22 @@ open class TextConverter {
     public var inputEncoding: String.Encoding = .utf8
     public var outputEncoding: String.Encoding = .utf8
 
-    public var inputStreamBufferSize: Int = 4096 {
-        didSet {
-            if inputStreamBufferSize <= 0 {
-                inputStreamBufferSize = oldValue
-            }
+    private var inputStreamBufferSizeStorage: Int = 4096
+    private var outputStreamBufferSizeStorage: Int = 4096
+
+    public var inputStreamBufferSize: Int {
+        get { inputStreamBufferSizeStorage }
+        set {
+            guard newValue > 0 else { return }
+            inputStreamBufferSizeStorage = newValue
         }
     }
 
-    public var outputStreamBufferSize: Int = 4096 {
-        didSet {
-            if outputStreamBufferSize <= 0 {
-                outputStreamBufferSize = oldValue
-            }
+    public var outputStreamBufferSize: Int {
+        get { outputStreamBufferSizeStorage }
+        set {
+            guard newValue > 0 else { return }
+            outputStreamBufferSizeStorage = newValue
         }
     }
 

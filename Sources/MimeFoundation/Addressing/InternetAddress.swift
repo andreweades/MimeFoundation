@@ -9,21 +9,30 @@ import Foundation
 public class InternetAddress: Comparable, Equatable, CustomStringConvertible {
     private static let atomSpecials = "()<>@,;:\\\".[]"
 
+    private var encodingStorage: String.Encoding
+    private var nameStorage: String?
+
     public var encoding: String.Encoding {
-        didSet {
+        get { encodingStorage }
+        set {
+            guard encodingStorage != newValue else { return }
+            encodingStorage = newValue
             onChanged()
         }
     }
 
     public var name: String? {
-        didSet {
+        get { nameStorage }
+        set {
+            guard nameStorage != newValue else { return }
+            nameStorage = newValue
             onChanged()
         }
     }
 
     public init(encoding: String.Encoding, name: String?) {
-        self.encoding = encoding
-        self.name = name
+        self.encodingStorage = encoding
+        self.nameStorage = name
     }
 
     public func copy() -> InternetAddress {

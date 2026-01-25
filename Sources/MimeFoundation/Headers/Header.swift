@@ -19,8 +19,13 @@ public final class Header: CustomStringConvertible, Equatable {
     public let field: String
     public let rawField: [UInt8]
     public internal(set) var isInvalid: Bool
+    private var encodingStorage: String.Encoding
+
     public var encoding: String.Encoding {
-        didSet {
+        get { encodingStorage }
+        set {
+            guard encodingStorage != newValue else { return }
+            encodingStorage = newValue
             onChanged()
         }
     }
@@ -55,7 +60,7 @@ public final class Header: CustomStringConvertible, Equatable {
         self.options = .default
         self.id = id
         self.field = id.headerName
-        self.encoding = encoding
+        self.encodingStorage = encoding
         self.rawField = Array(field.utf8)
         self.isInvalid = false
         self.rawValueStorage = []
@@ -71,7 +76,7 @@ public final class Header: CustomStringConvertible, Equatable {
         self.options = .default
         self.field = trimmed
         self.id = HeaderId.from(field: trimmed)
-        self.encoding = encoding
+        self.encodingStorage = encoding
         self.rawField = Array(trimmed.utf8)
         self.isInvalid = false
         self.rawValueStorage = []
@@ -87,7 +92,7 @@ public final class Header: CustomStringConvertible, Equatable {
         self.options = .default
         self.id = id
         self.field = id.headerName
-        self.encoding = encoding
+        self.encodingStorage = encoding
         self.rawField = Array(field.utf8)
         self.isInvalid = false
         self.rawValueStorage = []
@@ -107,7 +112,7 @@ public final class Header: CustomStringConvertible, Equatable {
         self.options = .default
         self.field = trimmed
         self.id = HeaderId.from(field: trimmed)
-        self.encoding = encoding
+        self.encodingStorage = encoding
         self.rawField = Array(trimmed.utf8)
         self.isInvalid = false
         self.rawValueStorage = []
@@ -121,7 +126,7 @@ public final class Header: CustomStringConvertible, Equatable {
         self.id = id
         self.field = field
         self.rawField = Array(field.utf8)
-        self.encoding = .utf8
+        self.encodingStorage = .utf8
         self.isInvalid = false
         self.rawValueStorage = rawValue
         self.textValue = nil
@@ -134,7 +139,7 @@ public final class Header: CustomStringConvertible, Equatable {
         self.field = String(bytes: nameBytes, encoding: .ascii) ?? ""
         self.id = HeaderId.from(field: self.field)
         self.rawField = nameBytes
-        self.encoding = .utf8
+        self.encodingStorage = .utf8
         self.isInvalid = false
         self.rawValueStorage = rawValue
         self.textValue = nil

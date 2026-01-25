@@ -17,26 +17,43 @@ public enum ParameterError: Error {
 
 public final class Parameter: Equatable, CustomStringConvertible {
     public let name: String
+    private var valueStorage: String
+    private var encodingStorage: String.Encoding
+    private var encodingMethodStorage: ParameterEncodingMethod
+    private var alwaysQuoteStorage: Bool
+
     public var value: String {
-        didSet {
+        get { valueStorage }
+        set {
+            guard valueStorage != newValue else { return }
+            valueStorage = newValue
             onChanged()
         }
     }
 
     public var encoding: String.Encoding {
-        didSet {
+        get { encodingStorage }
+        set {
+            guard encodingStorage != newValue else { return }
+            encodingStorage = newValue
             onChanged()
         }
     }
 
     public var encodingMethod: ParameterEncodingMethod {
-        didSet {
+        get { encodingMethodStorage }
+        set {
+            guard encodingMethodStorage != newValue else { return }
+            encodingMethodStorage = newValue
             onChanged()
         }
     }
 
     public var alwaysQuote: Bool {
-        didSet {
+        get { alwaysQuoteStorage }
+        set {
+            guard alwaysQuoteStorage != newValue else { return }
+            alwaysQuoteStorage = newValue
             onChanged()
         }
     }
@@ -46,19 +63,19 @@ public final class Parameter: Equatable, CustomStringConvertible {
     public init(_ name: String, _ value: String) throws {
         try Parameter.validateName(name)
         self.name = name
-        self.value = value
-        self.encoding = .utf8
-        self.encodingMethod = .default
-        self.alwaysQuote = false
+        self.valueStorage = value
+        self.encodingStorage = .utf8
+        self.encodingMethodStorage = .default
+        self.alwaysQuoteStorage = false
     }
 
     public init(encoding: String.Encoding, name: String, value: String) throws {
         try Parameter.validateName(name)
         self.name = name
-        self.value = value
-        self.encoding = encoding
-        self.encodingMethod = .default
-        self.alwaysQuote = false
+        self.valueStorage = value
+        self.encodingStorage = encoding
+        self.encodingMethodStorage = .default
+        self.alwaysQuoteStorage = false
     }
 
     public init(charset: String, name: String, value: String) throws {
@@ -67,19 +84,19 @@ public final class Parameter: Equatable, CustomStringConvertible {
             throw ParameterError.unsupportedCharset
         }
         self.name = name
-        self.value = value
-        self.encoding = resolved
-        self.encodingMethod = .default
-        self.alwaysQuote = false
+        self.valueStorage = value
+        self.encodingStorage = resolved
+        self.encodingMethodStorage = .default
+        self.alwaysQuoteStorage = false
     }
 
     /// Internal initializer for cloning. Assumes name is already validated.
     private init(cloning name: String, _ value: String) {
         self.name = name
-        self.value = value
-        self.encoding = .utf8
-        self.encodingMethod = .default
-        self.alwaysQuote = false
+        self.valueStorage = value
+        self.encodingStorage = .utf8
+        self.encodingMethodStorage = .default
+        self.alwaysQuoteStorage = false
     }
 
     public convenience init(_ name: String?, _ value: String?) throws {

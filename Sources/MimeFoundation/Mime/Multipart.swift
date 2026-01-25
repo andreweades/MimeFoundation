@@ -26,9 +26,13 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
     private var writeEndBoundaryStorage: Bool = true
     internal var rawBody: [UInt8]? = nil
 
+    private var rawEndBoundaryStorage: [UInt8]?
+
     public var rawEndBoundary: [UInt8]? {
-        didSet {
-            if let rawEndBoundary, rawEndBoundary.isEmpty {
+        get { rawEndBoundaryStorage }
+        set {
+            rawEndBoundaryStorage = newValue
+            if let newValue, newValue.isEmpty {
                 writeEndBoundaryStorage = false
             }
         }
