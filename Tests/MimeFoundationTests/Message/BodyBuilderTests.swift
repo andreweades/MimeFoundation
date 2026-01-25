@@ -5,14 +5,6 @@
 import Testing
 import MimeFoundation
 
-@Test("BodyBuilder argument exceptions")
-func bodyBuilderArgumentExceptions() {
-    let builder = BodyBuilder()
-    #expect(throws: (any Error).self) {
-        try builder.setBodyEncoding(nil)
-    }
-}
-
 @Test("BodyBuilder default message body")
 func bodyBuilderToMessageBodyDefault() throws {
     let builder = BodyBuilder()

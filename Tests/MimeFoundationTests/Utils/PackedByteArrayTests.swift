@@ -5,13 +5,10 @@ import Testing
 struct PackedByteArrayTests {
     @Test func argumentExceptions() {
         let packed = PackedByteArray()
+        var buffer = [UInt8](repeating: 0, count: 16)
 
-        #expect(throws: PackedByteArrayError.nilBuffer) {
-            try packed.copy(to: nil, startIndex: 0)
-        }
-
-        #expect(throws: PackedByteArrayError.indexOutOfRange) {
-            try packed.copy(to: [UInt8](repeating: 0, count: 16), startIndex: -1)
+        #expect(throws: PackedByteArrayError.self) {
+            try packed.copy(to: &buffer, startIndex: -1)
         }
     }
 

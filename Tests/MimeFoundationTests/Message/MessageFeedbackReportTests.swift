@@ -6,13 +6,7 @@ import Foundation
 import Testing
 @testable import MimeFoundation
 
-@Test("MessageFeedbackReport argument exceptions")
-func messageFeedbackReportArgumentExceptions() {
-    let mfr = MessageFeedbackReport()
-    #expect(throws: MimeEntityError.nilVisitor) {
-        try mfr.accept(nil)
-    }
-}
+// Test removed: accept no longer takes optional visitor
 
 @Test("MessageFeedbackReport parse")
 func messageFeedbackReportParse() throws {

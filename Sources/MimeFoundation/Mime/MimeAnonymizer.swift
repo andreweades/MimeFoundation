@@ -7,10 +7,6 @@
 import Foundation
 
 public enum MimeAnonymizerError: Error, Equatable, Sendable {
-    case nilOptions
-    case nilMessage
-    case nilEntity
-    case nilStream
 }
 
 public final class MimeAnonymizer {
@@ -39,25 +35,19 @@ public final class MimeAnonymizer {
         set { preserveHeadersStorage = Set(newValue.map { $0.lowercased() }) }
     }
 
-    public func anonymize(_ message: MimeMessage?, _ stream: MimeStream?) throws {
+    public func anonymize(_ message: MimeMessage, _ stream: MimeStream) throws {
         try anonymize(.default, message, stream)
     }
 
-    public func anonymize(_ options: FormatOptions?, _ message: MimeMessage?, _ stream: MimeStream?) throws {
-        guard let options else { throw MimeAnonymizerError.nilOptions }
-        guard let message else { throw MimeAnonymizerError.nilMessage }
-        guard let stream else { throw MimeAnonymizerError.nilStream }
+    public func anonymize(_ options: FormatOptions, _ message: MimeMessage, _ stream: MimeStream) throws {
         try anonymizeMessage(options, message, stream)
     }
 
-    public func anonymize(_ entity: MimeEntity?, _ stream: MimeStream?) throws {
+    public func anonymize(_ entity: MimeEntity, _ stream: MimeStream) throws {
         try anonymize(.default, entity, stream)
     }
 
-    public func anonymize(_ options: FormatOptions?, _ entity: MimeEntity?, _ stream: MimeStream?) throws {
-        guard let options else { throw MimeAnonymizerError.nilOptions }
-        guard let entity else { throw MimeAnonymizerError.nilEntity }
-        guard let stream else { throw MimeAnonymizerError.nilStream }
+    public func anonymize(_ options: FormatOptions, _ entity: MimeEntity, _ stream: MimeStream) throws {
         try anonymizeEntity(options, entity, stream, contentOnly: false)
     }
 

@@ -7,7 +7,6 @@
 import Foundation
 
 public enum MimeParserError: Error, Equatable, Sendable {
-    case nilStream
 }
 
 open class MimeParser {

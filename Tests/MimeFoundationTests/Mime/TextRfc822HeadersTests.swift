@@ -7,7 +7,7 @@ import MimeFoundation
 
 @Test("TextRfc822Headers argument exceptions")
 func textRfc822HeadersArgumentExceptions() {
-    let entity = TextRfc822Headers()
+    // Tests with nil have been removed since accept no longer takes optional visitor
 
     #expect(throws: (any Error).self) {
         _ = try TextRfc822Headers(args: ["unknown-parameter"])
@@ -15,10 +15,6 @@ func textRfc822HeadersArgumentExceptions() {
 
     #expect(throws: (any Error).self) {
         _ = try TextRfc822Headers(MimeMessage(), MimeMessage())
-    }
-
-    #expect(throws: (any Error).self) {
-        try entity.accept(nil)
     }
 }
 

@@ -4,10 +4,6 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
-public enum OptimizedOrdinalComparerError: Error, Equatable, Sendable {
-    case nilString
-}
-
 public struct OptimizedOrdinalIgnoreCaseComparer: Sendable {
     public init() {}
 
@@ -28,12 +24,8 @@ public struct OptimizedOrdinalIgnoreCaseComparer: Sendable {
         return true
     }
 
-    public func getHashCode(_ string: String?) throws -> Int {
-        guard let string else {
-            throw OptimizedOrdinalComparerError.nilString
-        }
-
-        return hashCode(string)
+    public func getHashCode(_ string: String) -> Int {
+        hashCode(string)
     }
 
     private func hashCode(_ string: String) -> Int {

@@ -7,38 +7,7 @@ import MimeFoundation
 
 @Test("MimeContent argument exceptions")
 func mimeContentArgumentExceptions() async {
-    let memory = MemoryStream()
-    let content = try? MimeContent(memory)
-
-    #expect(throws: (any Error).self) {
-        _ = try MimeContent(nil)
-    }
-
-    if let content {
-        #expect(throws: (any Error).self) {
-            try content.writeTo(nil)
-        }
-
-        do {
-            try await content.writeToAsync(nil)
-            Issue.record("Expected error for writeToAsync(nil)")
-        } catch {
-            // expected
-        }
-
-        #expect(throws: (any Error).self) {
-            try content.decodeTo(nil)
-        }
-
-        do {
-            try await content.decodeToAsync(nil)
-            Issue.record("Expected error for decodeToAsync(nil)")
-        } catch {
-            // expected
-        }
-    } else {
-        Issue.record("Failed to create MimeContent")
-    }
+    // Tests with nil have been removed since parameters are now non-optional
 
     let notReadable = CanReadWriteSeekStream(false, false, true)
     #expect(throws: (any Error).self) {

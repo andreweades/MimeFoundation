@@ -76,15 +76,9 @@ private func assertParse(_ text: String, _ expected: ContentType?, result: Bool 
 func contentTypeArgumentExceptions() {
     let type = try! ContentType("text", "plain")
 
-    #expect(throws: (any Error).self) { try type.setMediaType(nil) }
-    #expect(throws: (any Error).self) { try type.setMediaSubtype(nil) }
-
-    #expect(throws: (any Error).self) { _ = try type.isMimeType(nil, "plain") }
-    #expect(throws: (any Error).self) { _ = try type.isMimeType("text", nil) }
-
-    #expect(throws: (any Error).self) { _ = try type.toString(nil, true) }
-    #expect(throws: (any Error).self) { _ = try type.toString(nil, .utf8, true) }
-    #expect(throws: (any Error).self) { _ = try type.toString(FormatOptions.default, nil, true) }
+    // Tests with nil have been removed since parameters are now non-optional
+    #expect(throws: (any Error).self) { try type.setMediaType("") }
+    #expect(throws: (any Error).self) { try type.setMediaSubtype("") }
 }
 
 @Test("ContentType clone")
@@ -552,19 +546,19 @@ func contentTypeToStringEncode() throws {
     type.charset = "utf-8"
     type.name = "Это русское имя файла.txt"
 
-    var value = try type.toString(.utf8, true).replacingOccurrences(of: "\r\n", with: "\n")
+    var value = type.toString(.utf8, true).replacingOccurrences(of: "\r\n", with: "\n")
     #expect(value == rfc2231)
 
     for param in type.parameters {
         param.encodingMethod = .rfc2231
     }
-    value = try type.toString(.utf8, true).replacingOccurrences(of: "\r\n", with: "\n")
+    value = type.toString(.utf8, true).replacingOccurrences(of: "\r\n", with: "\n")
     #expect(value == rfc2231)
 
     for param in type.parameters {
         param.encodingMethod = .rfc2047
     }
-    value = try type.toString(.utf8, true).replacingOccurrences(of: "\r\n", with: "\n")
+    value = type.toString(.utf8, true).replacingOccurrences(of: "\r\n", with: "\n")
     #expect(value == rfc2047)
 }
 

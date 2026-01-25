@@ -5,7 +5,6 @@
 //
 
 public enum MessagePartError: Error, Equatable, Sendable {
-    case nilArgs
     case duplicateMessage
     case invalidArgument
     case invalidMaxLineLength
@@ -33,10 +32,7 @@ open class MessagePart: MimeEntity {
         try self.init(subtype, args: args)
     }
 
-    public convenience init(_ subtype: String, args: [Any?]?) throws {
-        guard let args else {
-            throw MessagePartError.nilArgs
-        }
+    public convenience init(_ subtype: String, args: [Any?]) throws {
         self.init(subtype)
         try applyArgs(args)
     }
@@ -48,14 +44,11 @@ open class MessagePart: MimeEntity {
         try message?.prepare(constraint, maxLineLength: maxLineLength)
     }
 
-    public override func accept(_ visitor: MimeVisitor?) throws {
-        guard let visitor else {
-            throw MimeEntityError.nilVisitor
-        }
+    public override func accept(_ visitor: MimeVisitor) {
         visitor.visit(self)
     }
 
-    public override func writeTo(_ options: FormatOptions?, _ stream: MimeStream?) throws {
+    public override func writeTo(_ options: FormatOptions, _ stream: MimeStream) throws {
         try super.writeTo(options, stream)
     }
 

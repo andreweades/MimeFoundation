@@ -11,35 +11,25 @@ func constructorArgumentExceptions() throws {
     body.text = "This is the body..."
     let message = MimeMessage()
 
-    #expect(throws: (any Error).self) {
-        _ = try MimeMessage(args: nil)
+    // Tests with nil have been removed since args parameters are now non-optional
+
+    #expect(throws: MimeMessageError.duplicateBody) {
+        _ = try MimeMessage(body, body)
     }
 
-    #expect(throws: (any Error).self) {
-        _ = try MimeMessage(body, nil, body)
-    }
-
-    #expect(throws: (any Error).self) {
+    #expect(throws: MimeMessageError.invalidArgument) {
         _ = try MimeMessage(5)
     }
 
-    #expect(throws: (any Error).self) {
-        _ = try MessagePart("rfc822", args: nil)
+    #expect(throws: MessagePartError.duplicateMessage) {
+        _ = try MessagePart("rfc822", message, message)
     }
 
-    #expect(throws: (any Error).self) {
-        _ = try MessagePart("rfc822", message, nil, message)
-    }
-
-    #expect(throws: (any Error).self) {
+    #expect(throws: MessagePartError.invalidArgument) {
         _ = try MessagePart("rfc822", 5)
     }
 
     _ = try MessagePart("rfc822", message)
-
-    #expect(throws: (any Error).self) {
-        _ = try MimePart("text", "plain", args: nil)
-    }
 }
 
 @Test("MimeMessage with headers")

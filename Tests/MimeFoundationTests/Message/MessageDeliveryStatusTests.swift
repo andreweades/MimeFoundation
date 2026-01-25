@@ -12,13 +12,7 @@ private func loadMessage(relativePath: String) throws -> MimeMessage {
     return try MimeMessage.load(stream)
 }
 
-@Test("MessageDeliveryStatus argument exceptions")
-func messageDeliveryStatusArgumentExceptions() {
-    let mds = MessageDeliveryStatus()
-    #expect(throws: MimeEntityError.nilVisitor) {
-        try mds.accept(nil)
-    }
-}
+// Test removed: accept no longer takes optional visitor
 
 @Test("MessageDeliveryStatus status groups")
 func messageDeliveryStatusStatusGroups() throws {

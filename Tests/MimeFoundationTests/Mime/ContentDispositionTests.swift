@@ -75,12 +75,10 @@ private func assertParse(_ text: String, _ expected: ContentDisposition?, result
 func contentDispositionArgumentExceptions() {
     let disposition = try! ContentDisposition()
 
-    #expect(throws: (any Error).self) { try disposition.setDisposition(nil) }
+    // Tests with nil have been removed since parameters are now non-optional
     #expect(throws: (any Error).self) { try disposition.setDisposition("") }
     #expect(throws: (any Error).self) { try disposition.setDisposition("žádost") }
     #expect(throws: (any Error).self) { try disposition.setDisposition("two atoms") }
-    #expect(throws: (any Error).self) { _ = try disposition.toString(nil, .utf8, true) }
-    #expect(throws: (any Error).self) { _ = try disposition.toString(FormatOptions.default, nil, true) }
 }
 
 @Test("ContentDisposition clone")
@@ -371,7 +369,7 @@ func contentDispositionParameters() {
     disposition.readDate = atime
     disposition.size = 37001
 
-    let encoded = try! disposition.toString(format, .utf8, true)
+    let encoded = disposition.toString(format, .utf8, true)
     #expect(encoded == expected)
 
     let parsed = try! ContentDisposition(parsing:String(encoded.dropFirst("Content-Disposition:".count)))
@@ -415,6 +413,6 @@ func contentDispositionToString() {
     let value = disposition.toString()
     #expect(value == expected)
 
-    let value2 = try! disposition.toString(.utf8, false)
+    let value2 = disposition.toString(.utf8, false)
     #expect(value2 == expected)
 }

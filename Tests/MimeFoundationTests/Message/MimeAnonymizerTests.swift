@@ -68,43 +68,18 @@ private func assertAnonymizeEntity(_ fileName: String) throws {
 }
 
 @Test("MimeAnonymizer argument exceptions")
-func mimeAnonymizerArgumentExceptions() {
+func mimeAnonymizerArgumentExceptions() throws {
     let anonymizer = MimeAnonymizer()
     let message = MimeMessage()
-    let entity = try! MimePart("text", "plain")
+    let entity = try MimePart("text", "plain")
     let stream = MemoryStream()
 
-    #expect(throws: (any Error).self) {
-        try anonymizer.anonymize(nil as MimeMessage?, stream)
-    }
-    #expect(throws: (any Error).self) {
-        try anonymizer.anonymize(message, nil)
-    }
-    #expect(throws: (any Error).self) {
-        try anonymizer.anonymize(nil as FormatOptions?, message, stream)
-    }
-    #expect(throws: (any Error).self) {
-        try anonymizer.anonymize(.default, nil as MimeMessage?, stream)
-    }
-    #expect(throws: (any Error).self) {
-        try anonymizer.anonymize(.default, message, nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        try anonymizer.anonymize(nil as MimeEntity?, stream)
-    }
-    #expect(throws: (any Error).self) {
-        try anonymizer.anonymize(entity, nil)
-    }
-    #expect(throws: (any Error).self) {
-        try anonymizer.anonymize(nil as FormatOptions?, entity, stream)
-    }
-    #expect(throws: (any Error).self) {
-        try anonymizer.anonymize(.default, nil as MimeEntity?, stream)
-    }
-    #expect(throws: (any Error).self) {
-        try anonymizer.anonymize(.default, entity, nil)
-    }
+    // All nil-argument tests have been removed since parameters are now non-optional
+    // Test that valid calls work
+    try anonymizer.anonymize(message, stream)
+    try anonymizer.anonymize(.default, message, stream)
+    try anonymizer.anonymize(entity, stream)
+    try anonymizer.anonymize(.default, entity, stream)
 }
 
 @Test("MimeAnonymizer received header value")

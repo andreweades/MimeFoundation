@@ -205,7 +205,7 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
         let fileName = fileNameFromPath(path)
         var attachment: MimeEntity? = nil
 
-        if (try? contentType.isMimeType("message", "rfc822")) == true {
+        if contentType.isMimeType("message", "rfc822") {
             if autoDetected, !looksLikeMessage(data) {
                 let fallback = try ContentType("application", "octet-stream")
                 attachment = try createStreamAttachment(contentType: fallback, data: data)
@@ -248,7 +248,7 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
     }
 
     private func createStreamAttachment(contentType: ContentType, data: [UInt8]) throws -> MimeEntity {
-        let isText = (try? contentType.isMimeType("text", "*")) == true
+        let isText = contentType.isMimeType("text", "*")
         let part: MimePart
         if isText {
             part = TextPart(contentType)

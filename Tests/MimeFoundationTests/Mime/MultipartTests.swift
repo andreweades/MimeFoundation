@@ -7,9 +7,7 @@ import MimeFoundation
 
 @Test("Multipart argument exceptions")
 func multipartArgumentExceptions() {
-    #expect(throws: (any Error).self) {
-        _ = try Multipart("mixed", args: nil)
-    }
+    // Tests with nil have been removed since parameters are now non-optional
 
     #expect(throws: (any Error).self) {
         _ = try Multipart("")
@@ -22,35 +20,7 @@ func multipartArgumentExceptions() {
     let multipart = try! Multipart("mixed")
 
     #expect(throws: (any Error).self) {
-        try multipart.setBoundary(nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        try multipart.add(nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        try multipart.insert(nil, at: 0)
-    }
-
-    #expect(throws: (any Error).self) {
-        try multipart.remove(nil)
-    }
-
-    #expect(throws: (any Error).self) {
         try multipart.remove(at: -1)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try multipart.contains(nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try multipart.indexOf(nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        try multipart.setItem(at: 0, nil)
     }
 
     #expect(throws: (any Error).self) {
@@ -61,10 +31,6 @@ func multipartArgumentExceptions() {
     #expect(throws: (any Error).self) {
         try multipart.prepare(.sevenBit, maxLineLength: 1)
     }
-
-    #expect(throws: (any Error).self) {
-        try multipart.writeTo(nil as MimeStream?)
-    }
 }
 
 @Test("Multipart basic functionality")
@@ -74,7 +40,7 @@ func multipartBasicFunctionality() throws {
     #expect(!multipart.boundary.isEmpty)
     #expect(!multipart.isReadOnly)
 
-    try multipart.setBoundary("__Next_Part_123")
+    multipart.setBoundary("__Next_Part_123")
     #expect(multipart.boundary == "__Next_Part_123")
 
     let generic = try MimePart("application", "octet-stream")
@@ -88,8 +54,8 @@ func multipartBasicFunctionality() throws {
     try multipart.insert(plain, at: 0)
 
     #expect(multipart.count == 2)
-    #expect(try multipart.contains(generic))
-    #expect(try multipart.indexOf(plain) == 0)
+    #expect(multipart.contains(generic))
+    #expect(multipart.indexOf(plain) == 0)
 
     var copied: [MimeEntity] = []
     try multipart.copyTo(&copied, at: 0)
@@ -97,8 +63,8 @@ func multipartBasicFunctionality() throws {
     #expect(copied[0] === plain)
     #expect(copied[1] === generic)
 
-    #expect(try multipart.remove(generic))
-    #expect(!(try multipart.remove(generic)))
+    #expect(multipart.remove(generic))
+    #expect(!multipart.remove(generic))
 
     try multipart.remove(at: 0)
     #expect(multipart.count == 0)

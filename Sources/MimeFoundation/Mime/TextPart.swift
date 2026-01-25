@@ -7,9 +7,6 @@
 import Foundation
 
 public enum TextPartError: Error, Equatable, Sendable {
-    case nilArgs
-    case nilCharset
-    case nilText
     case unsupportedCharset
     case duplicateEncoding
     case duplicateText
@@ -75,10 +72,7 @@ open class TextPart: MimePart {
         _ = try? setText(.utf8, text)
     }
 
-    public convenience init(_ subtype: String, args: [Any?]?) throws {
-        guard let args else {
-            throw TextPartError.nilArgs
-        }
+    public convenience init(_ subtype: String, args: [Any?]) throws {
         self.init(subtype)
         try applyArgs(args)
     }
@@ -244,13 +238,7 @@ open class TextPart: MimePart {
         return ""
     }
 
-    public func setText(_ charset: String?, _ text: String?) throws {
-        guard let charset else {
-            throw TextPartError.nilCharset
-        }
-        guard let text else {
-            throw TextPartError.nilText
-        }
+    public func setText(_ charset: String, _ text: String) throws {
         guard let encoding = CharsetUtils.getEncoding(charset) else {
             throw TextPartError.unsupportedCharset
         }
@@ -258,13 +246,7 @@ open class TextPart: MimePart {
         contentType.charset = CharsetUtils.getMimeCharset(encoding)
     }
 
-    public func setText(_ encoding: String.Encoding?, _ text: String?) throws {
-        guard let encoding else {
-            throw TextPartError.nilCharset
-        }
-        guard let text else {
-            throw TextPartError.nilText
-        }
+    public func setText(_ encoding: String.Encoding, _ text: String) throws {
         let normalized = TextPart.normalizeNewLines(text, newLine: "\r\n")
         let bytes = CharsetUtils.getBytes(normalized, encoding: encoding)
         content = try MimeContent(MemoryStream(bytes, writable: false))
@@ -273,31 +255,22 @@ open class TextPart: MimePart {
         contentType.charset = CharsetUtils.getMimeCharset(encoding)
     }
 
-    public override func accept(_ visitor: MimeVisitor?) throws {
-        guard let visitor else {
-            throw MimeEntityError.nilVisitor
-        }
+    public override func accept(_ visitor: MimeVisitor) {
         visitor.visit(self)
     }
 
-    public override func writeTo(_ options: FormatOptions?, _ stream: MimeStream?) throws {
+    public override func writeTo(_ options: FormatOptions, _ stream: MimeStream) throws {
         try super.writeTo(options, stream)
     }
 
-    public func getText(_ charset: String?) throws -> String {
-        guard let charset else {
-            throw TextPartError.nilCharset
-        }
+    public func getText(_ charset: String) throws -> String {
         guard let encoding = CharsetUtils.getEncoding(charset) else {
             throw TextPartError.unsupportedCharset
         }
         return try getText(encoding)
     }
 
-    public func getText(_ encoding: String.Encoding?) throws -> String {
-        guard let encoding else {
-            throw TextPartError.nilCharset
-        }
+    public func getText(_ encoding: String.Encoding) throws -> String {
         guard let content else {
             return ""
         }
@@ -317,7 +290,7 @@ open class TextPart: MimePart {
     }
 
     private func isMimeType(_ mediaType: String, _ mediaSubtype: String) -> Bool {
-        (try? contentType.isMimeType(mediaType, mediaSubtype)) ?? false
+        contentType.isMimeType(mediaType, mediaSubtype)
     }
 
     private enum HtmlTagState {

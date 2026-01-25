@@ -7,8 +7,6 @@
 import Foundation
 public enum MimeMessageError: Error, Equatable, Sendable {
     case invalidMaxLineLength
-    case nilStream
-    case nilArgs
     case duplicateBody
     case invalidArgument
     case invalidMessageId
@@ -187,11 +185,8 @@ public final class MimeMessage {
         try self.init(args: args)
     }
 
-    public convenience init(args: [Any?]?) throws {
+    public convenience init(args: [Any?]) throws {
         self.init(addDefaults: false)
-        guard let args else {
-            throw MimeMessageError.nilArgs
-        }
         var body: MimeEntity?
         for obj in args {
             guard let obj else { continue }
@@ -299,14 +294,11 @@ public final class MimeMessage {
         return getMailboxes(includeSenders: false, onlyUnique: onlyUnique)
     }
 
-    public func writeTo(_ stream: MimeStream?) throws {
+    public func writeTo(_ stream: MimeStream) throws {
         try writeTo(.default, stream)
     }
 
-    public func writeTo(_ options: FormatOptions, _ stream: MimeStream?) throws {
-        guard let stream else {
-            throw MimeMessageError.nilStream
-        }
+    public func writeTo(_ options: FormatOptions, _ stream: MimeStream) throws {
         let combinedHeaders = HeaderList()
         for header in headers {
             combinedHeaders.add(header.copy())
@@ -338,10 +330,7 @@ public final class MimeMessage {
         }
     }
 
-    public func accept(_ visitor: MimeVisitor?) throws {
-        guard let visitor else {
-            throw MimeEntityError.nilVisitor
-        }
+    public func accept(_ visitor: MimeVisitor) {
         visitor.visit(self)
     }
 
@@ -380,18 +369,12 @@ public final class MimeMessage {
         return stream.generateHash()
     }
 
-    public static func load(_ stream: MimeStream?) throws -> MimeMessage {
-        guard let stream else {
-            throw MimeMessageError.nilStream
-        }
+    public static func load(_ stream: MimeStream) throws -> MimeMessage {
         let bytes = try readAllBytes(from: stream)
         return try parse(.default, bytes)
     }
 
-    public static func load(_ options: ParserOptions, _ stream: MimeStream?) throws -> MimeMessage {
-        guard let stream else {
-            throw MimeMessageError.nilStream
-        }
+    public static func load(_ options: ParserOptions, _ stream: MimeStream) throws -> MimeMessage {
         let bytes = try readAllBytes(from: stream)
         return try parse(options, bytes)
     }

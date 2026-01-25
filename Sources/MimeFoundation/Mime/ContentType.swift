@@ -7,12 +7,8 @@
 import Foundation
 
 public enum ContentTypeError: Error, Sendable {
-    case nilMediaType
-    case nilMediaSubtype
     case invalidMediaType
     case invalidMediaSubtype
-    case nilOptions
-    case nilEncoding
 }
 
 public final class ContentType: Equatable {
@@ -135,24 +131,14 @@ public final class ContentType: Equatable {
         "\(type)/\(subtype)"
     }
 
-    public func isMimeType(_ mediaType: String?, _ mediaSubtype: String?) throws -> Bool {
-        guard let mediaType else {
-            throw ContentTypeError.nilMediaType
-        }
-        guard let mediaSubtype else {
-            throw ContentTypeError.nilMediaSubtype
-        }
-
+    public func isMimeType(_ mediaType: String, _ mediaSubtype: String) -> Bool {
         if mediaType == "*" || mediaType.caseInsensitiveCompare(type) == .orderedSame {
             return mediaSubtype == "*" || mediaSubtype.caseInsensitiveCompare(subtype) == .orderedSame
         }
         return false
     }
 
-    public func setMediaType(_ value: String?) throws {
-        guard let value else {
-            throw ContentTypeError.nilMediaType
-        }
+    public func setMediaType(_ value: String) throws {
         if value.isEmpty {
             throw ContentTypeError.invalidMediaType
         }
@@ -162,10 +148,7 @@ public final class ContentType: Equatable {
         }
     }
 
-    public func setMediaSubtype(_ value: String?) throws {
-        guard let value else {
-            throw ContentTypeError.nilMediaSubtype
-        }
+    public func setMediaSubtype(_ value: String) throws {
         if value.isEmpty {
             throw ContentTypeError.invalidMediaSubtype
         }
@@ -189,13 +172,7 @@ public final class ContentType: Equatable {
         return copied
     }
 
-    public func toString(_ options: FormatOptions?, _ encoding: String.Encoding?, _ encode: Bool) throws -> String {
-        guard let options else {
-            throw ContentTypeError.nilOptions
-        }
-        guard let encoding else {
-            throw ContentTypeError.nilEncoding
-        }
+    public func toString(_ options: FormatOptions, _ encoding: String.Encoding, _ encode: Bool) -> String {
         var builder = ValueStringBuilder(initialCapacity: 128)
         builder.append("Content-Type: ")
         builder.append(type)
@@ -210,8 +187,8 @@ public final class ContentType: Equatable {
         return builder.toString()
     }
 
-    public func toString(_ encoding: String.Encoding?, _ encode: Bool) throws -> String {
-        try toString(FormatOptions.default, encoding, encode)
+    public func toString(_ encoding: String.Encoding, _ encode: Bool) -> String {
+        toString(FormatOptions.default, encoding, encode)
     }
 
     public func toString(_ encode: Bool) -> String {

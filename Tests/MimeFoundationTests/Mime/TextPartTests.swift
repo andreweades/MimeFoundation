@@ -6,51 +6,24 @@ import Testing
 import MimeFoundation
 
 @Test("TextPart argument exceptions")
-func textPartArgumentExceptions() {
-    let text = TextPart(.plain)
+func textPartArgumentExceptions() throws {
+    // Tests with nil have been removed since parameters are now non-optional
 
-    #expect(throws: (any Error).self) {
-        _ = try TextPart("plain", args: nil)
-    }
-
-    #expect(throws: (any Error).self) {
+    #expect(throws: TextPartError.duplicateEncoding) {
         _ = try TextPart("plain", String.Encoding.utf8, "blah blah blah", String.Encoding.utf8)
     }
 
-    #expect(throws: (any Error).self) {
+    #expect(throws: TextPartError.duplicateText) {
         _ = try TextPart("plain", String.Encoding.utf8, "blah blah blah", "blah blah")
     }
 
-    #expect(throws: (any Error).self) {
+    #expect(throws: TextPartError.invalidArgument) {
         _ = try TextPart("plain", 5)
     }
 
-    #expect(throws: (any Error).self) {
-        try text.accept(nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try text.getText(nil as String?)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try text.getText(nil as String.Encoding?)
-    }
-
-    #expect(throws: (any Error).self) {
-        try text.setText(nil as String?, "text")
-    }
-
-    #expect(throws: (any Error).self) {
-        try text.setText(nil as String.Encoding?, "text")
-    }
-
-    #expect(throws: (any Error).self) {
-        try text.setText("iso-8859-1", nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        try text.setText(.utf8, nil)
+    #expect(throws: TextPartError.unsupportedCharset) {
+        let text = TextPart(.plain)
+        _ = try text.getText("invalid-charset")
     }
 }
 

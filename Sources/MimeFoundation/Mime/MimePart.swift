@@ -8,15 +8,13 @@ import Foundation
 import CryptoKit
 
 public enum MimePartError: Error, Equatable, Sendable {
-    case nilContentType
-    case nilMediaType
-    case nilMediaSubtype
+    case emptyMediaType
+    case emptyMediaSubtype
     case invalidContentDuration
     case invalidEncodingConstraint
     case invalidContentTransferEncoding
-    case nilContent
+    case noContent
     case cryptoUnavailable
-    case nilArgs
     case duplicateContent
     case invalidArgument
 }
@@ -171,19 +169,12 @@ open class MimePart: MimeEntity {
         try self.init(mediaType, mediaSubtype, args: args)
     }
 
-    public convenience init(_ mediaType: String, _ mediaSubtype: String, args: [Any?]?) throws {
-        guard let args else {
-            throw MimePartError.nilArgs
-        }
-        try self.init(mediaType, mediaSubtype, args: args)
-    }
-
-    private convenience init(_ mediaType: String, _ mediaSubtype: String, args: [Any?]) throws {
+    public convenience init(_ mediaType: String, _ mediaSubtype: String, args: [Any?]) throws {
         guard !mediaType.isEmpty else {
-            throw MimePartError.nilMediaType
+            throw MimePartError.emptyMediaType
         }
         guard !mediaSubtype.isEmpty else {
-            throw MimePartError.nilMediaSubtype
+            throw MimePartError.emptyMediaSubtype
         }
         let contentType = try ContentType(mediaType, mediaSubtype)
         self.init(contentType)
@@ -214,10 +205,7 @@ open class MimePart: MimeEntity {
         }
     }
 
-    public convenience init(_ contentType: ContentType?, _ args: Any...) throws {
-        guard let contentType else {
-            throw MimePartError.nilContentType
-        }
+    public convenience init(_ contentType: ContentType, _ args: Any...) {
         self.init(contentType)
         for arg in args {
             _ = tryInit(arg)
@@ -228,10 +216,7 @@ open class MimePart: MimeEntity {
         try self.init(mediaType, mediaSubtype, args: [])
     }
 
-    public convenience init(_ mimeType: String?) throws {
-        guard let mimeType else {
-            throw MimePartError.nilMediaType
-        }
+    public convenience init(_ mimeType: String) throws {
         let parsed = try ContentType(parsing: mimeType)
         self.init(parsed)
     }
@@ -256,7 +241,7 @@ open class MimePart: MimeEntity {
 
     public func computeContentMd5() throws -> String {
         guard let content else {
-            throw MimePartError.nilContent
+            throw MimePartError.noContent
         }
         let data = try readAllBytes(content: content)
         if #available(macOS 10.15, iOS 13.0, *) {
@@ -322,7 +307,7 @@ open class MimePart: MimeEntity {
         setHeader(.contentDuration, String(value))
     }
 
-    open override func writeTo(_ options: FormatOptions?, _ stream: MimeStream?) throws {
+    open override func writeTo(_ options: FormatOptions, _ stream: MimeStream) throws {
         try super.writeTo(options, stream)
     }
 
@@ -367,10 +352,7 @@ open class MimePart: MimeEntity {
         try filtered.flush()
     }
 
-    public override func accept(_ visitor: MimeVisitor?) throws {
-        guard let visitor else {
-            throw MimeEntityError.nilVisitor
-        }
+    public override func accept(_ visitor: MimeVisitor) {
         visitor.visit(self)
     }
 

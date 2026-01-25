@@ -6,10 +6,6 @@
 
 import Foundation
 
-public enum BodyBuilderError: Error, Equatable, Sendable {
-    case nilEncoding
-}
-
 public final class BodyBuilder {
     public private(set) var attachments: AttachmentCollection
     public private(set) var linkedResources: AttachmentCollection
@@ -30,13 +26,6 @@ public final class BodyBuilder {
     public var bodyEncoding: String.Encoding {
         get { bodyEncodingStorage }
         set { bodyEncodingStorage = newValue }
-    }
-
-    public func setBodyEncoding(_ value: String.Encoding?) throws {
-        guard let value else {
-            throw BodyBuilderError.nilEncoding
-        }
-        bodyEncodingStorage = value
     }
 
     public func toMessageBody() throws -> MimeEntity {

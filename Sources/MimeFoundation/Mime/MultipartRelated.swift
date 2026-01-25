@@ -7,8 +7,6 @@
 import Foundation
 
 public enum MultipartRelatedError: Error, Equatable, Sendable {
-    case nilUri
-    case nilRoot
     case notFound
 }
 
@@ -21,10 +19,7 @@ public final class MultipartRelated: Multipart {
         try self.init(args: args)
     }
 
-    public init(args: [Any?]?) throws {
-        guard let args else {
-            throw MultipartError.nilArgs
-        }
+    public init(args: [Any?]) throws {
         try super.init("related")
         try applyArgs(args)
     }
@@ -46,15 +41,13 @@ public final class MultipartRelated: Multipart {
             return self[Swift.max(index, 0)]
         }
         set {
-            _ = try? setRoot(newValue)
+            if let newValue {
+                _ = try? setRoot(newValue)
+            }
         }
     }
 
-    public func setRoot(_ value: MimeEntity?) throws {
-        guard let value else {
-            throw MultipartRelatedError.nilRoot
-        }
-
+    public func setRoot(_ value: MimeEntity) throws {
         var index = -1
 
         if count > 0 {
@@ -88,10 +81,7 @@ public final class MultipartRelated: Multipart {
         }
     }
 
-    public override func accept(_ visitor: MimeVisitor?) throws {
-        guard let visitor else {
-            throw MimeEntityError.nilVisitor
-        }
+    public override func accept(_ visitor: MimeVisitor) {
         visitor.visit(self)
     }
 
@@ -110,22 +100,15 @@ public final class MultipartRelated: Multipart {
         return false
     }
 
-    public func contains(_ uri: URL?) throws -> Bool {
-        return try indexOf(uri) != -1
+    public func contains(_ uri: URL) -> Bool {
+        return indexOf(uri) != -1
     }
 
-    public func indexOf(_ uri: URL?) throws -> Int {
-        guard let uri else {
-            throw MultipartRelatedError.nilUri
-        }
+    public func indexOf(_ uri: URL) -> Int {
         return indexOfUri(uri)
     }
 
-    public func open(_ uri: URL?, mimeType: inout String, charset: inout String?) throws -> MimeStream {
-        guard let uri else {
-            throw MultipartRelatedError.nilUri
-        }
-
+    public func open(_ uri: URL, mimeType: inout String, charset: inout String?) throws -> MimeStream {
         let index = indexOfUri(uri)
         guard index != -1 else {
             throw MultipartRelatedError.notFound
@@ -141,11 +124,7 @@ public final class MultipartRelated: Multipart {
         return try content.open()
     }
 
-    public func open(_ uri: URL?) throws -> MimeStream {
-        guard let uri else {
-            throw MultipartRelatedError.nilUri
-        }
-
+    public func open(_ uri: URL) throws -> MimeStream {
         let index = indexOfUri(uri)
         guard index != -1 else {
             throw MultipartRelatedError.notFound

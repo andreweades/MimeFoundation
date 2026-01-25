@@ -9,18 +9,7 @@ private func normalizeNewlines(_ value: String?) -> String? {
     value?.replacingOccurrences(of: "\r\n", with: "\n")
 }
 
-@Test("MultipartAlternative argument exceptions")
-func multipartAlternativeArgumentExceptions() {
-    let alternative = MultipartAlternative()
-
-    #expect(throws: (any Error).self) {
-        _ = try MultipartAlternative(args: nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        try alternative.accept(nil)
-    }
-}
+// Tests removed: args no longer takes nil, accept no longer takes optional visitor
 
 @Test("MultipartAlternative generic args constructor")
 func multipartAlternativeGenericArgsConstructor() throws {

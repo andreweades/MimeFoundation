@@ -7,12 +7,9 @@
 import Foundation
 
 public enum MultipartError: Error, Equatable, Sendable {
-    case nilSubtype
-    case nilArgs
+    case emptySubtype
     case invalidArgument
-    case nilBoundary
     case indexOutOfRange
-    case nilEntity
     case invalidMaxLineLength
 }
 
@@ -94,7 +91,7 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
 
     public init(_ subtype: String) throws {
         if subtype.isEmpty {
-            throw MultipartError.nilSubtype
+            throw MultipartError.emptySubtype
         }
         let contentType = try ContentType("multipart", subtype)
         super.init(contentType)
@@ -105,10 +102,7 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
         try self.init(subtype, args: args)
     }
 
-    public convenience init(_ subtype: String, args: [Any?]?) throws {
-        guard let args else {
-            throw MultipartError.nilArgs
-        }
+    public convenience init(_ subtype: String, args: [Any?]) throws {
         try self.init(subtype)
         try applyArgs(args)
     }
@@ -121,26 +115,17 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
         }
     }
 
-    public func setBoundary(_ value: String?) throws {
-        guard let value else {
-            throw MultipartError.nilBoundary
-        }
+    public func setBoundary(_ value: String) {
         rawBody = nil
         contentType.boundary = value
     }
 
-    public func add(_ entity: MimeEntity?) throws {
-        guard let entity else {
-            throw MultipartError.nilEntity
-        }
+    public func add(_ entity: MimeEntity) throws {
         rawBody = nil
         children.append(entity)
     }
 
-    public func insert(_ entity: MimeEntity?, at index: Int) throws {
-        guard let entity else {
-            throw MultipartError.nilEntity
-        }
+    public func insert(_ entity: MimeEntity, at index: Int) throws {
         guard index >= 0 && index <= children.count else {
             throw MultipartError.indexOutOfRange
         }
@@ -149,10 +134,7 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
     }
 
     @discardableResult
-    public func remove(_ entity: MimeEntity?) throws -> Bool {
-        guard let entity else {
-            throw MultipartError.nilEntity
-        }
+    public func remove(_ entity: MimeEntity) -> Bool {
         guard let index = children.firstIndex(where: { $0 === entity }) else {
             return false
         }
@@ -168,24 +150,15 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
         children.remove(at: index)
     }
 
-    public func contains(_ entity: MimeEntity?) throws -> Bool {
-        guard let entity else {
-            throw MultipartError.nilEntity
-        }
+    public func contains(_ entity: MimeEntity) -> Bool {
         return children.contains(where: { $0 === entity })
     }
 
-    public func indexOf(_ entity: MimeEntity?) throws -> Int {
-        guard let entity else {
-            throw MultipartError.nilEntity
-        }
+    public func indexOf(_ entity: MimeEntity) -> Int {
         return children.firstIndex(where: { $0 === entity }) ?? -1
     }
 
-    public func setItem(at index: Int, _ entity: MimeEntity?) throws {
-        guard let entity else {
-            throw MultipartError.nilEntity
-        }
+    public func setItem(at index: Int, _ entity: MimeEntity) throws {
         guard index >= 0 && index < children.count else {
             throw MultipartError.indexOutOfRange
         }
@@ -219,10 +192,7 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
         }
     }
 
-    open override func accept(_ visitor: MimeVisitor?) throws {
-        guard let visitor else {
-            throw MimeEntityError.nilVisitor
-        }
+    open override func accept(_ visitor: MimeVisitor) {
         visitor.visit(self)
     }
 
@@ -248,7 +218,7 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
         return false
     }
 
-    public override func writeTo(_ options: FormatOptions?, _ stream: MimeStream?) throws {
+    public override func writeTo(_ options: FormatOptions, _ stream: MimeStream) throws {
         try super.writeTo(options, stream)
     }
 

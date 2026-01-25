@@ -6,11 +6,6 @@
 
 import Foundation
 
-public enum MultipartReportError: Error, Equatable, Sendable {
-    case nilReportType
-    case nilArgs
-}
-
 public final class MultipartReport: Multipart {
     public override init(_ contentType: ContentType) {
         super.init(contentType)
@@ -20,10 +15,7 @@ public final class MultipartReport: Multipart {
         try self.init(reportType: reportType, args: args)
     }
 
-    public init(reportType: String, args: [Any?]?) throws {
-        guard let args else {
-            throw MultipartReportError.nilArgs
-        }
+    public init(reportType: String, args: [Any?]) throws {
         try super.init("report")
         try applyArgs(args)
         try setReportType(reportType)
@@ -39,15 +31,15 @@ public final class MultipartReport: Multipart {
             contentType.parameters["report-type"]
         }
         set {
-            _ = try? setReportType(newValue)
+            if let newValue {
+                _ = try? setReportType(newValue)
+            } else {
+                contentType.parameters["report-type"] = nil
+            }
         }
     }
 
-    public func setReportType(_ value: String?) throws {
-        guard let value else {
-            throw MultipartReportError.nilReportType
-        }
-
+    public func setReportType(_ value: String) throws {
         if reportType == value {
             return
         }
@@ -55,10 +47,7 @@ public final class MultipartReport: Multipart {
         contentType.parameters["report-type"] = value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    public override func accept(_ visitor: MimeVisitor?) throws {
-        guard let visitor else {
-            throw MimeEntityError.nilVisitor
-        }
+    public override func accept(_ visitor: MimeVisitor) {
         visitor.visit(self)
     }
 }

@@ -7,10 +7,7 @@
 import Foundation
 
 public enum ContentDispositionError: Error, Sendable {
-    case nilDisposition
     case invalidDisposition
-    case nilOptions
-    case nilEncoding
 }
 
 public final class ContentDisposition: Equatable {
@@ -165,10 +162,7 @@ public final class ContentDisposition: Equatable {
         }
     }
 
-    public func setDisposition(_ value: String?) throws {
-        guard let value else {
-            throw ContentDispositionError.nilDisposition
-        }
+    public func setDisposition(_ value: String) throws {
         try ContentDisposition.validateDisposition(value)
         if disposition != value {
             disposition = value
@@ -176,13 +170,7 @@ public final class ContentDisposition: Equatable {
         }
     }
 
-    public func toString(_ options: FormatOptions?, _ encoding: String.Encoding?, _ encode: Bool) throws -> String {
-        guard let options else {
-            throw ContentDispositionError.nilOptions
-        }
-        guard let encoding else {
-            throw ContentDispositionError.nilEncoding
-        }
+    public func toString(_ options: FormatOptions, _ encoding: String.Encoding, _ encode: Bool) -> String {
         var builder = ValueStringBuilder(initialCapacity: 128)
         builder.append("Content-Disposition: ")
         builder.append(disposition)
@@ -195,8 +183,8 @@ public final class ContentDisposition: Equatable {
         return builder.toString()
     }
 
-    public func toString(_ encoding: String.Encoding?, _ encode: Bool) throws -> String {
-        try toString(FormatOptions.default, encoding, encode)
+    public func toString(_ encoding: String.Encoding, _ encode: Bool) -> String {
+        toString(FormatOptions.default, encoding, encode)
     }
 
     public func toString(_ encode: Bool) -> String {

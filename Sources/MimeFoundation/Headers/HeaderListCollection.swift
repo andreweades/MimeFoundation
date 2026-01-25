@@ -7,10 +7,8 @@
 import Foundation
 
 public enum HeaderListCollectionError: Error, Sendable {
-    case nilGroup
-    case nilArray
-    case indexOutOfRange
-    case insufficientCapacity
+    case indexOutOfRange(index: Int, count: Int)
+    case insufficientCapacity(required: Int, available: Int)
 }
 
 public final class HeaderListCollection: RandomAccessCollection, MutableCollection, ExpressibleByArrayLiteral {
@@ -67,17 +65,14 @@ public final class HeaderListCollection: RandomAccessCollection, MutableCollecti
 
     public func group(at index: Int) throws -> HeaderList {
         guard index >= 0 && index < groups.count else {
-            throw HeaderListCollectionError.indexOutOfRange
+            throw HeaderListCollectionError.indexOutOfRange(index: index, count: groups.count)
         }
         return groups[index]
     }
 
-    public func replaceGroup(at index: Int, with group: HeaderList?) throws {
+    public func replaceGroup(at index: Int, with group: HeaderList) throws {
         guard index >= 0 && index < groups.count else {
-            throw HeaderListCollectionError.indexOutOfRange
-        }
-        guard let group else {
-            throw HeaderListCollectionError.nilGroup
+            throw HeaderListCollectionError.indexOutOfRange(index: index, count: groups.count)
         }
         if groups[index] === group {
             return
@@ -94,13 +89,6 @@ public final class HeaderListCollection: RandomAccessCollection, MutableCollecti
         onChanged()
     }
 
-    public func add(_ group: HeaderList?) throws {
-        guard let group else {
-            throw HeaderListCollectionError.nilGroup
-        }
-        add(group)
-    }
-
     public func clear() {
         for group in groups {
             detach(group)
@@ -113,29 +101,19 @@ public final class HeaderListCollection: RandomAccessCollection, MutableCollecti
         groups.contains { $0 === group }
     }
 
-    public func contains(_ group: HeaderList?) throws -> Bool {
-        guard let group else {
-            throw HeaderListCollectionError.nilGroup
-        }
-        return contains(group)
-    }
-
-    public func copyTo(_ array: inout [HeaderList]?, arrayIndex: Int) throws {
-        guard var target = array else {
-            throw HeaderListCollectionError.nilArray
-        }
+    public func copyTo(_ array: inout [HeaderList], startingAt arrayIndex: Int) throws {
         guard arrayIndex >= 0 else {
-            throw HeaderListCollectionError.indexOutOfRange
+            throw HeaderListCollectionError.indexOutOfRange(index: arrayIndex, count: array.count)
         }
-        guard arrayIndex + groups.count <= target.count else {
-            throw HeaderListCollectionError.insufficientCapacity
+        guard arrayIndex + groups.count <= array.count else {
+            throw HeaderListCollectionError.insufficientCapacity(required: arrayIndex + groups.count, available: array.count)
         }
         for (offset, group) in groups.enumerated() {
-            target[arrayIndex + offset] = group
+            array[arrayIndex + offset] = group
         }
-        array = target
     }
 
+    @discardableResult
     public func remove(_ group: HeaderList) -> Bool {
         guard let index = groups.firstIndex(where: { $0 === group }) else {
             return false
@@ -144,13 +122,6 @@ public final class HeaderListCollection: RandomAccessCollection, MutableCollecti
         groups.remove(at: index)
         onChanged()
         return true
-    }
-
-    public func remove(_ group: HeaderList?) throws -> Bool {
-        guard let group else {
-            throw HeaderListCollectionError.nilGroup
-        }
-        return remove(group)
     }
 
     private func attach(_ group: HeaderList) {

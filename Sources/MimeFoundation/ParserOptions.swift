@@ -10,7 +10,7 @@ public struct ParserOptions: Sendable {
     public static var `default`: ParserOptions { ParserOptions() }
 
     public enum Error: Swift.Error, Equatable {
-        case nilMimeType
+        case emptyMimeType
         case invalidMimeType
     }
 
@@ -44,13 +44,10 @@ public struct ParserOptions: Sendable {
         self
     }
 
-    public mutating func registerMimeType(_ mimeType: String?, factory: @escaping MimeEntityFactory) throws {
-        guard let mimeType else {
-            throw Error.nilMimeType
-        }
+    public mutating func registerMimeType(_ mimeType: String, factory: @escaping MimeEntityFactory) throws {
         let trimmed = mimeType.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            throw Error.invalidMimeType
+            throw Error.emptyMimeType
         }
         guard let contentType = try? ContentType(parsing: trimmed) else {
             throw Error.invalidMimeType

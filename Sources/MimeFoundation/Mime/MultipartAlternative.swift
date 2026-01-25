@@ -15,10 +15,7 @@ public final class MultipartAlternative: Multipart {
         try self.init(args: args)
     }
 
-    public init(args: [Any?]?) throws {
-        guard let args else {
-            throw MultipartError.nilArgs
-        }
+    public init(args: [Any?]) throws {
         try super.init("alternative")
         try applyArgs(args)
     }
@@ -39,10 +36,7 @@ public final class MultipartAlternative: Multipart {
         getTextBody(.html)
     }
 
-    public override func accept(_ visitor: MimeVisitor?) throws {
-        guard let visitor else {
-            throw MimeEntityError.nilVisitor
-        }
+    public override func accept(_ visitor: MimeVisitor) {
         visitor.visit(self)
     }
 

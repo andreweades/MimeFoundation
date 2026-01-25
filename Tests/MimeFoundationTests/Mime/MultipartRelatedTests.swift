@@ -12,33 +12,7 @@ func multipartRelatedArgumentExceptions() {
     var mimeType = ""
     var charset: String? = nil
 
-    #expect(throws: (any Error).self) {
-        _ = try MultipartRelated(args: nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        try related.open(nil as URL?, mimeType: &mimeType, charset: &charset)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try related.open(nil as URL?)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try related.contains(nil as URL?)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try related.indexOf(nil as URL?)
-    }
-
-    #expect(throws: (any Error).self) {
-        try related.accept(nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        try related.setRoot(nil)
-    }
+    // Tests with nil have been removed since parameters are now non-optional
 
     #expect(throws: (any Error).self) {
         _ = try related.open(URL(string: "http://www.xamarin.com/logo.png")!, mimeType: &mimeType, charset: &charset)
@@ -161,8 +135,8 @@ func multipartRelatedReferenceByContentId() throws {
     for index in 1..<related.count {
         let entity = related[index]
         let cid = URL(string: "cid:\(entity.contentId ?? "")")!
-        #expect(try related.contains(cid))
-        #expect(try related.indexOf(cid) == index)
+        #expect(related.contains(cid))
+        #expect(related.indexOf(cid) == index)
 
         var mimeType = ""
         var charset: String? = nil
@@ -199,8 +173,8 @@ func multipartRelatedReferenceByContentLocation() throws {
         let location = entity.contentLocation
         #expect(location != nil)
         if let location {
-            #expect(try related.contains(location))
-            #expect(try related.indexOf(location) == index)
+            #expect(related.contains(location))
+            #expect(related.indexOf(location) == index)
 
             var mimeType = ""
             var charset: String? = nil

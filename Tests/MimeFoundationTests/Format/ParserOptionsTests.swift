@@ -15,10 +15,7 @@ private final class CustomTextHtmlPart: TextPart {
 @Test("ParserOptions register MIME type validation")
 func parserOptionsRegisterMimeTypeValidation() {
     var options = ParserOptions.default
-    #expect(throws: ParserOptions.Error.nilMimeType) {
-        try options.registerMimeType(nil) { _ in TextPart("plain") }
-    }
-    #expect(throws: ParserOptions.Error.invalidMimeType) {
+    #expect(throws: ParserOptions.Error.emptyMimeType) {
         try options.registerMimeType("") { _ in TextPart("plain") }
     }
     #expect(throws: ParserOptions.Error.invalidMimeType) {

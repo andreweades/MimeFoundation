@@ -6,15 +6,6 @@
 
 import Foundation
 
-public enum MailboxAddressError: Error, Sendable {
-    case nilEncoding
-    case nilRoute
-    case nilAddress
-    case nilOptions
-    case nilMailbox
-    case nilAddrspec
-}
-
 public class MailboxAddress: InternetAddress, Hashable {
     private static let emptySentinels: [UInt8] = []
 
@@ -56,19 +47,6 @@ public class MailboxAddress: InternetAddress, Hashable {
         self.address = address
     }
 
-    public convenience init(encoding: String.Encoding?, name: String?, route: [String]?, address: String?) throws {
-        guard let encoding else {
-            throw MailboxAddressError.nilEncoding
-        }
-        guard let route else {
-            throw MailboxAddressError.nilRoute
-        }
-        guard let address else {
-            throw MailboxAddressError.nilAddress
-        }
-        self.init(encoding: encoding, name: name, route: route, address: address)
-    }
-
     public init(name: String?, route: [String], address: String) {
         self.route = DomainList(route)
         self.addressStorage = ""
@@ -78,16 +56,6 @@ public class MailboxAddress: InternetAddress, Hashable {
             self?.onChanged()
         }
         self.address = address
-    }
-
-    public convenience init(name: String?, route: [String]?, address: String?) throws {
-        guard let route else {
-            throw MailboxAddressError.nilRoute
-        }
-        guard let address else {
-            throw MailboxAddressError.nilAddress
-        }
-        self.init(name: name, route: route, address: address)
     }
 
     public init(encoding: String.Encoding, name: String?, address: String) {
@@ -101,16 +69,6 @@ public class MailboxAddress: InternetAddress, Hashable {
         self.address = address
     }
 
-    public convenience init(encoding: String.Encoding?, name: String?, address: String?) throws {
-        guard let encoding else {
-            throw MailboxAddressError.nilEncoding
-        }
-        guard let address else {
-            throw MailboxAddressError.nilAddress
-        }
-        self.init(encoding: encoding, name: name, address: address)
-    }
-
     public init(name: String?, address: String) {
         self.route = DomainList()
         self.addressStorage = ""
@@ -122,13 +80,6 @@ public class MailboxAddress: InternetAddress, Hashable {
         self.address = address
     }
 
-    public convenience init(name: String?, address: String?) throws {
-        guard let address else {
-            throw MailboxAddressError.nilAddress
-        }
-        self.init(name: name, address: address)
-    }
-
     public var address: String {
         get { addressStorage }
         set {
@@ -138,20 +89,6 @@ public class MailboxAddress: InternetAddress, Hashable {
                 return
             }
         }
-    }
-
-    public func setAddress(_ value: String?) throws {
-        guard let value else {
-            throw MailboxAddressError.nilAddress
-        }
-        try setAddress(value)
-    }
-
-    public func setEncoding(_ encoding: String.Encoding?) throws {
-        guard let encoding else {
-            throw MailboxAddressError.nilEncoding
-        }
-        self.encoding = encoding
     }
 
     public func setAddress(_ value: String) throws {
@@ -364,13 +301,6 @@ public class MailboxAddress: InternetAddress, Hashable {
         return encodeAddrspec(parsed ?? addrspec, atIndex: at)
     }
 
-    public static func encodeAddrspec(_ addrspec: String?) throws -> String {
-        guard let addrspec else {
-            throw MailboxAddressError.nilAddrspec
-        }
-        return encodeAddrspec(addrspec)
-    }
-
     public static func decodeAddrspec(_ addrspec: String) -> String {
         guard !addrspec.isEmpty else {
             return addrspec
@@ -385,13 +315,6 @@ public class MailboxAddress: InternetAddress, Hashable {
         }
 
         return parsed ?? addrspec
-    }
-
-    public static func decodeAddrspec(_ addrspec: String?) throws -> String {
-        guard let addrspec else {
-            throw MailboxAddressError.nilAddrspec
-        }
-        return decodeAddrspec(addrspec)
     }
 
     // MARK: Parsing APIs

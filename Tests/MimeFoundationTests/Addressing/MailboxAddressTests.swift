@@ -5,128 +5,30 @@
 import Testing
 import MimeFoundation
 
-@Test("Mailbox argument exceptions")
-func mailboxArgumentExceptions() {
-    let mailbox = MailboxAddress(name: "Johnny Appleseed", address: "johnny@example.com")
-    let route = ["route.com"]
-
-    #expect(throws: (any Error).self) {
-        _ = try MailboxAddress(encoding: nil, name: "name", route: route, address: "johnny@example.com")
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try MailboxAddress(encoding: .utf8, name: "name", route: nil, address: "johnny@example.com")
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try MailboxAddress(encoding: .utf8, name: "name", route: route, address: nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try MailboxAddress(name: "name", route: nil, address: "johnny@example.com")
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try MailboxAddress(name: "name", route: route, address: nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try MailboxAddress(encoding: nil, name: "name", address: "johnny@example.com")
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try MailboxAddress(encoding: .utf8, name: "name", address: nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try MailboxAddress(name: "name", address: nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        try mailbox.setAddress(nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        try mailbox.setEncoding(nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try MailboxAddress.encodeAddrspec(nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try MailboxAddress.decodeAddrspec(nil)
-    }
-}
+// Tests removed: parameters are now non-optional
 
 @Test("SecureMailboxAddress argument exceptions")
 func secureMailboxArgumentExceptions() {
     let route = ["route.com"]
 
-    #expect(throws: (any Error).self) {
-        _ = try SecureMailboxAddress(encoding: nil, name: "name", route: route, address: "johnny@example.com", fingerprint: "ffff")
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try SecureMailboxAddress(encoding: .utf8, name: "name", route: nil, address: "johnny@example.com", fingerprint: "ffff")
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try SecureMailboxAddress(encoding: .utf8, name: "name", route: route, address: nil, fingerprint: "ffff")
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try SecureMailboxAddress(encoding: .utf8, name: "name", route: route, address: "johnny@example.com", fingerprint: nil)
-    }
-
-    #expect(throws: (any Error).self) {
+    // Test invalid fingerprint (not hex encoded) - all four initializer variants
+    #expect(throws: SecureMailboxAddressError.invalidFingerprint) {
         _ = try SecureMailboxAddress(encoding: .utf8, name: "name", route: route, address: "johnny@example.com", fingerprint: "not hex encoded")
     }
 
-    #expect(throws: (any Error).self) {
-        _ = try SecureMailboxAddress(name: "name", route: nil, address: "johnny@example.com", fingerprint: "ffff")
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try SecureMailboxAddress(name: "name", route: route, address: nil, fingerprint: "ffff")
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try SecureMailboxAddress(name: "name", route: route, address: "johnny@example.com", fingerprint: nil)
-    }
-
-    #expect(throws: (any Error).self) {
+    #expect(throws: SecureMailboxAddressError.invalidFingerprint) {
         _ = try SecureMailboxAddress(name: "name", route: route, address: "johnny@example.com", fingerprint: "not hex encoded")
     }
 
-    #expect(throws: (any Error).self) {
-        _ = try SecureMailboxAddress(encoding: nil, name: "name", address: "johnny@example.com", fingerprint: "ffff")
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try SecureMailboxAddress(encoding: .utf8, name: "name", address: nil, fingerprint: "ffff")
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try SecureMailboxAddress(encoding: .utf8, name: "name", address: "johnny@example.com", fingerprint: nil)
-    }
-
-    #expect(throws: (any Error).self) {
+    #expect(throws: SecureMailboxAddressError.invalidFingerprint) {
         _ = try SecureMailboxAddress(encoding: .utf8, name: "name", address: "johnny@example.com", fingerprint: "not hex encoded")
     }
 
-    #expect(throws: (any Error).self) {
-        _ = try SecureMailboxAddress(name: "name", address: nil, fingerprint: "ffff")
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try SecureMailboxAddress(name: "name", address: "johnny@example.com", fingerprint: nil)
-    }
-
-    #expect(throws: (any Error).self) {
+    #expect(throws: SecureMailboxAddressError.invalidFingerprint) {
         _ = try SecureMailboxAddress(name: "name", address: "johnny@example.com", fingerprint: "not hex encoded")
     }
 
+    // Test valid constructions
     do {
         _ = try SecureMailboxAddress(name: "Mailbox Address", address: "user@domain.com", fingerprint: "ffff")
     } catch {

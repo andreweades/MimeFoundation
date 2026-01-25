@@ -5,7 +5,6 @@
 //
 
 public enum TextRfc822HeadersError: Error, Equatable, Sendable {
-    case nilArgs
     case duplicateMessage
     case invalidArgument
 }
@@ -30,18 +29,12 @@ public final class TextRfc822Headers: MessagePart {
         try self.init(args: args)
     }
 
-    public convenience init(args: [Any?]?) throws {
-        guard let args else {
-            throw TextRfc822HeadersError.nilArgs
-        }
+    public convenience init(args: [Any?]) throws {
         self.init()
         try applyArgs(args)
     }
 
-    public override func accept(_ visitor: MimeVisitor?) throws {
-        guard let visitor else {
-            throw MimeEntityError.nilVisitor
-        }
+    public override func accept(_ visitor: MimeVisitor) {
         visitor.visit(self)
     }
 

@@ -12,16 +12,12 @@ private func hexString(_ bytes: [UInt8]) -> String {
 
 @Test("MimePart argument exceptions")
 func mimePartArgumentExceptions() {
-    #expect(throws: MimePartError.nilMediaType) {
-        _ = try MimePart(nil as String?)
-    }
-    #expect(throws: MimePartError.nilContentType) {
-        _ = try MimePart(nil as ContentType?)
-    }
-    #expect(throws: MimePartError.nilMediaType) {
+    // Tests with nil have been removed since parameters are now non-optional
+
+    #expect(throws: MimePartError.emptyMediaType) {
         _ = try MimePart("", "octet-stream")
     }
-    #expect(throws: MimePartError.nilMediaSubtype) {
+    #expect(throws: MimePartError.emptyMediaSubtype) {
         _ = try MimePart("application", "")
     }
 
@@ -260,7 +256,7 @@ func mimePartContentMd5() throws {
     part.headers.clear()
     #expect(part.contentMd5 == nil)
 
-    #expect(throws: MimePartError.nilContent) {
+    #expect(throws: MimePartError.noContent) {
         _ = try part.computeContentMd5()
     }
     #expect(part.verifyContentMd5() == false)

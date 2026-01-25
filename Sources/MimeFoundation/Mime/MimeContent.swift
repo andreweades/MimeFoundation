@@ -7,11 +7,9 @@
 import Foundation
 
 public enum MimeContentError: Error, Sendable {
-    case nilStream
     case streamNotReadable
     case streamNotSeekable
     case disposed
-    case nilDestination
 }
 
 public final class MimeContent {
@@ -22,10 +20,7 @@ public final class MimeContent {
 
     private var stream: MimeStream?
 
-    public init(_ stream: MimeStream?, encoding: ContentEncoding = .default) throws {
-        guard let stream else {
-            throw MimeContentError.nilStream
-        }
+    public init(_ stream: MimeStream, encoding: ContentEncoding = .default) throws {
         guard stream.canRead else {
             throw MimeContentError.streamNotReadable
         }
@@ -48,10 +43,7 @@ public final class MimeContent {
         return filtered
     }
 
-    public func writeTo(_ destination: MimeStream?, cancellationToken: CancellationToken? = nil) throws {
-        guard let destination else {
-            throw MimeContentError.nilDestination
-        }
+    public func writeTo(_ destination: MimeStream, cancellationToken: CancellationToken? = nil) throws {
         try checkDisposed()
         guard let source = stream else {
             throw MimeContentError.disposed
@@ -74,14 +66,11 @@ public final class MimeContent {
         }
     }
 
-    public func writeToAsync(_ destination: MimeStream?, cancellationToken: CancellationToken? = nil) async throws {
+    public func writeToAsync(_ destination: MimeStream, cancellationToken: CancellationToken? = nil) async throws {
         try writeTo(destination, cancellationToken: cancellationToken)
     }
 
-    public func decodeTo(_ destination: MimeStream?, cancellationToken: CancellationToken? = nil) throws {
-        guard let destination else {
-            throw MimeContentError.nilDestination
-        }
+    public func decodeTo(_ destination: MimeStream, cancellationToken: CancellationToken? = nil) throws {
         try checkDisposed()
         guard let source = stream else {
             throw MimeContentError.disposed
@@ -108,7 +97,7 @@ public final class MimeContent {
         }
     }
 
-    public func decodeToAsync(_ destination: MimeStream?, cancellationToken: CancellationToken? = nil) async throws {
+    public func decodeToAsync(_ destination: MimeStream, cancellationToken: CancellationToken? = nil) async throws {
         try decodeTo(destination, cancellationToken: cancellationToken)
     }
 

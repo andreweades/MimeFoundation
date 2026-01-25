@@ -14,8 +14,9 @@ struct OptimizedOrdinalIgnoreCaseComparerTests {
     @Test func getHashCode() {
         let comparer = OptimizedOrdinalIgnoreCaseComparer()
 
-        #expect(throws: OptimizedOrdinalComparerError.nilString) {
-            try comparer.getHashCode(nil)
-        }
+        // getHashCode takes a non-optional String and case-insensitive
+        let hash1 = comparer.getHashCode("abc")
+        let hash2 = comparer.getHashCode("ABC")
+        #expect(hash1 == hash2)
     }
 }

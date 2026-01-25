@@ -7,13 +7,8 @@
 import Foundation
 
 public enum MimeEntityError: Error, Equatable, Sendable {
-    case nilContentType
     case invalidContentBase
     case invalidContentId
-    case nilOptions
-    case nilStream
-    case nilFilePath
-    case nilVisitor
     case invalidEntity
 }
 
@@ -163,10 +158,7 @@ open class MimeEntity {
         }
     }
 
-    open func accept(_ visitor: MimeVisitor?) throws {
-        guard let visitor else {
-            throw MimeEntityError.nilVisitor
-        }
+    open func accept(_ visitor: MimeVisitor) {
         visitor.visit(self)
     }
 
@@ -268,58 +260,43 @@ open class MimeEntity {
         headers.removeAll(id)
     }
 
-    public func writeTo(_ stream: MimeStream?) throws {
+    public func writeTo(_ stream: MimeStream) throws {
         try writeTo(.default, stream)
     }
 
-    public func writeTo(_ options: FormatOptions?, _ stream: MimeStream?) throws {
-        guard let options else {
-            throw MimeEntityError.nilOptions
-        }
-        guard let stream else {
-            throw MimeEntityError.nilStream
-        }
+    public func writeTo(_ options: FormatOptions, _ stream: MimeStream) throws {
         try writeHeaders(options, stream: stream)
         try writeBody(options, stream: stream)
     }
 
-    public func writeTo(_ options: FormatOptions?, _ filePath: String?) throws {
-        guard let options else {
-            throw MimeEntityError.nilOptions
-        }
-        guard let filePath else {
-            throw MimeEntityError.nilFilePath
-        }
+    public func writeTo(_ options: FormatOptions, _ filePath: String) throws {
         let memory = MemoryStream()
         try writeTo(options, memory)
         let data = Data(memory.toByteArray())
         try data.write(to: URL(fileURLWithPath: filePath))
     }
 
-    public func writeTo(_ filePath: String?) throws {
+    public func writeTo(_ filePath: String) throws {
         try writeTo(.default, filePath)
     }
 
-    public func writeToAsync(_ stream: MimeStream?) async throws {
+    public func writeToAsync(_ stream: MimeStream) async throws {
         try writeTo(.default, stream)
     }
 
-    public func writeToAsync(_ options: FormatOptions?, _ stream: MimeStream?) async throws {
+    public func writeToAsync(_ options: FormatOptions, _ stream: MimeStream) async throws {
         try writeTo(options, stream)
     }
 
-    public func writeToAsync(_ options: FormatOptions?, _ filePath: String?) async throws {
+    public func writeToAsync(_ options: FormatOptions, _ filePath: String) async throws {
         try writeTo(options, filePath)
     }
 
-    public func writeToAsync(_ filePath: String?) async throws {
+    public func writeToAsync(_ filePath: String) async throws {
         try writeTo(.default, filePath)
     }
 
-    public static func load(_ stream: MimeStream?) throws -> MimeEntity {
-        guard let stream else {
-            throw MimeEntityError.nilStream
-        }
+    public static func load(_ stream: MimeStream) throws -> MimeEntity {
         let bytes = try readAllBytes(from: stream)
         if let entity = try MimeMessage.parseEntity(.default, bytes) {
             return entity
@@ -327,10 +304,7 @@ open class MimeEntity {
         throw MimeEntityError.invalidEntity
     }
 
-    public static func load(_ options: ParserOptions, _ stream: MimeStream?) throws -> MimeEntity {
-        guard let stream else {
-            throw MimeEntityError.nilStream
-        }
+    public static func load(_ options: ParserOptions, _ stream: MimeStream) throws -> MimeEntity {
         let bytes = try readAllBytes(from: stream)
         if let entity = try MimeMessage.parseEntity(options, bytes) {
             return entity
@@ -338,27 +312,15 @@ open class MimeEntity {
         throw MimeEntityError.invalidEntity
     }
 
-    public static func load(_ contentType: ContentType?, _ stream: MimeStream?) throws -> MimeEntity {
-        guard let contentType else {
-            throw MimeEntityError.nilContentType
-        }
-        guard let stream else {
-            throw MimeEntityError.nilStream
-        }
+    public static func load(_ contentType: ContentType, _ stream: MimeStream) throws -> MimeEntity {
         let bytes = try readAllBytes(from: stream)
-        let isText = (try? contentType.isMimeType("text", "*")) == true
+        let isText = contentType.isMimeType("text", "*")
         let part: MimePart = isText ? TextPart(contentType) : MimePart(contentType)
         part.content = try MimeContent(MemoryStream(bytes, writable: false), encoding: part.contentTransferEncoding)
         return part
     }
 
-    public static func load(_ options: ParserOptions, _ contentType: ContentType?, _ stream: MimeStream?) throws -> MimeEntity {
-        guard let contentType else {
-            throw MimeEntityError.nilContentType
-        }
-        guard let stream else {
-            throw MimeEntityError.nilStream
-        }
+    public static func load(_ options: ParserOptions, _ contentType: ContentType, _ stream: MimeStream) throws -> MimeEntity {
         if let custom = options.makeEntity(for: contentType) as? MimePart {
             let bytes = try readAllBytes(from: stream)
             custom.contentType = contentType
@@ -368,31 +330,28 @@ open class MimeEntity {
         return try load(contentType, stream)
     }
 
-    public static func load(_ filePath: String?) throws -> MimeEntity {
-        guard let filePath else {
-            throw MimeEntityError.nilFilePath
-        }
+    public static func load(_ filePath: String) throws -> MimeEntity {
         let data = try Data(contentsOf: URL(fileURLWithPath: filePath))
         return try load(MemoryStream(Array(data), writable: false))
     }
 
-    public static func loadAsync(_ stream: MimeStream?) async throws -> MimeEntity {
+    public static func loadAsync(_ stream: MimeStream) async throws -> MimeEntity {
         try load(stream)
     }
 
-    public static func loadAsync(_ options: ParserOptions, _ stream: MimeStream?) async throws -> MimeEntity {
+    public static func loadAsync(_ options: ParserOptions, _ stream: MimeStream) async throws -> MimeEntity {
         try load(options, stream)
     }
 
-    public static func loadAsync(_ contentType: ContentType?, _ stream: MimeStream?) async throws -> MimeEntity {
+    public static func loadAsync(_ contentType: ContentType, _ stream: MimeStream) async throws -> MimeEntity {
         try load(contentType, stream)
     }
 
-    public static func loadAsync(_ options: ParserOptions, _ contentType: ContentType?, _ stream: MimeStream?) async throws -> MimeEntity {
+    public static func loadAsync(_ options: ParserOptions, _ contentType: ContentType, _ stream: MimeStream) async throws -> MimeEntity {
         try load(options, contentType, stream)
     }
 
-    public static func loadAsync(_ filePath: String?) async throws -> MimeEntity {
+    public static func loadAsync(_ filePath: String) async throws -> MimeEntity {
         try load(filePath)
     }
 

@@ -7,10 +7,7 @@
 import Foundation
 
 public enum MimeTypeError: Error, Equatable, Sendable {
-    case nilFileName
-    case nilMimeType
     case emptyMimeType
-    case nilExtension
     case emptyExtension
 }
 
@@ -44,13 +41,6 @@ public struct MimeTypeRegistry: Sendable {
         self.extensionByMimeType = mapping
     }
 
-    public func mimeType(for fileName: String?) throws -> String {
-        guard let fileName else {
-            throw MimeTypeError.nilFileName
-        }
-        return mimeType(for: fileName)
-    }
-
     public func mimeType(for fileName: String) -> String {
         let trimmed = fileName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -65,13 +55,7 @@ public struct MimeTypeRegistry: Sendable {
         return mimeTypeByExtension[key] ?? Self.defaultMimeType
     }
 
-    public mutating func register(_ mimeType: String?, _ fileExtension: String?) throws {
-        guard let mimeType else {
-            throw MimeTypeError.nilMimeType
-        }
-        guard let fileExtension else {
-            throw MimeTypeError.nilExtension
-        }
+    public mutating func register(mimeType: String, fileExtension: String) throws {
         let trimmedMime = mimeType.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedMime.isEmpty else {
             throw MimeTypeError.emptyMimeType
@@ -85,13 +69,10 @@ public struct MimeTypeRegistry: Sendable {
         extensionByMimeType[trimmedMime.lowercased()] = normalizedExt
     }
 
-    public func tryGetExtension(_ mimeType: String?) throws -> String? {
-        guard let mimeType else {
-            throw MimeTypeError.nilMimeType
-        }
+    public func extensionFor(mimeType: String) -> String? {
         let trimmed = mimeType.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            throw MimeTypeError.emptyMimeType
+            return nil
         }
         return extensionByMimeType[trimmed.lowercased()]
     }

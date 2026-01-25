@@ -6,13 +6,7 @@ import Foundation
 import Testing
 @testable import MimeFoundation
 
-@Test("MessageDispositionNotification argument exceptions")
-func messageDispositionNotificationArgumentExceptions() {
-    let mdn = MessageDispositionNotification()
-    #expect(throws: MimeEntityError.nilVisitor) {
-        try mdn.accept(nil)
-    }
-}
+// Test removed: accept no longer takes optional visitor
 
 @Test("MessageDispositionNotification parse")
 func messageDispositionNotificationParse() throws {

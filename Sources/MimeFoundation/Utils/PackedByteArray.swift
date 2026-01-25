@@ -5,8 +5,7 @@
 //
 
 public enum PackedByteArrayError: Error, Equatable, Sendable {
-    case nilBuffer
-    case indexOutOfRange
+    case indexOutOfRange(index: Int, count: Int, length: Int)
 }
 
 public final class PackedByteArray {
@@ -45,7 +44,7 @@ public final class PackedByteArray {
 
     public func copy(to array: inout [UInt8], startIndex: Int) throws {
         if startIndex < 0 || startIndex + length > array.count {
-            throw PackedByteArrayError.indexOutOfRange
+            throw PackedByteArrayError.indexOutOfRange(index: startIndex, count: array.count, length: length)
         }
 
         var index = startIndex
@@ -60,15 +59,6 @@ public final class PackedByteArray {
                 }
             }
         }
-    }
-
-    public func copy(to array: [UInt8]?, startIndex: Int) throws -> [UInt8] {
-        guard var array = array else {
-            throw PackedByteArrayError.nilBuffer
-        }
-
-        try copy(to: &array, startIndex: startIndex)
-        return array
     }
 
     private func ensureBufferSize(_ size: Int) {

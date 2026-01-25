@@ -6,29 +6,12 @@ import Testing
 import MimeFoundation
 
 @Test("HeaderListCollection argument exceptions")
-func headerListCollectionArgumentExceptions() {
+func headerListCollectionArgumentExceptions() throws {
     let collection = HeaderListCollection()
-    var array: [HeaderList]? = Array(repeating: HeaderList(), count: 10)
+    var array: [HeaderList] = Array(repeating: HeaderList(), count: 10)
 
     #expect(throws: (any Error).self) {
-        try collection.add(nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try collection.contains(nil)
-    }
-
-    var nilArray: [HeaderList]? = nil
-    #expect(throws: (any Error).self) {
-        try collection.copyTo(&nilArray, arrayIndex: 0)
-    }
-
-    #expect(throws: (any Error).self) {
-        try collection.copyTo(&array, arrayIndex: -1)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try collection.remove(nil)
+        try collection.copyTo(&array, startingAt: -1)
     }
 
     #expect(throws: (any Error).self) {
@@ -41,10 +24,6 @@ func headerListCollectionArgumentExceptions() {
 
     collection.add(HeaderList())
 
-    #expect(throws: (any Error).self) {
-        try collection.replaceGroup(at: 0, with: nil)
-    }
-
     do {
         try collection.replaceGroup(at: 0, with: HeaderList())
     } catch {
@@ -53,20 +32,15 @@ func headerListCollectionArgumentExceptions() {
 }
 
 @Test("HeaderListCollection copyTo")
-func headerListCollectionCopyTo() {
+func headerListCollectionCopyTo() throws {
     let collection = HeaderListCollection()
-    var array: [HeaderList]? = [HeaderList()]
+    var array: [HeaderList] = [HeaderList()]
 
     collection.add(HeaderList())
 
-    do {
-        try collection.copyTo(&array, arrayIndex: 0)
-    } catch {
-        Issue.record("Unexpected error: \(error)")
-        return
-    }
+    try collection.copyTo(&array, startingAt: 0)
 
-    #expect(array?[0] === collection[0])
+    #expect(array[0] === collection[0])
 }
 
 @Test("HeaderListCollection remove")

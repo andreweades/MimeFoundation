@@ -5,26 +5,7 @@
 import Testing
 import MimeFoundation
 
-@Test("MultipartReport argument exceptions")
-func multipartReportArgumentExceptions() throws {
-    let report = try MultipartReport("disposition-notification")
-
-    #expect(throws: (any Error).self) {
-        _ = try MultipartReport(reportType: "disposition-notification", args: nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        _ = try MultipartReport(reportType: "", args: nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        try report.setReportType(nil)
-    }
-
-    #expect(throws: (any Error).self) {
-        try report.accept(nil)
-    }
-}
+// Test removed: args no longer takes nil, accept no longer takes optional visitor
 
 @Test("MultipartReport generic args constructor")
 func multipartReportGenericArgsConstructor() throws {

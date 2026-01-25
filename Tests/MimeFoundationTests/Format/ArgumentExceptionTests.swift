@@ -5,13 +5,7 @@
 import Testing
 @testable import MimeFoundation
 
-@Test("Argument exceptions: MimeEntity accept nil visitor")
-func argumentExceptionsAcceptNilVisitor() {
-    let part = TextPart("plain")
-    #expect(throws: MimeEntityError.nilVisitor) {
-        try part.accept(nil)
-    }
-}
+// Test removed: accept no longer takes optional visitor
 
 @Test("Argument exceptions: Crc32 update invalid range")
 func argumentExceptionsCrc32UpdateInvalidRange() {

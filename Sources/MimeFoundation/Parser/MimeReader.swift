@@ -7,7 +7,6 @@
 import Foundation
 
 public enum MimeReaderError: Error, Equatable, Sendable {
-    case nilStream
 }
 
 internal struct LineInfo {
@@ -471,7 +470,7 @@ private extension MimeReader {
             }
             return try? ContentType("application", "octet-stream")
         }
-        if let parent, (try? parent.isMimeType("multipart", "digest")) == true {
+        if let parent, parent.isMimeType("multipart", "digest") {
             return try? ContentType("message", "rfc822")
         }
         return try? ContentType("text", "plain")
@@ -516,7 +515,7 @@ private extension MimeReader {
                 return false
             }
         }
-        return (try? contentType.isMimeType("text", "rfc822-headers")) ?? false
+        return contentType.isMimeType("text", "rfc822-headers")
     }
 
     func isBoundaryLine(_ line: ArraySlice<UInt8>, boundary: [UInt8]) -> Bool {
