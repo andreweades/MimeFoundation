@@ -10,6 +10,9 @@ public enum HtmlAttributeId: String, Sendable {
     case src = "src"
     case alt = "alt"
     case xmlns = "xmlns"
+    case httpEquiv = "http-equiv"
+    case content = "content"
+    case charset = "charset"
 }
 
 public enum HtmlAttributeIdUtils {
@@ -17,7 +20,10 @@ public enum HtmlAttributeIdUtils {
         "href": .href,
         "src": .src,
         "alt": .alt,
-        "xmlns": .xmlns
+        "xmlns": .xmlns,
+        "http-equiv": .httpEquiv,
+        "content": .content,
+        "charset": .charset
     ]
 
     public static func toAttributeName(_ id: HtmlAttributeId) -> String {

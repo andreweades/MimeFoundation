@@ -42,6 +42,9 @@ open class TnefPart: MimePart {
 
     private static func extractTnefMessage(_ reader: TnefReader) throws -> MimeMessage {
         let message = MimeMessage()
+        // Remove auto-generated date and messageId - these should come from TNEF properties
+        message.headers.removeAll(.date)
+        message.headers.removeAll(.messageId)
         let alternatives = MultipartAlternative()
         var body: MimeEntity? = nil
 
@@ -144,16 +147,119 @@ open class TnefPart: MimePart {
         var name: String?
         var addr: String?
 
+        private var canUseSearchKey: Bool {
+            guard let key = searchKey else { return false }
+            return key.uppercased().hasPrefix("SMTP") &&
+                   key.count > addrType.count &&
+                   key.hasPrefix(addrType) &&
+                   key[key.index(key.startIndex, offsetBy: addrType.count)] == ":"
+        }
+
         func tryGetMailboxAddress() -> MailboxAddress? {
             var address = addr
-            if (address == nil || address!.isEmpty), let key = searchKey, key.lowercased().hasPrefix("smtp:") {
-                address = String(key.dropFirst(5))
+            if (address == nil || address!.isEmpty), canUseSearchKey, let key = searchKey {
+                address = String(key.dropFirst(addrType.count + 1))
             }
-            
+
             guard let address = address, !address.isEmpty else { return nil }
-            
+
+            // Try to parse the address properly
+            if let mailbox = try? MailboxAddress(parsing: address) {
+                if let n = name, !n.isEmpty {
+                    return MailboxAddress(name: n, address: mailbox.address)
+                }
+                return mailbox
+            }
+
             return MailboxAddress(name: name ?? "", address: address)
         }
+    }
+
+    private static func isStringProperty(_ prop: TnefPropertyReader) -> Bool {
+        let type = prop.propertyTag.type
+        return type == .string8 || type == .unicode || type == .binary
+    }
+
+    private static func getHtmlBody(_ prop: TnefPropertyReader, _ codepage: Int) throws -> (text: String, encoding: String.Encoding) {
+        let rawValue = try prop.readValueAsBytes()
+        var rawLength = rawValue.count
+
+        // Trim trailing nulls
+        while rawLength > 0 && rawValue[rawLength - 1] == 0 {
+            rawLength -= 1
+        }
+
+        if rawLength == 0 {
+            return ("", .utf8)
+        }
+
+        // Try and extract the charset from the HTML meta Content-Type value.
+        // First decode as Latin1 to parse the HTML structure
+        guard let htmlText = String(data: Data(rawValue[0..<rawLength]), encoding: .isoLatin1) else {
+            let encoding = CharsetUtils.getEncoding(codepage: codepage) ?? .isoLatin1
+            let text = String(data: Data(rawValue[0..<rawLength]), encoding: encoding) ?? ""
+            return (text, encoding)
+        }
+
+        let reader = StringReader(htmlText)
+        let tokenizer = HtmlTokenizer(reader)
+
+        while let token = tokenizer.readNextToken() {
+            guard token.kind == HtmlTokenKind.tag else { continue }
+            guard let tag = token as? HtmlTagToken else { continue }
+
+            // Stop at body or end of head
+            if tag.id == HtmlTagId.body || (tag.id == HtmlTagId.head && tag.isEndTag) {
+                break
+            }
+
+            // Look for <meta http-equiv="Content-Type" content="...">
+            if tag.id != HtmlTagId.meta || tag.isEndTag {
+                continue
+            }
+
+            var httpEquiv: String?
+            var content: String?
+
+            for attr in tag.attributes {
+                let attrName = attr.name.lowercased()
+                if attrName == "http-equiv", httpEquiv == nil {
+                    httpEquiv = attr.value
+                } else if attrName == "content", content == nil {
+                    content = attr.value
+                } else if attrName == "charset" {
+                    // <meta charset="...">
+                    if let charsetValue = attr.value, !charsetValue.isEmpty {
+                        if let encoding = CharsetUtils.getEncoding(charsetValue) {
+                            if let decoded = String(data: Data(rawValue[0..<rawLength]), encoding: encoding) {
+                                return (decoded, encoding)
+                            }
+                        }
+                    }
+                }
+            }
+
+            guard let httpEquiv = httpEquiv, let content = content else { continue }
+            guard httpEquiv.caseInsensitiveCompare("Content-Type") == .orderedSame else { continue }
+
+            // Parse the Content-Type to extract charset
+            guard let ct = try? ContentType(parsing: content), let charset = ct.charset, !charset.isEmpty else {
+                break
+            }
+
+            // Try to decode with this charset
+            if let encoding = CharsetUtils.getEncoding(charset) {
+                if let decoded = String(data: Data(rawValue[0..<rawLength]), encoding: encoding) {
+                    return (decoded, encoding)
+                }
+            }
+            break
+        }
+
+        // Fall back to the TNEF message codepage
+        let encoding = CharsetUtils.getEncoding(codepage: codepage) ?? .isoLatin1
+        let text = String(data: Data(rawValue[0..<rawLength]), encoding: encoding) ?? ""
+        return (text, encoding)
     }
 
     private static func extractMapiProperties(_ reader: TnefReader, _ message: MimeMessage, _ alternatives: MultipartAlternative) throws {
@@ -162,54 +268,114 @@ open class TnefPart: MimePart {
         let recipient = TnefEmailAddress()
         var normalizedSubject: String? = nil
         var subjectPrefix: String? = nil
+        var msgidSet = false
 
         while try prop.readNextProperty() {
             switch prop.propertyTag.id {
             case .internetMessageId:
-                message.messageId = try prop.readValueAsString()
-            case .subject:
-                message.subject = try prop.readValueAsString()
-            case .subjectPrefix:
-                subjectPrefix = try prop.readValueAsString()
-            case .normalizedSubject:
-                normalizedSubject = try prop.readValueAsString()
-            case .senderName:
-                sender.name = try prop.readValueAsString()
-            case .senderEmailAddress:
-                sender.addr = try prop.readValueAsString()
-            case .senderSearchKey:
-                sender.searchKey = try prop.readValueAsString()
-            case .receivedByName:
-                recipient.name = try prop.readValueAsString()
-            case .receivedByEmailAddress:
-                recipient.addr = try prop.readValueAsString()
-            case .receivedBySearchKey:
-                recipient.searchKey = try prop.readValueAsString()
-            case .rtfCompressed:
-                let converter = RtfCompressedToRtf()
-                let content = MemoryBlockStream()
-                let filtered = try FilteredStream(content)
-                try filtered.add(converter)
-                let compressed = prop.getRawValueReadStream()
-                var buffer = [UInt8](repeating: 0, count: 4096)
-                while true {
-                    let n = try compressed.read(&buffer, offset: 0, count: buffer.count)
-                    if n <= 0 { break }
-                    try filtered.write(buffer, offset: 0, count: n)
+                if isStringProperty(prop) {
+                    message.messageId = try prop.readValueAsString()
+                    msgidSet = true
                 }
-                try filtered.flush()
-                content.position = 0
-                let rtf = TextPart("rtf")
-                rtf.content = MimeContent(content)
-                try alternatives.add(rtf)
+            case .tnefCorrelationKey:
+                // According to MSDN, PidTagTnefCorrelationKey is a unique key that is
+                // meant to be used to tie the TNEF attachment to the encapsulating
+                // message. It can be a string or a binary blob. It seems that most
+                // implementations use the Message-Id string, so if this property
+                // value looks like a Message-Id, then use it as one (unless we get a
+                // InternetMessageId property, in which case we use that instead.
+                if isStringProperty(prop) && !msgidSet {
+                    let value = try prop.readValueAsString()
+                    // Check if it looks like a message-id (contains @ and is reasonably formatted)
+                    if value.count > 5 && value.contains("@") {
+                        if value.first == "<" && value.last == ">" {
+                            message.messageId = value
+                        } else {
+                            // Try wrapping in angle brackets for parsing
+                            message.messageId = "<\(value)>"
+                        }
+                    }
+                }
+            case .subject:
+                if isStringProperty(prop) {
+                    message.subject = try prop.readValueAsString()
+                }
+            case .subjectPrefix:
+                if isStringProperty(prop) {
+                    subjectPrefix = try prop.readValueAsString()
+                }
+            case .normalizedSubject:
+                if isStringProperty(prop) {
+                    normalizedSubject = try prop.readValueAsString()
+                }
+            case .senderName:
+                if isStringProperty(prop) {
+                    sender.name = try prop.readValueAsString()
+                }
+            case .senderEmailAddress:
+                if isStringProperty(prop) {
+                    sender.addr = try prop.readValueAsString()
+                }
+            case .senderSearchKey:
+                if isStringProperty(prop) {
+                    sender.searchKey = try prop.readValueAsString()
+                }
+            case .senderAddrtype:
+                if isStringProperty(prop) {
+                    sender.addrType = try prop.readValueAsString()
+                }
+            case .receivedByName:
+                if isStringProperty(prop) {
+                    recipient.name = try prop.readValueAsString()
+                }
+            case .receivedByEmailAddress:
+                if isStringProperty(prop) {
+                    recipient.addr = try prop.readValueAsString()
+                }
+            case .receivedBySearchKey:
+                if isStringProperty(prop) {
+                    recipient.searchKey = try prop.readValueAsString()
+                }
+            case .receivedByAddrtype:
+                if isStringProperty(prop) {
+                    recipient.addrType = try prop.readValueAsString()
+                }
+            case .rtfCompressed:
+                if isStringProperty(prop) {
+                    let converter = RtfCompressedToRtf()
+                    let content = MemoryBlockStream()
+                    let filtered = try FilteredStream(content)
+                    try filtered.add(converter)
+                    let compressed = prop.getRawValueReadStream()
+                    var buffer = [UInt8](repeating: 0, count: 4096)
+                    while true {
+                        let n = try compressed.read(&buffer, offset: 0, count: buffer.count)
+                        if n <= 0 { break }
+                        try filtered.write(buffer, offset: 0, count: n)
+                    }
+                    try filtered.flush()
+                    content.position = 0
+                    let rtf = TextPart("rtf")
+                    rtf.content = MimeContent(content)
+                    try alternatives.add(rtf)
+                }
             case .bodyHtml:
-                let html = TextPart("html")
-                html.text = try prop.readValueAsString()
-                try alternatives.add(html)
+                if isStringProperty(prop) {
+                    let html = TextPart("html")
+                    if prop.propertyTag.type != .unicode {
+                        let (text, encoding) = try getHtmlBody(prop, reader.messageCodepage)
+                        html.setText(encoding, text)
+                    } else {
+                        html.text = try prop.readValueAsString()
+                    }
+                    try alternatives.add(html)
+                }
             case .body:
-                let plain = TextPart("plain")
-                plain.text = try prop.readValueAsString()
-                try alternatives.add(plain)
+                if isStringProperty(prop) {
+                    let plain = TextPart("plain")
+                    plain.text = try prop.readValueAsString()
+                    try alternatives.add(plain)
+                }
             case .importance:
                 let val = try prop.readValueAsInt32()
                 switch val {
@@ -224,6 +390,17 @@ open class TnefPart: MimePart {
                 case 1: message.priority = .urgent
                 case 0: message.priority = .normal
                 case -1: message.priority = .nonUrgent
+                default: break
+                }
+            case .sensitivity:
+                // https://msdn.microsoft.com/en-us/library/ee217353(v=exchg.80).aspx
+                // https://tools.ietf.org/html/rfc2156#section-5.3.4
+                let val = try prop.readValueAsInt32()
+                switch val {
+                case 1: message.headers[.sensitivity] = "Personal"
+                case 2: message.headers[.sensitivity] = "Private"
+                case 3: message.headers[.sensitivity] = "Company-Confidential"
+                case 0: message.headers.removeAll(.sensitivity)
                 default: break
                 }
             default:
@@ -247,10 +424,28 @@ open class TnefPart: MimePart {
         }
     }
 
+    private static func promoteToTnefPart(_ part: MimePart) -> TnefPart {
+        let tnef = TnefPart()
+
+        for param in part.contentType.parameters {
+            tnef.contentType.parameters[param.name] = param.value
+        }
+
+        if let contentDisposition = part.contentDisposition {
+            tnef.contentDisposition = contentDisposition.copy()
+        }
+
+        tnef.contentTransferEncoding = part.contentTransferEncoding
+
+        return tnef
+    }
+
     private static func extractAttachments(_ reader: TnefReader, _ attachments: Multipart) throws {
         var attachMethod: TnefAttachMethod = .byValue
+        let filter = BestEncodingFilter()
         let prop = reader.tnefPropertyReader!
         var attachment: MimePart? = nil
+        var attachData: [UInt8]? = nil
 
         repeat {
             if reader.attributeLevel != .attachment {
@@ -262,8 +457,8 @@ open class TnefPart: MimePart {
                 attachMethod = .byValue
                 attachment = MimePart()
             case .attachment:
-                guard let part = attachment else { break }
-                var attachData: [UInt8]? = nil
+                guard var part = attachment else { break }
+                attachData = nil
 
                 while try prop.readNextProperty() {
                     switch prop.propertyTag.id {
@@ -273,29 +468,149 @@ open class TnefPart: MimePart {
                         if part.fileName == nil {
                             part.fileName = try prop.readValueAsString()
                         }
+                    case .attachContentLocation:
+                        part.contentLocation = try prop.readValueAsUri()
+                    case .attachContentBase:
+                        part.contentBase = try prop.readValueAsUri()
+                    case .attachContentId:
+                        let text = try prop.readValueAsString()
+                        let buffer = Array(text.utf8)
+                        var index = 0
+                        var msgid: String? = nil
+                        if (try? ParseUtils.tryParseMsgId(buffer, index: &index, endIndex: buffer.count, requireAngleAddr: false, throwOnError: false, msgid: &msgid)) == true,
+                           let msgid = msgid {
+                            part.contentId = msgid
+                        }
+                    case .attachDisposition:
+                        let text = try prop.readValueAsString()
+                        if let disposition = try? ContentDisposition(parsing: text) {
+                            part.contentDisposition = disposition
+                        }
                     case .attachData:
                         attachData = try prop.readValueAsBytes()
                     case .attachMethod:
                         attachMethod = TnefAttachMethod(rawValue: Int(try prop.readValueAsInt32())) ?? .byValue
+                    case .attachMimeTag:
+                        let mimeType = try prop.readValueAsString().split(separator: "/")
+                        if mimeType.count == 2 {
+                            part.contentType.mediaType = String(mimeType[0]).trimmingCharacters(in: .whitespaces)
+                            part.contentType.mediaSubtype = String(mimeType[1]).trimmingCharacters(in: .whitespaces)
+                        }
+                    case .attachFlags:
+                        let flags = TnefAttachFlags(rawValue: Int(try prop.readValueAsInt32()))
+                        if flags.contains(.renderedInBody) {
+                            if part.contentDisposition == nil {
+                                part.contentDisposition = try? ContentDisposition(ContentDisposition.inline)
+                            } else {
+                                try? part.contentDisposition?.setDisposition(ContentDisposition.inline)
+                            }
+                        }
+                    case .attachSize:
+                        if part.contentDisposition == nil {
+                            part.contentDisposition = try? ContentDisposition()
+                        }
+                        part.contentDisposition?.size = try prop.readValueAsInt64()
+                    case .displayName:
+                        part.contentType.name = try prop.readValueAsString()
                     default:
                         break
                     }
                 }
 
                 if let data = attachData {
+                    var index = 0
+                    var count = data.count
+
                     if attachMethod == .embeddedMessage {
-                        // Handle embedded TNEF message
-                        let tnef = TnefPart()
-                        tnef.content = MimeContent(MemoryStream(Array(data.dropFirst(16)), writable: false))
-                        try attachments.add(tnef)
+                        part.contentTransferEncoding = .base64
+                        part = promoteToTnefPart(part)
+                        attachment = part
+                        count -= 16
+                        index = 16
+                    } else if part.contentType.isMimeType("text", "*") {
+                        var outputIndex = 0
+                        var outputLength = 0
+                        _ = filter.flush(Array(data[index..<(index + count)]), startIndex: 0, length: count, outputIndex: &outputIndex, outputLength: &outputLength)
+                        part.contentTransferEncoding = (try? filter.getBestEncoding(.sevenBit)) ?? .base64
+                        filter.reset()
                     } else {
-                        part.content = MimeContent(MemoryStream(data, writable: false))
-                        try attachments.add(part)
+                        part.contentTransferEncoding = .base64
                     }
+
+                    part.content = MimeContent(MemoryStream(Array(data[index..<(index + count)]), writable: false))
+                    try attachments.add(part)
                 }
+            case .attachCreateDate:
+                if let part = attachment {
+                    if part.contentDisposition == nil {
+                        part.contentDisposition = try? ContentDisposition()
+                    }
+                    part.contentDisposition?.creationDate = try prop.readValueAsDateTime()
+                }
+            case .attachModifyDate:
+                if let part = attachment {
+                    if part.contentDisposition == nil {
+                        part.contentDisposition = try? ContentDisposition()
+                    }
+                    part.contentDisposition?.modificationDate = try prop.readValueAsDateTime()
+                }
+            case .attachTitle:
+                if let part = attachment, (part.fileName == nil || part.fileName!.isEmpty) {
+                    part.fileName = try prop.readValueAsString()
+                }
+            case .attachData:
+                guard let part = attachment, attachMethod == .byValue else { break }
+
+                attachData = try prop.readValueAsBytes()
+
+                if part.contentType.isMimeType("text", "*") {
+                    var outputIndex = 0
+                    var outputLength = 0
+                    _ = filter.flush(attachData!, startIndex: 0, length: attachData!.count, outputIndex: &outputIndex, outputLength: &outputLength)
+                    part.contentTransferEncoding = (try? filter.getBestEncoding(.sevenBit)) ?? .base64
+                    filter.reset()
+                } else {
+                    part.contentTransferEncoding = .base64
+                }
+
+                part.content = MimeContent(MemoryStream(attachData!, writable: false))
+                try attachments.add(part)
             default:
                 break
             }
         } while try reader.readNextAttribute()
+    }
+
+    /// Extract the embedded attachments from the TNEF data.
+    ///
+    /// Parses the TNEF data and extracts all the embedded file attachments.
+    /// - Returns: An array of extracted MIME entities.
+    /// - Throws: `StreamError.notSupported` if the `content` property is `nil`.
+    public func extractAttachments() throws -> [MimeEntity] {
+        let message = try convertToMessage()
+        let body = message.body
+        message.body = nil
+
+        var results = [MimeEntity]()
+
+        if let multipart = body as? Multipart {
+            if multipart.count > 0, let alternatives = multipart[0] as? MultipartAlternative {
+                for i in 0..<alternatives.count {
+                    results.append(alternatives[i])
+                }
+                alternatives.clear()
+                try multipart.remove(at: 0)
+            }
+
+            for i in 0..<multipart.count {
+                results.append(multipart[i])
+            }
+
+            multipart.clear()
+        } else if let entity = body {
+            results.append(entity)
+        }
+
+        return results
     }
 }

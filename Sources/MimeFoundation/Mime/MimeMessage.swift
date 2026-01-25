@@ -602,6 +602,20 @@ public final class MimeMessage {
                 part.content = MimeContent(MemoryStream(Array(bodyBytes), writable: false), encoding: encoding)
             }
             entity = part
+        case ("application", "vnd.ms-tnef"), ("application", "ms-tnef"):
+            let resolvedContentType: ContentType
+            if let contentType {
+                resolvedContentType = contentType
+            } else {
+                resolvedContentType = try ContentType("application", "vnd.ms-tnef")
+            }
+            let part = (customEntity as? TnefPart) ?? TnefPart(resolvedContentType)
+            applyHeaders(part)
+            if !bodyBytes.isEmpty {
+                let encoding = part.contentTransferEncoding
+                part.content = MimeContent(MemoryStream(Array(bodyBytes), writable: false), encoding: encoding)
+            }
+            entity = part
         case ("text", _), ("application", "rtf"):
             let subtype = mediaSubtype.isEmpty ? "plain" : mediaSubtype
             let part = (customEntity as? TextPart) ?? TextPart(subtype)
