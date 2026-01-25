@@ -13,7 +13,7 @@ public enum HeaderListChangedAction: Sendable {
     case cleared
 }
 
-public final class HeaderList: RandomAccessCollection, MutableCollection, CustomStringConvertible {
+public final class HeaderList: RandomAccessCollection, MutableCollection, RangeReplaceableCollection, CustomStringConvertible {
     public typealias Element = Header
     public typealias Index = Int
 
@@ -22,7 +22,12 @@ public final class HeaderList: RandomAccessCollection, MutableCollection, Custom
 
     internal var changed: ((HeaderListChangedAction, Header?) -> Void)?
 
-    public init(_ options: ParserOptions = .default) {
+    public init() {
+        self.headers = []
+        self.options = .default
+    }
+
+    public init(_ options: ParserOptions) {
         self.headers = []
         self.options = options
     }
@@ -150,6 +155,18 @@ public final class HeaderList: RandomAccessCollection, MutableCollection, Custom
         }
         headers.removeAll(keepingCapacity: true)
         onChanged(.cleared, header: nil)
+    }
+
+    public func replaceSubrange<C>(_ subrange: Range<Int>, with newElements: C) where C: Collection, C.Element == Header {
+        for i in subrange {
+            headers[i].changed = nil
+        }
+        let newArray = Array(newElements)
+        for header in newArray {
+            attach(header)
+        }
+        headers.replaceSubrange(subrange, with: newArray)
+        onChanged(.changed, header: nil)
     }
 
     public func contains(_ id: HeaderId) -> Bool {

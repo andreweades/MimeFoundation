@@ -16,7 +16,7 @@ public enum AttachmentCollectionError: Error, Equatable, Sendable {
     case indexOutOfRange
 }
 
-public final class AttachmentCollection: RandomAccessCollection, MutableCollection {
+public final class AttachmentCollection: RandomAccessCollection, MutableCollection, RangeReplaceableCollection {
     public typealias Element = MimeEntity
     public typealias Index = Int
 
@@ -31,7 +31,13 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
     private let linkedResources: Bool
     private let mimeTypes: MimeTypeRegistry
 
-    public init(_ linkedResources: Bool = false, mimeTypes: MimeTypeRegistry = .default) {
+    public init() {
+        self.attachments = []
+        self.linkedResources = false
+        self.mimeTypes = .default
+    }
+
+    public init(_ linkedResources: Bool, mimeTypes: MimeTypeRegistry = .default) {
         self.attachments = []
         self.linkedResources = linkedResources
         self.mimeTypes = mimeTypes
@@ -200,6 +206,10 @@ public final class AttachmentCollection: RandomAccessCollection, MutableCollecti
     public func clear(_ dispose: Bool = false) {
         attachments.removeAll(keepingCapacity: true)
         _ = dispose
+    }
+
+    public func replaceSubrange<C>(_ subrange: Range<Int>, with newElements: C) where C: Collection, C.Element == MimeEntity {
+        attachments.replaceSubrange(subrange, with: newElements)
     }
 
     private func append(_ attachment: MimeEntity) -> MimeEntity {

@@ -6,7 +6,7 @@
 
 import Foundation
 
-public final class InternetAddressList: RandomAccessCollection, MutableCollection, Equatable, Comparable, CustomStringConvertible {
+public final class InternetAddressList: RandomAccessCollection, MutableCollection, RangeReplaceableCollection, Equatable, Comparable, CustomStringConvertible {
     public typealias Element = InternetAddress
     public typealias Index = Int
 
@@ -115,6 +115,20 @@ public final class InternetAddressList: RandomAccessCollection, MutableCollectio
             address.changed = nil
         }
         list.removeAll(keepingCapacity: true)
+        onChanged()
+    }
+
+    public func replaceSubrange<C>(_ subrange: Range<Int>, with newElements: C) where C: Collection, C.Element == InternetAddress {
+        for i in subrange {
+            list[i].changed = nil
+        }
+        let newArray = Array(newElements)
+        for address in newArray {
+            address.changed = { [weak self] _ in
+                self?.onChanged()
+            }
+        }
+        list.replaceSubrange(subrange, with: newArray)
         onChanged()
     }
 

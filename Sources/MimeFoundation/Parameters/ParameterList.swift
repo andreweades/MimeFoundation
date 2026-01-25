@@ -12,7 +12,7 @@ public enum ParameterListError: Error, Equatable, Sendable {
     case insufficientCapacity(required: Int, available: Int)
 }
 
-public final class ParameterList: RandomAccessCollection, MutableCollection, ExpressibleByArrayLiteral, Equatable {
+public final class ParameterList: RandomAccessCollection, MutableCollection, RangeReplaceableCollection, ExpressibleByArrayLiteral, Equatable {
     public typealias Element = Parameter
     public typealias Index = Int
 
@@ -192,6 +192,18 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Exp
             detach(param)
         }
         parameters.removeAll(keepingCapacity: true)
+        onChanged()
+    }
+
+    public func replaceSubrange<C>(_ subrange: Range<Int>, with newElements: C) where C: Collection, C.Element == Parameter {
+        for i in subrange {
+            detach(parameters[i])
+        }
+        let newArray = Array(newElements)
+        for param in newArray {
+            attach(param)
+        }
+        parameters.replaceSubrange(subrange, with: newArray)
         onChanged()
     }
 

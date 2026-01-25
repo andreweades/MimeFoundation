@@ -10,7 +10,7 @@ public enum MessageIdListError: Error, Equatable, Sendable {
     case indexOutOfRange
 }
 
-public final class MessageIdList: RandomAccessCollection, MutableCollection, CustomStringConvertible {
+public final class MessageIdList: RandomAccessCollection, MutableCollection, RangeReplaceableCollection, CustomStringConvertible {
     public typealias Element = String
     public typealias Index = Int
 
@@ -102,6 +102,11 @@ public final class MessageIdList: RandomAccessCollection, MutableCollection, Cus
 
     public func clear() {
         items.removeAll(keepingCapacity: true)
+        onChanged()
+    }
+
+    public func replaceSubrange<C>(_ subrange: Range<Int>, with newElements: C) where C: Collection, C.Element == String {
+        items.replaceSubrange(subrange, with: newElements.map { MessageIdList.normalize($0) })
         onChanged()
     }
 

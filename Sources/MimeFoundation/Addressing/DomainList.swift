@@ -6,7 +6,7 @@
 
 import Foundation
 
-public final class DomainList: RandomAccessCollection, MutableCollection, CustomStringConvertible, Equatable {
+public final class DomainList: RandomAccessCollection, MutableCollection, RangeReplaceableCollection, CustomStringConvertible, Equatable {
     public typealias Element = String
     public typealias Index = Int
 
@@ -80,6 +80,11 @@ public final class DomainList: RandomAccessCollection, MutableCollection, Custom
 
     public func clear() {
         domains.removeAll(keepingCapacity: true)
+        onChanged()
+    }
+
+    public func replaceSubrange<C>(_ subrange: Range<Int>, with newElements: C) where C: Collection, C.Element == String {
+        domains.replaceSubrange(subrange, with: newElements)
         onChanged()
     }
 
