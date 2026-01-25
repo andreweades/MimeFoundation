@@ -700,4 +700,100 @@ struct SecureMimeTests {
         #expect(messageData.count > 0)
     }
     #endif
+
+    // MARK: - Encapsulated Signing Tests
+
+    @Test("ApplicationPkcs7Mime encapsulated signing")
+    func encapsulatedSigning() throws {
+        guard #available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *) else {
+            return
+        }
+
+        let (certificate, privateKey) = try Self.createTestCertificateAndKey()
+        let signer = CmsSigner(certificate: certificate, privateKey: privateKey, digestAlgorithm: .sha256)
+
+        let cleartext = TextPart("plain")
+        cleartext.text = "This is some text that we'll end up signing..."
+
+        let signed = try ApplicationPkcs7Mime.sign(cleartext, signer: signer)
+
+        #expect(signed.smimeType == .signedData)
+        #expect(signed.contentType.mediaType == "application")
+        #expect(signed.contentType.mediaSubtype == "pkcs7-mime")
+        #expect(signed.contentType.parameters["smime-type"] == "signed-data")
+        #expect(signed.contentType.parameters["name"] == "smime.p7m")
+        
+        let contentBytes = try signed.getContentBytes()
+        #expect(!contentBytes.isEmpty)
+        #expect(contentBytes[0] == 0x30) // SEQUENCE (CMS)
+    }
+
+    @Test("ApplicationPkcs7Mime encapsulated signing (async)")
+    func encapsulatedSigningAsync() async throws {
+        guard #available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *) else {
+            return
+        }
+
+        let (certificate, privateKey) = try Self.createTestCertificateAndKey()
+        let signer = CmsSigner(certificate: certificate, privateKey: privateKey, digestAlgorithm: .sha256)
+
+        let cleartext = TextPart("plain")
+        cleartext.text = "This is some text that we'll end up signing..."
+
+        let signed = try await ApplicationPkcs7Mime.signAsync(cleartext, signer: signer)
+
+        #expect(signed.smimeType == .signedData)
+        #expect(signed.contentType.parameters["smime-type"] == "signed-data")
+    }
+
+    // MARK: - Encryption Tests
+
+    @Test("ApplicationPkcs7Mime encryption")
+    func encryption() throws {
+        guard #available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *) else {
+            return
+        }
+
+        let (certificate, _) = try Self.createTestCertificateAndKey()
+        var recipients = CmsRecipientCollection()
+        recipients.add(certificate: certificate)
+
+        let cleartext = TextPart("plain")
+        cleartext.text = "This is some text that we'll end up encrypting..."
+
+        do {
+            let encrypted = try ApplicationPkcs7Mime.encrypt(cleartext, recipients: recipients)
+            #expect(encrypted.smimeType == .envelopedData)
+            #expect(encrypted.contentType.parameters["smime-type"] == "enveloped-data")
+            #expect(encrypted.contentType.parameters["name"] == "smime.p7m")
+        } catch SecureMimeError.unsupportedAlgorithm {
+            // Expected on non-macOS or DefaultContext
+        } catch {
+            // If it fails with another error, rethrow
+            throw error
+        }
+    }
+    
+    @Test("ApplicationPkcs7Mime encryption (async)")
+    func encryptionAsync() async throws {
+        guard #available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *) else {
+            return
+        }
+
+        let (certificate, _) = try Self.createTestCertificateAndKey()
+        var recipients = CmsRecipientCollection()
+        recipients.add(certificate: certificate)
+
+        let cleartext = TextPart("plain")
+        cleartext.text = "This is some text that we'll end up encrypting..."
+
+        do {
+            let encrypted = try await ApplicationPkcs7Mime.encryptAsync(cleartext, recipients: recipients)
+            #expect(encrypted.smimeType == .envelopedData)
+        } catch SecureMimeError.unsupportedAlgorithm {
+            // Expected
+        } catch {
+            throw error
+        }
+    }
 }

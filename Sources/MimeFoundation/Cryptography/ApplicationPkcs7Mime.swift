@@ -101,4 +101,80 @@ public class ApplicationPkcs7Mime: MimePart {
     public override func accept(_ visitor: MimeVisitor) {
         visitor.visit(self)
     }
+
+    // MARK: - Static Factory Methods
+
+    /// Signs the entity and returns an `ApplicationPkcs7Mime` (signed-data).
+    ///
+    /// - Parameters:
+    ///   - entity: The MIME entity to sign.
+    ///   - signer: The CMS signer to use.
+    ///   - context: The S/MIME context to use. Defaults to `DefaultSecureMimeContext.shared`.
+    /// - Returns: A new `ApplicationPkcs7Mime` containing the signed content.
+    /// - Throws: `SecureMimeError` if signing fails.
+    @available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *)
+    public static func sign(
+        _ entity: MimeEntity,
+        signer: CmsSigner,
+        context: SecureMimeContext = DefaultSecureMimeContext.shared
+    ) throws -> ApplicationPkcs7Mime {
+        let contentBytes = try context.serializeEntity(entity)
+        let signatureBytes = try context.sign(signer, content: contentBytes, detached: false)
+        return ApplicationPkcs7Mime(signatureBytes, smimeType: .signedData)
+    }
+
+    /// Asynchronously signs the entity and returns an `ApplicationPkcs7Mime` (signed-data).
+    ///
+    /// - Parameters:
+    ///   - entity: The MIME entity to sign.
+    ///   - signer: The CMS signer to use.
+    ///   - context: The S/MIME context to use. Defaults to `DefaultSecureMimeContext.shared`.
+    /// - Returns: A new `ApplicationPkcs7Mime` containing the signed content.
+    /// - Throws: `SecureMimeError` if signing fails.
+    @available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *)
+    public static func signAsync(
+        _ entity: MimeEntity,
+        signer: CmsSigner,
+        context: SecureMimeContext = DefaultSecureMimeContext.shared
+    ) async throws -> ApplicationPkcs7Mime {
+        let contentBytes = try context.serializeEntity(entity)
+        let signatureBytes = try await context.signAsync(signer, content: contentBytes, detached: false)
+        return ApplicationPkcs7Mime(signatureBytes, smimeType: .signedData)
+    }
+
+    /// Encrypts the entity and returns an `ApplicationPkcs7Mime` (enveloped-data).
+    ///
+    /// - Parameters:
+    ///   - recipients: The recipients who will be able to decrypt the message.
+    ///   - entity: The MIME entity to encrypt.
+    ///   - context: The S/MIME context to use. Defaults to `DefaultSecureMimeContext.shared`.
+    /// - Returns: A new `ApplicationPkcs7Mime` containing the encrypted content.
+    /// - Throws: `SecureMimeError` if encryption fails.
+    @available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *)
+    public static func encrypt(
+        _ entity: MimeEntity,
+        recipients: CmsRecipientCollection,
+        context: SecureMimeContext = DefaultSecureMimeContext.shared
+    ) throws -> ApplicationPkcs7Mime {
+        return try context.encrypt(recipients: recipients, entity: entity)
+    }
+
+    /// Asynchronously encrypts the entity and returns an `ApplicationPkcs7Mime` (enveloped-data).
+    ///
+    /// - Parameters:
+    ///   - recipients: The recipients who will be able to decrypt the message.
+    ///   - entity: The MIME entity to encrypt.
+    ///   - context: The S/MIME context to use. Defaults to `DefaultSecureMimeContext.shared`.
+    /// - Returns: A new `ApplicationPkcs7Mime` containing the encrypted content.
+    /// - Throws: `SecureMimeError` if encryption fails.
+    @available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *)
+    public static func encryptAsync(
+        _ entity: MimeEntity,
+        recipients: CmsRecipientCollection,
+        context: SecureMimeContext = DefaultSecureMimeContext.shared
+    ) async throws -> ApplicationPkcs7Mime {
+        // Since context.encrypt is not async yet, we wrap it
+        // TODO: Update SecureMimeContext to support async encrypt
+        return try context.encrypt(recipients: recipients, entity: entity)
+    }
 }
