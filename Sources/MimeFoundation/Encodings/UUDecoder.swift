@@ -4,7 +4,19 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// Incrementally decodes content encoded with the Unix-to-Unix (UUEncode) encoding.
+///
+/// The UUEncoding is an encoding that predates MIME and was used to encode binary content
+/// such as images and other types of multimedia to ensure that the data remained intact
+/// when sent via 7-bit transports such as SMTP.
+///
+/// These days, the UUEncoding has largely been deprecated in favor of the Base64 encoding,
+/// however, some older mail clients still use it.
+///
+/// UUEncoded content is typically wrapped in `begin` and `end` markers. This decoder
+/// can optionally skip scanning for the `begin` marker if only the payload is present.
 public final class UUDecoder: MimeDecoder {
+    /// Internal state machine states for the decoder.
     private enum State {
         case expectBegin
         case b
@@ -23,15 +35,32 @@ public final class UUDecoder: MimeDecoder {
     private var uulen: Int = 0
     private var saved: UInt32 = 0
 
+    /// Initializes a new instance of the ``UUDecoder`` class.
+    ///
+    /// Creates a new Unix-to-Unix decoder.
+    ///
+    /// - Parameter payloadOnly: If `true`, decoding begins immediately rather than after
+    ///   finding a `begin` line. Set this to `true` when decoding content that does not
+    ///   include the standard UUEncode begin/end markers.
     public init(payloadOnly: Bool = false) {
         self.payloadOnly = payloadOnly
         self.state = payloadOnly ? .payload : .expectBegin
     }
 
+    /// The content encoding that this decoder supports.
+    ///
+    /// Always returns ``ContentEncoding/uuEncode`` for this decoder.
     public var encoding: ContentEncoding {
         .uuEncode
     }
 
+    /// Creates a copy of this decoder with its current state.
+    ///
+    /// Creates a new ``UUDecoder`` with exactly the same state as the current decoder,
+    /// including any partial decode state. This allows the decoding process to be forked
+    /// or saved at a particular point.
+    ///
+    /// - Returns: A new ``UUDecoder`` with identical state.
     public func copy() -> any MimeDecoder {
         let copied = UUDecoder(payloadOnly: payloadOnly)
         copied.state = state
@@ -41,10 +70,38 @@ public final class UUDecoder: MimeDecoder {
         return copied
     }
 
+    /// Estimates the number of bytes needed to decode the specified number of input bytes.
+    ///
+    /// This method calculates the maximum possible output size. The estimate adds extra bytes
+    /// to account for saved input bytes from a previous decode step.
+    /// Use this to allocate an appropriately sized output buffer before calling
+    /// ``decode(_:startIndex:length:output:)``.
+    ///
+    /// - Parameter inputLength: The number of input bytes to be decoded.
+    /// - Returns: The estimated maximum number of bytes needed in the output buffer.
     public func estimateOutputLength(_ inputLength: Int) -> Int {
+        // Add an extra 3 bytes for the saved input bytes from previous decode step
         inputLength + 3
     }
 
+    /// Decodes the specified input into the output buffer.
+    ///
+    /// Decodes the specified input into the output buffer. The output buffer should be large enough
+    /// to hold all the decoded input. For estimating the size needed for the output buffer,
+    /// see ``estimateOutputLength(_:)``.
+    ///
+    /// If `payloadOnly` is `false`, the decoder will scan for a `begin` line before
+    /// starting to decode the payload. Decoding stops when a zero-length line is encountered.
+    ///
+    /// - Parameters:
+    ///   - input: The input buffer containing UUEncoded bytes to decode.
+    ///   - startIndex: The starting index within the input buffer.
+    ///   - length: The number of bytes to decode from the input buffer.
+    ///   - output: The output buffer to write decoded bytes to.
+    /// - Returns: The number of bytes written to the output buffer.
+    /// - Throws: ``MimeCodingError/startIndexOutOfRange`` if the start index is invalid.
+    /// - Throws: ``MimeCodingError/lengthOutOfRange`` if the length is invalid.
+    /// - Throws: ``MimeCodingError/outputTooSmall`` if the output buffer is not large enough.
     public func decode(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
 
@@ -130,6 +187,10 @@ public final class UUDecoder: MimeDecoder {
         return outIndex
     }
 
+    /// Resets the decoder to its initial state.
+    ///
+    /// Resets the internal state of the decoder, clearing any partial decode state.
+    /// After calling this method, the decoder can be reused to decode new content from the beginning.
     public func reset() {
         state = payloadOnly ? .payload : .expectBegin
         nsaved = 0

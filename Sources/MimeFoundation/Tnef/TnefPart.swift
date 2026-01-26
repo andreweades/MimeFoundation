@@ -7,23 +7,51 @@
 import Foundation
 
 /// A MIME part containing Microsoft TNEF data.
+///
+/// Represents an application/ms-tnef or application/vnd.ms-tnef part.
+///
+/// TNEF (Transport Neutral Encapsulation Format) attachments are most often
+/// sent by Microsoft Outlook clients.
 open class TnefPart: MimePart {
-    /// Initialize a new instance of the `TnefPart` class.
+    /// Initialize a new instance of the ``TnefPart`` class.
+    ///
+    /// Creates a new ``TnefPart`` with a Content-Type of application/vnd.ms-tnef
+    /// and a Content-Disposition value of "attachment" and a filename parameter with a
+    /// value of "winmail.dat".
     public init() {
         let contentType = try! ContentType("application", "vnd.ms-tnef")
         super.init(contentType)
         fileName = "winmail.dat"
     }
 
+    /// Initialize a new instance of the ``TnefPart`` class.
+    ///
+    /// This initializer is used by ``MimeParser``.
+    ///
+    /// - Parameter contentType: The content type of the TNEF part.
     public override init(_ contentType: ContentType) {
         super.init(contentType)
     }
 
+    /// Dispatches to the specific visit method for this MIME entity.
+    ///
+    /// This default implementation for ``TnefPart`` nodes calls
+    /// ``MimeVisitor/visit(_:)-tnef``. Override this method to call into a more specific
+    /// method on a derived visitor class of the ``MimeVisitor`` class. However, it should
+    /// still support unknown visitors by calling ``MimeVisitor/visit(_:)-tnef``.
+    ///
+    /// - Parameter visitor: The visitor.
     public override func accept(_ visitor: MimeVisitor) {
         visitor.visit(self)
     }
 
-    /// Convert the TNEF content into a `MimeMessage`.
+    /// Convert the TNEF content into a ``MimeMessage``.
+    ///
+    /// TNEF data often contains properties that map to ``MimeMessage`` headers.
+    /// TNEF data also often contains file attachments which will be mapped to MIME parts.
+    ///
+    /// - Returns: A message representing the TNEF data in MIME format.
+    /// - Throws: ``StreamError/notSupported`` if the ``MimePart/content`` property is `nil`.
     public func convertToMessage() throws -> MimeMessage {
         guard let content = content else {
             throw StreamError.notSupported // Cannot parse null TNEF data
@@ -36,7 +64,7 @@ open class TnefPart: MimePart {
         }
 
         let reader = TnefReader(inputStream: try content.open(), defaultMessageCodepage: codepage, complianceMode: .loose)
-        
+
         return try TnefPart.extractTnefMessage(reader)
     }
 
@@ -582,8 +610,9 @@ open class TnefPart: MimePart {
     /// Extract the embedded attachments from the TNEF data.
     ///
     /// Parses the TNEF data and extracts all the embedded file attachments.
+    ///
     /// - Returns: An array of extracted MIME entities.
-    /// - Throws: `StreamError.notSupported` if the `content` property is `nil`.
+    /// - Throws: ``StreamError/notSupported`` if the ``MimePart/content`` property is `nil`.
     public func extractAttachments() throws -> [MimeEntity] {
         let message = try convertToMessage()
         let body = message.body

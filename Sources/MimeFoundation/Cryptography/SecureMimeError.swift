@@ -6,42 +6,106 @@
 
 import Foundation
 
-/// Errors that can occur during S/MIME operations.
+/// Errors that can occur during S/MIME cryptographic operations.
+///
+/// These errors represent various failure conditions when signing, verifying,
+/// encrypting, or decrypting S/MIME messages.
+///
+/// ## Topics
+///
+/// ### Certificate Errors
+/// - ``invalidCertificate(_:)``
+/// - ``noSignerCertificate``
+///
+/// ### Key Errors
+/// - ``invalidPrivateKey(_:)``
+/// - ``pkcs12LoadFailed(_:)``
+///
+/// ### Algorithm Errors
+/// - ``unsupportedAlgorithm(_:)``
+///
+/// ### Signature Errors
+/// - ``signatureVerificationFailed(_:)``
+/// - ``invalidSignatureData(_:)``
+/// - ``contentMismatch(_:)``
+/// - ``signingFailed(_:)``
+///
+/// ### Format Errors
+/// - ``invalidMultipartSigned(_:)``
+/// - ``fileReadFailed(_:)``
+/// - ``invalidArgument(_:)``
 public enum SecureMimeError: Error, Equatable, Sendable {
     /// The certificate is invalid or could not be parsed.
+    ///
+    /// This error occurs when a certificate cannot be loaded from PEM, DER,
+    /// or PKCS#12 format, or when the certificate format is not recognized.
     case invalidCertificate(String)
 
     /// The private key is invalid or could not be parsed.
+    ///
+    /// This error occurs when a private key cannot be loaded from PEM, DER,
+    /// or PKCS#12 format, or when the key format is not recognized.
     case invalidPrivateKey(String)
 
     /// The specified algorithm is not supported.
+    ///
+    /// This error occurs when attempting to use an encryption or signature
+    /// algorithm that is not available in the current context.
     case unsupportedAlgorithm(String)
 
     /// Signature verification failed.
+    ///
+    /// This error occurs when the cryptographic signature does not match
+    /// the signed content, or when the signature cannot be verified for
+    /// other cryptographic reasons.
     case signatureVerificationFailed(String)
 
     /// Failed to load PKCS#12 data.
+    ///
+    /// This error occurs when PKCS#12 (.p12/.pfx) data cannot be parsed,
+    /// typically due to an incorrect password or corrupted data.
     case pkcs12LoadFailed(String)
 
     /// The signature data is malformed or invalid.
+    ///
+    /// This error occurs when the CMS signature structure cannot be parsed
+    /// or is missing required fields.
     case invalidSignatureData(String)
 
     /// The signed content does not match the signature.
+    ///
+    /// This error indicates that the content has been modified since it
+    /// was signed, or the wrong content was provided for verification.
     case contentMismatch(String)
 
     /// No signer certificate was found in the signature.
+    ///
+    /// This error occurs when the CMS signature does not include the
+    /// signer's certificate and it cannot be located otherwise.
     case noSignerCertificate
 
     /// Failed to create the signature.
+    ///
+    /// This error occurs during the signing process, typically due to
+    /// issues with the private key or certificate.
     case signingFailed(String)
 
     /// The multipart/signed structure is invalid.
+    ///
+    /// This error occurs when a `multipart/signed` message does not have
+    /// the expected structure (content part and signature part).
     case invalidMultipartSigned(String)
 
     /// File read operation failed.
+    ///
+    /// This error occurs when a certificate or key file cannot be read,
+    /// typically due to permission issues or the file not existing.
     case fileReadFailed(String)
 
     /// An argument was invalid.
+    ///
+    /// This error occurs when an invalid argument is passed to an S/MIME
+    /// operation.
     case invalidArgument(String)
 }
 

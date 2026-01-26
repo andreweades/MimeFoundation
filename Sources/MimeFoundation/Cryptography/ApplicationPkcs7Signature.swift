@@ -6,13 +6,40 @@
 
 import Foundation
 
-/// Represents an `application/pkcs7-signature` MIME part.
+/// An `application/pkcs7-signature` MIME part containing a detached S/MIME signature.
 ///
-/// This class represents a detached S/MIME signature, typically used
-/// as the second part of a `multipart/signed` message.
+/// This class represents a PKCS#7/CMS detached signature, typically used as the
+/// second part of a ``MultipartSigned`` message. The signature part contains the
+/// cryptographic signature data without the signed content itself.
+///
+/// ## Usage
+///
+/// ``ApplicationPkcs7Signature`` parts are typically created automatically when
+/// using ``MultipartSigned/create(_:signer:context:)`` or ``SecureMimeContext/createSignature(_:entity:)``.
+///
+/// ```swift
+/// // Create a signed message
+/// let signer = try CmsSigner(certificatePath: "cert.pem", privateKeyPath: "key.pem")
+/// let context = SecureMimeContext()
+/// let signature = try context.createSignature(signer, entity: entity)
+/// ```
+///
+/// ## Topics
+///
+/// ### Creating a Signature Part
+/// - ``init()``
+/// - ``init(_:)-7g4gg``
+/// - ``init(_:)-2nxof``
+///
+/// ### Accessing Signature Data
+/// - ``getSignatureBytes()``
 public class ApplicationPkcs7Signature: MimePart {
 
-    /// Creates a new PKCS#7 signature part with the default content type.
+    /// Creates a new empty PKCS#7 signature part with the default content type.
+    ///
+    /// The content type is set to `application/pkcs7-signature` with a
+    /// `name` parameter of `smime.p7s`, and the content transfer encoding
+    /// is set to Base64.
     public convenience init() {
         self.init(ApplicationPkcs7Signature.defaultContentType)
         contentTransferEncoding = .base64
@@ -20,7 +47,7 @@ public class ApplicationPkcs7Signature: MimePart {
 
     /// Creates a new PKCS#7 signature part from signature bytes.
     ///
-    /// - Parameter signatureBytes: The raw CMS signature bytes.
+    /// - Parameter signatureBytes: The raw CMS/PKCS#7 signature bytes.
     public convenience init(_ signatureBytes: [UInt8]) {
         self.init()
         let stream = MemoryStream(signatureBytes, writable: false)
@@ -29,7 +56,7 @@ public class ApplicationPkcs7Signature: MimePart {
 
     /// Creates a new PKCS#7 signature part from signature data.
     ///
-    /// - Parameter signatureData: The raw CMS signature data.
+    /// - Parameter signatureData: The raw CMS/PKCS#7 signature data.
     public convenience init(_ signatureData: Data) {
         self.init(Array(signatureData))
     }
@@ -41,10 +68,14 @@ public class ApplicationPkcs7Signature: MimePart {
         return ct
     }
 
-    /// Gets the raw signature bytes.
+    /// Returns the raw signature bytes.
+    ///
+    /// Decodes the signature content (which is typically Base64-encoded) and
+    /// returns the raw CMS/PKCS#7 signature bytes.
     ///
     /// - Returns: The raw CMS signature bytes.
-    /// - Throws: `SecureMimeError` if the signature content cannot be read.
+    /// - Throws: ``SecureMimeError/invalidSignatureData(_:)`` if the signature
+    ///   content cannot be read or decoded.
     public func getSignatureBytes() throws -> [UInt8] {
         guard let content = content else {
             throw SecureMimeError.invalidSignatureData("No signature content")

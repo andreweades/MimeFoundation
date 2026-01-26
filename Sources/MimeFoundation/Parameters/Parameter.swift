@@ -6,20 +6,48 @@
 
 import Foundation
 
+/// Errors that can occur when working with MIME parameters.
 public enum ParameterError: Error, Equatable, Sendable {
+    /// The parameter name is empty.
     case emptyName
+    /// The parameter name contains illegal characters.
     case invalidName
+    /// The encoding method value is invalid.
     case invalidEncodingMethod
+    /// The specified charset is not supported.
+    ///
+    /// - Parameter charset: The name of the unsupported charset.
     case unsupportedCharset(String)
 }
 
+/// A header parameter as found in the Content-Type and Content-Disposition headers.
+///
+/// Content-Type and Content-Disposition headers often have parameters that specify
+/// further information about how to interpret the content.
+///
+/// ## Overview
+///
+/// Parameters are name-value pairs that appear after the main value in structured
+/// headers. For example, in `Content-Type: text/plain; charset=utf-8`, the parameter
+/// is `charset=utf-8`.
+///
+/// ## Example
+///
+/// ```swift
+/// let param = try Parameter("charset", "utf-8")
+/// print(param.name)   // "charset"
+/// print(param.value)  // "utf-8"
+/// ```
 public final class Parameter: Equatable, CustomStringConvertible {
+    /// The parameter name.
     public let name: String
+
     private var valueStorage: String
     private var encodingStorage: String.Encoding
     private var encodingMethodStorage: ParameterEncodingMethod
     private var alwaysQuoteStorage: Bool
 
+    /// The parameter value.
     public var value: String {
         get { valueStorage }
         set {
@@ -29,6 +57,10 @@ public final class Parameter: Equatable, CustomStringConvertible {
         }
     }
 
+    /// The character encoding used for the parameter value.
+    ///
+    /// Gets or sets the character encoding to use when encoding the parameter value.
+    /// Defaults to UTF-8.
     public var encoding: String.Encoding {
         get { encodingStorage }
         set {
@@ -38,6 +70,15 @@ public final class Parameter: Equatable, CustomStringConvertible {
         }
     }
 
+    /// The parameter encoding method to use.
+    ///
+    /// The MIME specifications specify that the proper method for encoding Content-Type
+    /// and Content-Disposition parameter values is the method described in RFC 2231.
+    /// However, it is common for some older email clients to improperly encode using
+    /// the method described in RFC 2047 instead.
+    ///
+    /// If set to ``ParameterEncodingMethod/default``, the encoding method used will
+    /// default to the value set on the ``FormatOptions``.
     public var encodingMethod: ParameterEncodingMethod {
         get { encodingMethodStorage }
         set {
@@ -47,6 +88,13 @@ public final class Parameter: Equatable, CustomStringConvertible {
         }
     }
 
+    /// Whether the parameter value should always be quoted.
+    ///
+    /// Technically, Content-Type and Content-Disposition parameter values only require
+    /// quoting when they contain characters that have special meaning to a MIME parser.
+    /// However, for compatibility with email processing solutions that do not properly
+    /// adhere to the MIME specifications, this property can be used to force quoting
+    /// of parameter values that would normally not require quoting.
     public var alwaysQuote: Bool {
         get { alwaysQuoteStorage }
         set {
@@ -58,6 +106,14 @@ public final class Parameter: Equatable, CustomStringConvertible {
 
     internal var changed: ((Parameter) -> Void)?
 
+    /// Creates a new parameter with the specified name and value.
+    ///
+    /// - Parameters:
+    ///   - name: The parameter name. Must contain only valid attribute characters.
+    ///   - value: The parameter value.
+    ///
+    /// - Throws: ``ParameterError/emptyName`` if the name is empty.
+    /// - Throws: ``ParameterError/invalidName`` if the name contains illegal characters.
     public init(_ name: String, _ value: String) throws {
         try Parameter.validateName(name)
         self.name = name
@@ -67,6 +123,15 @@ public final class Parameter: Equatable, CustomStringConvertible {
         self.alwaysQuoteStorage = false
     }
 
+    /// Creates a new parameter with the specified encoding, name, and value.
+    ///
+    /// - Parameters:
+    ///   - encoding: The character encoding to use.
+    ///   - name: The parameter name. Must contain only valid attribute characters.
+    ///   - value: The parameter value.
+    ///
+    /// - Throws: ``ParameterError/emptyName`` if the name is empty.
+    /// - Throws: ``ParameterError/invalidName`` if the name contains illegal characters.
     public init(encoding: String.Encoding, name: String, value: String) throws {
         try Parameter.validateName(name)
         self.name = name
@@ -76,6 +141,16 @@ public final class Parameter: Equatable, CustomStringConvertible {
         self.alwaysQuoteStorage = false
     }
 
+    /// Creates a new parameter with the specified charset, name, and value.
+    ///
+    /// - Parameters:
+    ///   - charset: The charset name (e.g., "utf-8", "iso-8859-1").
+    ///   - name: The parameter name. Must contain only valid attribute characters.
+    ///   - value: The parameter value.
+    ///
+    /// - Throws: ``ParameterError/emptyName`` if the name is empty.
+    /// - Throws: ``ParameterError/invalidName`` if the name contains illegal characters.
+    /// - Throws: ``ParameterError/unsupportedCharset(_:)`` if the charset is not supported.
     public init(charset: String, name: String, value: String) throws {
         try Parameter.validateName(name)
         guard let resolved = CharsetUtils.getEncoding(charset) else {
@@ -97,6 +172,11 @@ public final class Parameter: Equatable, CustomStringConvertible {
         self.alwaysQuoteStorage = false
     }
 
+    /// Sets the encoding method from an integer raw value.
+    ///
+    /// - Parameter rawValue: The raw value of the encoding method.
+    ///
+    /// - Throws: ``ParameterError/invalidEncodingMethod`` if the value is invalid.
     public func setEncodingMethod(_ rawValue: Int) throws {
         guard rawValue >= 0 && rawValue <= Int(UInt8.max),
               let method = ParameterEncodingMethod(rawValue: UInt8(rawValue)) else {
@@ -112,6 +192,17 @@ public final class Parameter: Equatable, CustomStringConvertible {
         case rfc2231
     }
 
+    /// Encodes the parameter value according to the formatting options.
+    ///
+    /// Encodes the parameter for inclusion in a header, using the appropriate
+    /// encoding method (RFC 2231 or RFC 2047) as determined by the format options
+    /// and the ``encodingMethod`` property.
+    ///
+    /// - Parameters:
+    ///   - options: The formatting options to use.
+    ///   - builder: The string builder to append the encoded parameter to.
+    ///   - lineLength: The current line length, updated to reflect the appended content.
+    ///   - charset: The character encoding to use for the header.
     public func encode(_ options: FormatOptions, builder: inout ValueStringBuilder, lineLength: inout Int, charset: String.Encoding) {
         let method = getEncodeMethod(options, name: name, value: value)
 
@@ -127,6 +218,11 @@ public final class Parameter: Equatable, CustomStringConvertible {
         }
     }
 
+    /// Creates a copy of the parameter.
+    ///
+    /// Creates a deep copy of the parameter including its encoding settings.
+    ///
+    /// - Returns: A new ``Parameter`` instance with the same values.
     public func copy() -> Parameter {
         let param = Parameter(cloning: name, value)
         param.encoding = encoding
@@ -135,18 +231,36 @@ public final class Parameter: Equatable, CustomStringConvertible {
         return param
     }
 
+    /// Writes the parameter to a string builder.
+    ///
+    /// Writes the parameter in the format `name="value"`.
+    ///
+    /// - Parameter builder: The string builder to write to.
     public func writeTo(_ builder: inout ValueStringBuilder) {
         builder.append(name)
         builder.append("=")
         builder.append(MimeUtils.quote(value))
     }
 
+    /// A textual representation of the parameter.
+    ///
+    /// Returns the parameter in the format `name="value"`.
     public var description: String {
         var builder = ValueStringBuilder(initialCapacity: 64)
         writeTo(&builder)
         return builder.asString()
     }
 
+    /// Determines whether two parameters are equal.
+    ///
+    /// Two parameters are considered equal if they have the same name
+    /// (case-insensitive) and value.
+    ///
+    /// - Parameters:
+    ///   - lhs: The first parameter to compare.
+    ///   - rhs: The second parameter to compare.
+    ///
+    /// - Returns: `true` if the parameters are equal; otherwise, `false`.
     public static func == (lhs: Parameter, rhs: Parameter) -> Bool {
         lhs.name.caseInsensitiveCompare(rhs.name) == .orderedSame && lhs.value == rhs.value
     }

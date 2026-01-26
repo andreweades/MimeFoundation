@@ -4,18 +4,38 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// An HTML tokenizer.
+///
+/// Tokenizes HTML text, emitting an ``HtmlToken`` for each token it encounters.
+/// This tokenizer follows the HTML5 tokenization specification.
 final class HtmlTokenizer {
+    /// Gets or sets whether the tokenizer should decode character references.
+    ///
+    /// If `true`, HTML character entities (like `&amp;`) are decoded to their
+    /// corresponding characters. Note that character references in attribute values
+    /// will still be decoded even if this value is set to `false`.
     var decodeCharacterReferences: Bool = true
 
     private let characters: [Character]
     private var index: Int = 0
     private var rawTextTag: String?
 
+    /// Initializes a new instance of the ``HtmlTokenizer`` class.
+    ///
+    /// Creates a new HTML tokenizer that reads from the specified text reader.
+    ///
+    /// - Parameter reader: The text reader providing the HTML input.
     init(_ reader: TextReadable) {
         let text = reader.readToEnd()
         self.characters = Array(text)
     }
 
+    /// Reads the next token from the HTML input.
+    ///
+    /// Returns the next ``HtmlToken`` from the input stream, or `nil` if the
+    /// end of the input has been reached.
+    ///
+    /// - Returns: The next HTML token, or `nil` if at end of input.
     func readNextToken() -> HtmlToken? {
         if index >= characters.count {
             return nil

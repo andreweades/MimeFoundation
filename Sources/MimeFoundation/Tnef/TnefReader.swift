@@ -7,6 +7,9 @@
 import Foundation
 
 /// A TNEF reader.
+///
+/// The TNEF (Transport Neutral Encapsulation Format) reader is used to parse TNEF streams,
+/// which are commonly used by Microsoft Outlook to encapsulate message properties and attachments.
 public class TnefReader {
     internal static let tnefSignature: Int32 = 0x223e9f78
 
@@ -26,34 +29,51 @@ public class TnefReader {
     private var closed = false
     private var eos = false
 
-    /// Get the attachment key value.
+    /// The attachment key value.
+    ///
+    /// The attachment key is a 16-bit value that identifies the attachment in the TNEF stream.
     public private(set) var attachmentKey: Int16 = 0
 
-    /// Get the current attribute's level.
+    /// The current attribute's level.
+    ///
+    /// Indicates whether the current attribute applies to the message level or attachment level.
     public private(set) var attributeLevel: TnefAttributeLevel = .message
 
-    /// Get the length of the current attribute's raw value.
+    /// The length of the current attribute's raw value.
+    ///
+    /// This value represents the number of bytes in the raw value data of the current attribute.
     public private(set) var attributeRawValueLength: Int = 0
 
-    /// Get the stream offset of the current attribute's raw value.
+    /// The stream offset of the current attribute's raw value.
+    ///
+    /// This value indicates the byte position within the stream where the attribute's raw value begins.
     public private(set) var attributeRawValueStreamOffset: Int = 0
 
-    /// Get the current attribute's tag.
+    /// The current attribute's tag.
+    ///
+    /// The attribute tag identifies the type and purpose of the current attribute.
     public private(set) var attributeTag: TnefAttributeTag = .null
 
     internal var attributeType: Int {
         attributeTag.rawValue & 0xF0000
     }
 
-    /// Get the compliance mode.
+    /// The compliance mode.
+    ///
+    /// The compliance mode determines how strictly the reader validates the TNEF stream.
     public var complianceMode: TnefComplianceMode
 
-    /// Get the current compliance status of the TNEF stream.
+    /// The current compliance status of the TNEF stream.
+    ///
+    /// As the reader progresses through the stream, this value may change if errors are encountered.
+    /// In loose mode, errors are accumulated here rather than throwing exceptions.
     public internal(set) var complianceStatus: TnefComplianceStatus = .compliant
 
     internal let inputStream: MimeStream
 
-    /// Get the message codepage.
+    /// The message codepage.
+    ///
+    /// The codepage used to decode text within the TNEF message. Defaults to 1252 (Windows Latin-1).
     public private(set) var messageCodepage: Int {
         get { codepage }
         set {
@@ -69,15 +89,21 @@ public class TnefReader {
         }
     }
 
-    /// Get the TNEF property reader.
+    /// The TNEF property reader.
+    ///
+    /// Use this property reader to access MAPI properties within the current attribute.
     public private(set) var tnefPropertyReader: TnefPropertyReader!
 
-    /// Get the current stream offset.
+    /// The current stream offset.
+    ///
+    /// The byte position within the input stream.
     public var streamOffset: Int {
         Int(position) - (inputEnd - inputIndex)
     }
 
-    /// Get the TNEF version.
+    /// The TNEF version.
+    ///
+    /// The version identifier from the TNEF stream header. The expected value is `0x00010000`.
     public private(set) var tnefVersion: Int {
         get { versionValue }
         set {
@@ -89,15 +115,33 @@ public class TnefReader {
     }
 
     /// Initialize a new instance of the `TnefReader` class.
+    ///
+    /// When reading a TNEF stream using ``TnefComplianceMode/strict`` mode, a ``TnefException``
+    /// will be thrown immediately at the first sign of invalid or corrupted data.
+    ///
+    /// When reading a TNEF stream using ``TnefComplianceMode/loose`` mode, compliance issues
+    /// are accumulated in the ``complianceStatus`` property, but exceptions are not raised
+    /// unless the stream is too corrupted to continue.
+    ///
+    /// - Parameters:
+    ///   - inputStream: The input stream containing the TNEF data.
+    ///   - defaultMessageCodepage: The default message codepage. If 0, defaults to 1252.
+    ///   - complianceMode: The compliance mode for validation.
     public init(inputStream: MimeStream, defaultMessageCodepage: Int = 0, complianceMode: TnefComplianceMode = .loose) {
         self.inputStream = inputStream
         self.complianceMode = complianceMode
         self.codepage = defaultMessageCodepage != 0 ? defaultMessageCodepage : 1252
         self.tnefPropertyReader = TnefPropertyReader(reader: self)
-        
+
         decodeHeader()
     }
 
+    /// Initialize a new instance of the `TnefReader` class with default settings.
+    ///
+    /// Creates a new TNEF reader for the specified input stream using loose compliance mode
+    /// and the default codepage (1252).
+    ///
+    /// - Parameter inputStream: The input stream containing the TNEF data.
     public convenience init(inputStream: MimeStream) {
         self.init(inputStream: inputStream, defaultMessageCodepage: 0, complianceMode: .loose)
     }
@@ -333,6 +377,11 @@ public class TnefReader {
     }
 
     /// Advance to the next attribute in the TNEF stream.
+    ///
+    /// Advances to the next attribute in the TNEF stream.
+    ///
+    /// - Returns: `true` if there is another attribute available to be read; otherwise, `false`.
+    /// - Throws: ``TnefException`` if the TNEF stream is corrupted or invalid.
     public func readNextAttribute() throws -> Bool {
         try checkDisposed()
 
@@ -383,6 +432,16 @@ public class TnefReader {
     }
 
     /// Read the raw attribute value data from the underlying TNEF stream.
+    ///
+    /// Reads the raw attribute value data from the underlying TNEF stream.
+    ///
+    /// - Parameters:
+    ///   - buffer: The buffer to read data into.
+    ///   - offset: The offset into the buffer to start reading data.
+    ///   - count: The number of bytes to read.
+    /// - Returns: The total number of bytes read into the buffer. This can be less than the number
+    ///   of bytes requested if that many bytes are not available, or zero (0) if the end of the
+    ///   value has been reached.
     public func readAttributeRawValue(_ buffer: inout [UInt8], offset: Int, count: Int) -> Int {
         guard offset >= 0, offset < buffer.count, count >= 0, count <= (buffer.count - offset) else {
             return 0
@@ -420,11 +479,16 @@ public class TnefReader {
     }
 
     /// Reset the compliance status.
+    ///
+    /// Resets the compliance status to ``TnefComplianceStatus/compliant``.
     public func resetComplianceStatus() {
         complianceStatus = .compliant
     }
 
     /// Close the TNEF reader and the underlying stream.
+    ///
+    /// Closes the TNEF reader and the underlying stream. After calling this method,
+    /// any further operations on the reader will throw an error.
     public func close() {
         if !closed {
             inputStream.close()

@@ -6,13 +6,67 @@
 
 import Foundation
 
+/// Errors that can occur during MIME parsing.
 public enum MimeParserError: Error, Equatable, Sendable {
 }
 
+/// A MIME message and entity parser.
+///
+/// A MIME parser is used to parse ``MimeMessage`` and ``MimeEntity`` objects from arbitrary streams.
+///
+/// ## Overview
+///
+/// The `MimeParser` class provides methods for parsing MIME messages, entities, and headers from
+/// a stream. It supports both standard MIME format and the Unix mbox format for parsing multiple
+/// messages from a single stream.
+///
+/// ## Example Usage
+///
+/// ```swift
+/// // Parse a single message
+/// let stream = MemoryStream(data, writable: false)
+/// let parser = try MimeParser(stream)
+/// let message = try parser.parseMessage()
+///
+/// // Parse messages from an mbox file
+/// let mboxStream = MemoryStream(mboxData, writable: false)
+/// let mboxParser = try MimeParser(mboxStream, .mbox)
+/// while !mboxParser.isEndOfStream {
+///     let message = try mboxParser.parseMessage()
+///     // Process message...
+/// }
+/// ```
 open class MimeParser {
+    /// The parser options used when parsing MIME content.
+    ///
+    /// Gets or sets the parser options. These options control various aspects of parsing
+    /// behavior such as RFC compliance modes and content length handling.
     public var options: ParserOptions
+
+    /// The format of the input stream.
+    ///
+    /// Gets a value indicating whether the parser was initialized to parse a single entity
+    /// (``MimeFormat/entity``) or an mbox stream containing multiple messages (``MimeFormat/mbox``).
     public private(set) var format: MimeFormat
+
+    /// A value indicating whether the parser has reached the end of the input stream.
+    ///
+    /// When parsing mbox-formatted streams, this property can be used to determine when
+    /// all messages have been parsed.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// while !parser.isEndOfStream {
+    ///     let message = try parser.parseMessage()
+    ///     // Process message...
+    /// }
+    /// ```
     public private(set) var isEndOfStream: Bool = false
+
+    /// The current position of the parser within the stream.
+    ///
+    /// Gets the current stream offset indicating how many bytes have been consumed.
     public var position: Int { currentOffset }
 
     private var data: [UInt8] = []
@@ -21,18 +75,43 @@ open class MimeParser {
     private var currentOffset: Int = 0
     private var currentMarkerIndex: Int = 0
 
+    /// Initializes a new instance of the `MimeParser` class.
+    ///
+    /// Creates a new `MimeParser` that will parse the specified stream using the default parser options.
+    ///
+    /// - Parameters:
+    ///   - stream: The stream to parse.
+    ///   - format: The format of the stream. Defaults to ``MimeFormat/default``.
+    /// - Throws: An error if the stream cannot be read.
     public init(_ stream: MimeStream, _ format: MimeFormat = .default) throws {
         self.options = ParserOptions.default
         self.format = format
         try setStream(stream, format)
     }
 
+    /// Initializes a new instance of the `MimeParser` class with custom parser options.
+    ///
+    /// Creates a new `MimeParser` that will parse the specified stream using the provided parser options.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - stream: The stream to parse.
+    ///   - format: The format of the stream. Defaults to ``MimeFormat/default``.
+    /// - Throws: An error if the stream cannot be read.
     public init(_ options: ParserOptions, _ stream: MimeStream, _ format: MimeFormat = .default) throws {
         self.options = options
         self.format = format
         try setStream(stream, format)
     }
 
+    /// Sets the stream to parse.
+    ///
+    /// Resets the parser state and prepares to parse the specified stream.
+    ///
+    /// - Parameters:
+    ///   - stream: The stream to parse.
+    ///   - format: The format of the stream. Defaults to ``MimeFormat/default``.
+    /// - Throws: An error if the stream cannot be read.
     public func setStream(_ stream: MimeStream, _ format: MimeFormat = .default) throws {
         self.format = format
         self.data = try readAllBytes(from: stream)
@@ -47,6 +126,13 @@ open class MimeParser {
         }
     }
 
+    /// Parses a list of headers from the stream.
+    ///
+    /// Parses headers from the current position in the stream until a blank line
+    /// or end of stream is encountered.
+    ///
+    /// - Returns: The parsed list of headers.
+    /// - Throws: ``ParseException`` if there was an error parsing the headers.
     public func parseHeaders() throws -> HeaderList {
         if isEndOfStream {
             return HeaderList()
@@ -63,10 +149,32 @@ open class MimeParser {
         return headers
     }
 
+    /// Asynchronously parses a list of headers from the stream.
+    ///
+    /// Parses headers from the current position in the stream until a blank line
+    /// or end of stream is encountered.
+    ///
+    /// - Returns: The parsed list of headers.
+    /// - Throws: ``ParseException`` if there was an error parsing the headers.
     public func parseHeadersAsync() async throws -> HeaderList {
         try parseHeaders()
     }
 
+    /// Parses a message from the stream.
+    ///
+    /// Parses a complete MIME message from the stream. If the parser was initialized
+    /// with ``MimeFormat/mbox``, this method will parse the next message from the mbox stream.
+    ///
+    /// - Returns: The parsed message.
+    /// - Throws: ``ParseException`` if there was an error parsing the message.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let parser = try MimeParser(stream)
+    /// let message = try parser.parseMessage()
+    /// print(message.subject ?? "No subject")
+    /// ```
     public func parseMessage() throws -> MimeMessage {
         let range = try nextMessageRange()
         let messageBytesSlice = data[range.start..<range.end]
@@ -92,10 +200,24 @@ open class MimeParser {
         return message
     }
 
+    /// Asynchronously parses a message from the stream.
+    ///
+    /// Parses a complete MIME message from the stream. If the parser was initialized
+    /// with ``MimeFormat/mbox``, this method will parse the next message from the mbox stream.
+    ///
+    /// - Returns: The parsed message.
+    /// - Throws: ``ParseException`` if there was an error parsing the message.
     public func parseMessageAsync() async throws -> MimeMessage {
         try parseMessage()
     }
 
+    /// Parses an entity from the stream.
+    ///
+    /// Parses a MIME entity from the stream. Unlike ``parseMessage()``, this method
+    /// does not expect a message envelope and parses just the entity content.
+    ///
+    /// - Returns: The parsed entity.
+    /// - Throws: ``ParseException`` if there was an error parsing the entity.
     public func parseEntity() throws -> MimeEntity {
         let bytes = data[currentOffset..<data.count]
         if bytes.isEmpty {
@@ -111,6 +233,13 @@ open class MimeParser {
         return entity
     }
 
+    /// Asynchronously parses an entity from the stream.
+    ///
+    /// Parses a MIME entity from the stream. Unlike ``parseMessageAsync()``, this method
+    /// does not expect a message envelope and parses just the entity content.
+    ///
+    /// - Returns: The parsed entity.
+    /// - Throws: ``ParseException`` if there was an error parsing the entity.
     public func parseEntityAsync() async throws -> MimeEntity {
         try parseEntity()
     }

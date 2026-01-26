@@ -10,10 +10,33 @@ public enum AuthenticationResultsError: Error, Equatable, Sendable {
     case invalidRange
 }
 
+/// A parsed representation of the Authentication-Results header.
+///
+/// The Authentication-Results header is used with electronic mail messages to
+/// indicate the results of message authentication efforts. Any receiver-side
+/// software, such as mail filters or Mail User Agents (MUAs), can use this header
+/// field to relay that information in a convenient and meaningful way to users or
+/// to make sorting and filtering decisions.
 public struct AuthenticationResults: Codable, Hashable, Sendable {
+    /// The authentication service identifier.
+    ///
+    /// The authentication service identifier is the `authserv-id` token
+    /// as defined in [RFC 7601](https://tools.ietf.org/html/rfc7601).
     public var authenticationServiceIdentifier: String?
+
+    /// The instance value.
+    ///
+    /// This value will only be set if the `AuthenticationResults`
+    /// represents an ARC-Authentication-Results header value.
     public var instance: Int?
+
+    /// The Authentication-Results version.
+    ///
+    /// The version value is the `authres-version` token as defined in
+    /// [RFC 7601](https://tools.ietf.org/html/rfc7601).
     public var version: Int?
+
+    /// The list of authentication results.
     public var results: [AuthenticationMethodResult]
 
     internal init() {
@@ -23,6 +46,9 @@ public struct AuthenticationResults: Codable, Hashable, Sendable {
         self.results = []
     }
 
+    /// Initialize a new instance of `AuthenticationResults`.
+    ///
+    /// - Parameter authservId: The authentication service identifier.
     public init(_ authservId: String) {
         self.authenticationServiceIdentifier = authservId
         self.instance = nil
@@ -115,6 +141,11 @@ public struct AuthenticationResults: Codable, Hashable, Sendable {
         builder.append(options.newLine)
     }
 
+    /// Serialize the `AuthenticationResults` to a string.
+    ///
+    /// Creates a string-representation of the `AuthenticationResults`.
+    ///
+    /// - Returns: The serialized string.
     public func toString() -> String {
         var builder = ValueStringBuilder(initialCapacity: 256)
         writeTo(&builder)
@@ -766,15 +797,23 @@ public struct AuthenticationResults: Codable, Hashable, Sendable {
 
     // MARK: - Swift-Idiomatic Parsing Initializers
 
-    /// Throwing initializer - throws ParseException on failure.
-    /// Use `try?` for optional behavior: `let ar = try? AuthenticationResults(parsing: text)`
+    /// Parse the specified text into a new `AuthenticationResults` instance.
+    ///
+    /// Parses an Authentication-Results header value from the supplied text.
+    ///
+    /// - Parameter text: The text to parse.
+    /// - Throws: ``ParseException`` if the text could not be parsed.
     public init(parsing text: String) throws {
         let buffer = Array(text.utf8)
         try self.init(parsing: buffer)
     }
 
-    /// Throwing initializer - throws ParseException on failure.
-    /// Use `try?` for optional behavior: `let ar = try? AuthenticationResults(parsing: buffer)`
+    /// Parse the specified input buffer into a new `AuthenticationResults` instance.
+    ///
+    /// Parses an Authentication-Results header value from the supplied buffer.
+    ///
+    /// - Parameter buffer: The input buffer.
+    /// - Throws: ``ParseException`` if the buffer could not be parsed.
     public init(parsing buffer: [UInt8]) throws {
         var authres: AuthenticationResults? = nil
         var index = 0
@@ -786,14 +825,36 @@ public struct AuthenticationResults: Codable, Hashable, Sendable {
     }
 }
 
+/// An authentication method results.
+///
+/// Represents the result of a single authentication method (e.g., SPF, DKIM, DMARC).
 public struct AuthenticationMethodResult: Codable, Hashable, Sendable {
+    /// The Office365 method-specific authserv-id.
+    ///
+    /// Instead of specifying a single authentication service identifier at the
+    /// beginning of the header value, Office365 seems to provide a different
+    /// authentication service identifier for each method.
     public var office365AuthenticationServiceIdentifier: String?
+
+    /// The authentication method.
     public let method: String
+
+    /// The authentication method version.
     public var version: Int?
+
+    /// The authentication method results.
     public var result: String
+
+    /// The comment regarding the authentication method result.
     public var resultComment: String?
+
+    /// The action taken for the authentication method result.
     public var action: String?
+
+    /// The reason for the authentication method result.
     public var reason: String?
+
+    /// The properties used by the authentication method.
     public var properties: [AuthenticationMethodProperty]
 
     internal init(_ method: String) {
@@ -802,6 +863,11 @@ public struct AuthenticationMethodResult: Codable, Hashable, Sendable {
         self.properties = []
     }
 
+    /// Initialize a new instance of `AuthenticationMethodResult`.
+    ///
+    /// - Parameters:
+    ///   - method: The method used for authentication.
+    ///   - result: The result of the authentication method.
     public init(_ method: String, _ result: String) {
         self.method = method
         self.result = result
@@ -921,6 +987,11 @@ public struct AuthenticationMethodResult: Codable, Hashable, Sendable {
         StringBuilderUtils.appendTokens(&builder, options: options, lineLength: &lineLength, tokens: tokens)
     }
 
+    /// Serialize the `AuthenticationMethodResult` to a string.
+    ///
+    /// Creates a string-representation of the `AuthenticationMethodResult`.
+    ///
+    /// - Returns: The serialized string.
     public func toString() -> String {
         var builder = ValueStringBuilder(initialCapacity: 128)
         writeTo(&builder)
@@ -964,12 +1035,20 @@ public struct AuthenticationMethodResult: Codable, Hashable, Sendable {
     }
 }
 
+/// An authentication method property.
+///
+/// Represents a property associated with an authentication method result.
 public struct AuthenticationMethodProperty: Codable, Hashable, Sendable {
     private static let tokenSpecials: Set<UInt32> = Set("()<>@,;:\\\"/[]?=".unicodeScalars.map { $0.value })
     private let quoted: Bool?
 
+    /// The type of the property.
     public let propertyType: String
+
+    /// The property name.
     public let property: String
+
+    /// The property value.
     public let value: String
 
     internal init(ptype: String, property: String, value: String, quoted: Bool?) {
@@ -979,6 +1058,12 @@ public struct AuthenticationMethodProperty: Codable, Hashable, Sendable {
         self.value = value
     }
 
+    /// Initialize a new instance of `AuthenticationMethodProperty`.
+    ///
+    /// - Parameters:
+    ///   - ptype: The property type.
+    ///   - property: The name of the property.
+    ///   - value: The value of the property.
     public init(_ ptype: String, _ property: String, _ value: String) {
         self.quoted = nil
         self.propertyType = ptype
@@ -1027,6 +1112,11 @@ public struct AuthenticationMethodProperty: Codable, Hashable, Sendable {
         }
     }
 
+    /// Serialize the `AuthenticationMethodProperty` to a string.
+    ///
+    /// Creates a string-representation of the `AuthenticationMethodProperty`.
+    ///
+    /// - Returns: The serialized string.
     public func toString() -> String {
         var builder = ValueStringBuilder(initialCapacity: 128)
         writeTo(&builder)

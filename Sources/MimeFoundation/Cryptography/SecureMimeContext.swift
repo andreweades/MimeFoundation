@@ -7,20 +7,70 @@
 import Foundation
 @_spi(CMS) import X509
 
-/// Abstract base class for S/MIME cryptographic operations.
+/// A Secure MIME (S/MIME) cryptography context.
 ///
-/// This class provides the interface for S/MIME signing and verification.
-/// Subclasses implement the actual cryptographic operations.
+/// Generally speaking, applications should not use a ``SecureMimeContext``
+/// directly, but rather via higher level APIs such as ``MultipartSigned``
+/// and ``ApplicationPkcs7Mime``.
+///
+/// This class provides the interface for S/MIME signing, verification,
+/// encryption, and decryption operations. Subclasses implement the actual
+/// cryptographic operations using platform-specific APIs.
+///
+/// ## Subclassing Notes
+///
+/// The base class provides default implementations that use swift-crypto
+/// for signing and verification. Subclasses like ``AppleSecureMimeContext``
+/// may override these methods to use platform-specific APIs for additional
+/// functionality like encryption and decryption.
+///
+/// ## Topics
+///
+/// ### Creating a Context
+/// - ``init()``
+///
+/// ### Signing
+/// - ``sign(_:content:detached:)``
+/// - ``signAsync(_:content:detached:)``
+/// - ``createSignature(_:entity:)``
+/// - ``createSignatureAsync(_:entity:)``
+///
+/// ### Verification
+/// - ``verify(signatureBytes:contentBytes:trustRoots:)``
+/// - ``verify(multipartSigned:trustRoots:)``
+///
+/// ### Encryption
+/// - ``encrypt(recipients:content:)``
+/// - ``encrypt(recipients:entity:)``
+/// - ``signAndEncrypt(signer:recipients:entity:)``
+///
+/// ### Decryption
+/// - ``decrypt(encryptedBytes:)``
+/// - ``decrypt(encryptedPart:)``
+/// - ``decryptAndVerify(encryptedPart:trustRoots:)``
+///
+/// ### Protocol Information
+/// - ``signatureProtocol``
+/// - ``encryptionProtocol``
+/// - ``supportsEncryption``
+/// - ``supportsDecryption``
 @available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *)
 open class SecureMimeContext: @unchecked Sendable {
 
     /// The MIME type for S/MIME signatures.
+    ///
+    /// This value (`"application/pkcs7-signature"`) is used by ``MultipartSigned``
+    /// to set the protocol parameter of the Content-Type header.
     public static let signatureProtocol = "application/pkcs7-signature"
 
     /// The MIME type for S/MIME encrypted content.
+    ///
+    /// This value (`"application/pkcs7-mime"`) is used for encrypted S/MIME content.
     public static let encryptionProtocol = "application/pkcs7-mime"
 
     /// Creates a new S/MIME context.
+    ///
+    /// Subclasses may override this initializer to perform additional setup.
     public init() {}
 
     // MARK: - Signing
@@ -305,9 +355,17 @@ open class SecureMimeContext: @unchecked Sendable {
         return stream.toByteArray()
     }
 
-    /// Returns whether this context supports encryption.
+    /// A Boolean value indicating whether this context supports encryption.
+    ///
+    /// The default implementation returns `false`. Subclasses that support
+    /// encryption (such as ``AppleSecureMimeContext`` on macOS) override this
+    /// property to return `true`.
     open var supportsEncryption: Bool { false }
 
-    /// Returns whether this context supports decryption.
+    /// A Boolean value indicating whether this context supports decryption.
+    ///
+    /// The default implementation returns `false`. Subclasses that support
+    /// decryption (such as ``AppleSecureMimeContext`` on macOS) override this
+    /// property to return `true`.
     open var supportsDecryption: Bool { false }
 }

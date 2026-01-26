@@ -4,14 +4,29 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// A text to HTML converter.
+///
+/// Used to convert plain text into HTML.
 public final class TextToHtml: TextConverter {
     private let scanner: UrlScanner
 
+    /// The footer format.
     public var footerFormat: HeaderFooterFormat = .text
+
+    /// The header format.
     public var headerFormat: HeaderFooterFormat = .text
+
+    /// The `HtmlTagCallback` method to use for custom filtering of HTML tags and content.
     public var htmlTagCallback: HtmlTagCallback?
+
+    /// Whether the converter should only output an HTML fragment.
+    ///
+    /// `true` if the converter should only output an HTML fragment; otherwise, `false`.
     public var outputHtmlFragment: Bool = false
 
+    /// Initialize a new instance of `TextToHtml`.
+    ///
+    /// Creates a new text to HTML converter.
     public override init() {
         scanner = UrlScanner()
         for pattern in TextConverter.urlPatterns {
@@ -20,10 +35,12 @@ public final class TextToHtml: TextConverter {
         super.init()
     }
 
+    /// The input format.
     public override var inputFormat: TextFormat {
         .plain
     }
 
+    /// The output format.
     public override var outputFormat: TextFormat {
         .html
     }

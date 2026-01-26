@@ -5,13 +5,29 @@
 //
 
 /// A TNEF property identifier.
+///
+/// TNEF property identifiers correspond to MAPI property identifiers (also known as property tags).
+/// Each identifier uniquely identifies a specific MAPI property such as subject, sender, body, etc.
+///
+/// The static properties on this struct represent well-known MAPI properties. Properties with
+/// identifiers in the range 0x8000 to 0xFFFE are named properties that are defined by applications.
 public struct TnefPropertyId: RawRepresentable, Equatable, Hashable, Sendable {
+    /// The raw 16-bit property identifier value.
+    ///
+    /// This value corresponds directly to the MAPI property identifier as defined
+    /// in the MAPI specification.
     public let rawValue: Int16
 
+    /// Initialize a new instance of the ``TnefPropertyId`` struct.
+    ///
+    /// - Parameter rawValue: The raw 16-bit MAPI property identifier.
     public init(rawValue: Int16) {
         self.rawValue = rawValue
     }
 
+    // MARK: - MAPI Property Identifiers
+
+    /// The MAPI property PR_AB_DEFAULT_DIR.
     public static let abDefaultDir                             = TnefPropertyId(rawValue: 0x3D06)
     public static let abDefaultPab                             = TnefPropertyId(rawValue: 0x3D07)
     public static let abProviderId                             = TnefPropertyId(rawValue: 0x3615)

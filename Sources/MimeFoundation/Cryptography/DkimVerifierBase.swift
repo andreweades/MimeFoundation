@@ -6,34 +6,86 @@
 
 import Foundation
 
+/// Errors that can occur during DKIM verification operations.
 public enum DkimVerifierError: Error, Equatable, Sendable {
+    /// An invalid argument was provided to the verifier.
     case invalidArgument
+    /// The DKIM header is malformed and cannot be parsed.
     case malformedHeader(String)
+    /// The signature algorithm is not supported or not enabled.
     case unsupportedAlgorithm
+    /// The public key is invalid or incompatible with the signature algorithm.
     case invalidKey
 }
 
+/// The base class for DKIM verifiers.
+///
+/// This class provides the common functionality for verifying DKIM signatures.
+/// It handles signature algorithm configuration, public key lookup, and the
+/// core verification logic.
+///
+/// ## Subclassing Notes
+///
+/// Subclasses like ``DkimVerifier`` extend this base class to provide the
+/// public verification API for email messages.
+///
+/// ## Topics
+///
+/// ### Configuration
+/// - ``minimumRsaKeyLength``
+///
+/// ### Algorithm Management
+/// - ``enable(_:)``
+/// - ``disable(_:)``
+/// - ``isEnabled(_:)``
 open class DkimVerifierBase {
     private static let colon: [UInt8] = [0x3A]
     private let publicKeyLocator: DkimPublicKeyLocator
     private var enabledSignatureAlgorithms: Int = 0
 
+    /// The minimum allowed RSA key length in bits.
+    ///
+    /// Signatures using RSA keys shorter than this length will fail verification.
+    /// The default value is 1024 bits, but higher values (e.g., 2048) are
+    /// recommended for better security.
     public var minimumRsaKeyLength: Int = 1024
 
+    /// Creates a new DKIM verifier base with the specified public key locator.
+    ///
+    /// By default, enables the ``DkimSignatureAlgorithm/ed25519Sha256`` and
+    /// ``DkimSignatureAlgorithm/rsaSha256`` algorithms. The ``DkimSignatureAlgorithm/rsaSha1``
+    /// algorithm is disabled by default due to security concerns.
+    ///
+    /// - Parameter publicKeyLocator: The service used to retrieve public keys via DNS.
     public init(publicKeyLocator: DkimPublicKeyLocator) {
         self.publicKeyLocator = publicKeyLocator
         enable(.ed25519Sha256)
         enable(.rsaSha256)
     }
 
+    /// Enables the specified signature algorithm for verification.
+    ///
+    /// - Parameter algorithm: The signature algorithm to enable.
+    ///
+    /// By default, ``DkimSignatureAlgorithm/ed25519Sha256`` and
+    /// ``DkimSignatureAlgorithm/rsaSha256`` are enabled.
     public func enable(_ algorithm: DkimSignatureAlgorithm) {
         enabledSignatureAlgorithms |= 1 << algorithm.bitIndex
     }
 
+    /// Disables the specified signature algorithm for verification.
+    ///
+    /// Signatures using disabled algorithms will not be verified.
+    ///
+    /// - Parameter algorithm: The signature algorithm to disable.
     public func disable(_ algorithm: DkimSignatureAlgorithm) {
         enabledSignatureAlgorithms &= ~(1 << algorithm.bitIndex)
     }
 
+    /// Returns whether the specified signature algorithm is enabled.
+    ///
+    /// - Parameter algorithm: The signature algorithm to check.
+    /// - Returns: `true` if the algorithm is enabled for verification; otherwise, `false`.
     public func isEnabled(_ algorithm: DkimSignatureAlgorithm) -> Bool {
         (enabledSignatureAlgorithms & (1 << algorithm.bitIndex)) != 0
     }

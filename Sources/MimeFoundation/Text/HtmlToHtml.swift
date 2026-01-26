@@ -4,21 +4,42 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// An HTML to HTML converter.
+///
+/// Used to convert HTML into HTML with optional filtering and transformation.
 public final class HtmlToHtml: TextConverter {
+    /// Whether the converter should remove HTML comments from the output.
+    ///
+    /// `true` if the converter should remove comments; otherwise, `false`.
     public var filterComments: Bool = false
+
+    /// Whether executable scripts should be stripped from the output.
+    ///
+    /// `true` if executable scripts should be filtered; otherwise, `false`.
     public var filterHtml: Bool = false
+
+    /// The footer format.
     public var footerFormat: HeaderFooterFormat = .text
+
+    /// The header format.
     public var headerFormat: HeaderFooterFormat = .text
+
+    /// The `HtmlTagCallback` method to use for custom filtering of HTML tags and content.
     public var htmlTagCallback: HtmlTagCallback?
 
+    /// Initialize a new instance of `HtmlToHtml`.
+    ///
+    /// Creates a new HTML to HTML converter.
     public override init() {
         super.init()
     }
 
+    /// The input format.
     public override var inputFormat: TextFormat {
         .html
     }
 
+    /// The output format.
     public override var outputFormat: TextFormat {
         .html
     }

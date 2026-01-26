@@ -4,7 +4,42 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// A CRC-32 checksum calculator.
+///
+/// `Crc32` calculates CRC-32 checksums using the standard polynomial used by
+/// formats like ZIP files, PNG images, and Ethernet. The checksum can be
+/// computed incrementally by calling ``update(_:offset:count:)`` multiple times.
+///
+/// ## Basic Usage
+///
+/// ```swift
+/// let crc = Crc32()
+/// let data: [UInt8] = [0x48, 0x65, 0x6C, 0x6C, 0x6F]  // "Hello"
+/// crc.update(data, offset: 0, count: data.count)
+/// print(crc.checksum)
+/// ```
+///
+/// ## Incremental Calculation
+///
+/// The checksum can be computed across multiple data chunks:
+///
+/// ```swift
+/// let crc = Crc32()
+/// crc.update(chunk1, offset: 0, count: chunk1.count)
+/// crc.update(chunk2, offset: 0, count: chunk2.count)
+/// let finalChecksum = crc.checksum
+/// ```
+///
+/// ## Resetting
+///
+/// Call ``reset()`` to reuse the calculator for a new checksum:
+///
+/// ```swift
+/// crc.reset()
+/// crc.update(newData, offset: 0, count: newData.count)
+/// ```
 public final class Crc32 {
+    /// The CRC-32 lookup table using the standard polynomial (0xEDB88320).
     private static let table: [UInt32] = [
         0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3,
         0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988, 0x09b64c2b, 0x7eb17cbd, 0xe7b82d07, 0x90bf1d91,
@@ -40,24 +75,52 @@ public final class Crc32 {
         0xb3667a2e, 0xc4614ab8, 0x5d681b02, 0x2a6f2b94, 0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d
     ]
 
+    /// The initial CRC value used when creating this instance.
     private let initialValue: Int32
+
+    /// The current CRC value.
     private var crc: Int32
 
+    /// Creates a new CRC-32 calculator.
+    ///
+    /// - Parameter initialValue: The initial CRC value. Defaults to 0.
+    ///   Some protocols may require a non-zero initial value (e.g., 0xFFFFFFFF).
     public init(initialValue: Int32 = 0) {
         self.initialValue = initialValue
         self.crc = initialValue
     }
 
+    /// Creates a copy of this CRC-32 calculator with the same state.
+    ///
+    /// This is useful when you need to compute multiple checksums that share
+    /// a common prefix.
+    ///
+    /// - Returns: A new `Crc32` instance with the same checksum state.
     public func copy() -> Crc32 {
         let copied = Crc32(initialValue: initialValue)
         copied.crc = crc
         return copied
     }
 
+    /// The current CRC-32 checksum value.
+    ///
+    /// This value is updated each time ``update(_:offset:count:)`` or
+    /// ``update(_:)`` is called.
     public var checksum: Int32 {
         crc
     }
 
+    /// Updates the checksum with data from a byte array.
+    ///
+    /// - Parameters:
+    ///   - buffer: The byte array containing the data.
+    ///   - offset: The starting index in the buffer.
+    ///   - count: The number of bytes to process.
+    /// - Returns: The updated checksum value.
+    ///
+    /// If the specified range is invalid (negative offset/count, or extends
+    /// beyond the buffer), the checksum is not modified and the current
+    /// value is returned.
     @discardableResult
     public func update(_ buffer: [UInt8], offset: Int, count: Int) -> Int32 {
         let max = offset + count
@@ -75,6 +138,10 @@ public final class Crc32 {
         return crc
     }
 
+    /// Updates the checksum with a single byte.
+    ///
+    /// - Parameter value: The byte value to add to the checksum.
+    /// - Returns: The updated checksum value.
     @discardableResult
     public func update(_ value: UInt8) -> Int32 {
         let tableIndex = Int((UInt32(bitPattern: crc) ^ UInt32(value)) & 0xFF)
@@ -83,6 +150,12 @@ public final class Crc32 {
         return crc
     }
 
+    /// Resets the checksum to its initial value.
+    ///
+    /// After calling this method, the checksum value returns to the
+    /// `initialValue` specified during construction (default 0).
+    /// This allows the same `Crc32` instance to be reused for
+    /// calculating multiple checksums.
     public func reset() {
         crc = initialValue
     }

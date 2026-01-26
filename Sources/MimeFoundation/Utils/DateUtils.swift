@@ -6,6 +6,7 @@
 
 import Foundation
 
+/// Internal flags used during date token parsing.
 private struct DateTokenFlags: OptionSet {
     let rawValue: UInt8
 
@@ -20,6 +21,7 @@ private struct DateTokenFlags: OptionSet {
     static let hasSign = DateTokenFlags(rawValue: 1 << 7)
 }
 
+/// Internal representation of a date token during parsing.
 private struct DateToken {
     let flags: DateTokenFlags
     let start: Int
@@ -34,6 +36,47 @@ private struct DateToken {
     var isTimeZone: Bool { isNumericZone || isAlphaZone }
 }
 
+/// Utility methods to parse and format RFC 2822 date strings.
+///
+/// `DateUtils` provides methods for parsing date strings from MIME message headers
+/// (such as the Date header) and formatting dates for use in outgoing messages.
+/// The parser is tolerant of common variations and malformed dates found in
+/// real-world email messages.
+///
+/// ## Parsing Dates
+///
+/// The ``tryParse(_:date:)-95tts`` methods attempt to parse dates from various formats:
+///
+/// ```swift
+/// var date: DateTimeOffset?
+/// if DateUtils.tryParse("Mon, 15 Mar 2024 14:30:00 -0500", date: &date) {
+///     print(date!)  // Successfully parsed
+/// }
+///
+/// // Also handles non-standard formats
+/// DateUtils.tryParse("15-Mar-2024 14:30:00 EST", date: &date)
+/// DateUtils.tryParse("March 15, 2024 2:30 PM", date: &date)
+/// ```
+///
+/// ## Formatting Dates
+///
+/// Format dates for use in MIME headers using RFC 2822 format:
+///
+/// ```swift
+/// let date = DateTimeOffset.now()
+/// let formatted = DateUtils.formatDate(date)
+/// // "Mon, 15 Mar 2024 14:30:00 -0500"
+/// ```
+///
+/// ## Supported Formats
+///
+/// The parser handles many common date formats including:
+/// - RFC 2822: `Mon, 15 Mar 2024 14:30:00 -0500`
+/// - RFC 822: `15 Mar 24 14:30:00 EST`
+/// - Various non-standard formats used by mail clients
+/// - Dates with or without weekday names
+/// - 12-hour time with AM/PM
+/// - Numeric and alphabetic timezone designations
 public enum DateUtils {
     private static let monthCharacters = "JanuaryFebruaryMarchAprilMayJuneJulyAugustSeptemberOctoberNovemberDecember"
     private static let weekdayCharacters = "SundayMondayTuesdayWednesdayThursdayFridaySaturday"
@@ -481,6 +524,29 @@ public enum DateUtils {
         return date != nil
     }
 
+    /// Tries to parse a date from a byte buffer.
+    ///
+    /// Parses an RFC 2822 date and time from the supplied buffer starting at the
+    /// given index and spanning across the specified number of bytes. This method
+    /// is tolerant of many non-standard date formats commonly found in email messages.
+    ///
+    /// - Parameters:
+    ///   - buffer: The input byte buffer containing the date string.
+    ///   - startIndex: The starting index of the input buffer.
+    ///   - length: The number of bytes in the input buffer to parse.
+    ///   - date: On successful return, contains the parsed date. On failure,
+    ///     contains `nil`.
+    /// - Returns: `true` if the date was successfully parsed; otherwise, `false`.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let buffer = Array("Mon, 15 Mar 2024 14:30:00 -0500".utf8)
+    /// var date: DateTimeOffset?
+    /// if DateUtils.tryParse(buffer, startIndex: 0, length: buffer.count, date: &date) {
+    ///     print(date!)
+    /// }
+    /// ```
     public static func tryParse(_ buffer: [UInt8]?, startIndex: Int, length: Int, date: inout DateTimeOffset?) -> Bool {
         guard let buffer else {
             date = nil
@@ -503,6 +569,17 @@ public enum DateUtils {
         return false
     }
 
+    /// Tries to parse a date from a byte buffer starting at the specified index.
+    ///
+    /// Parses an RFC 2822 date and time from the supplied buffer starting at the
+    /// specified index through the end of the buffer.
+    ///
+    /// - Parameters:
+    ///   - buffer: The input byte buffer containing the date string.
+    ///   - startIndex: The starting index of the input buffer.
+    ///   - date: On successful return, contains the parsed date. On failure,
+    ///     contains `nil`.
+    /// - Returns: `true` if the date was successfully parsed; otherwise, `false`.
     public static func tryParse(_ buffer: [UInt8]?, startIndex: Int, date: inout DateTimeOffset?) -> Bool {
         guard let buffer else {
             date = nil
@@ -511,6 +588,15 @@ public enum DateUtils {
         return tryParse(buffer, startIndex: startIndex, length: buffer.count - startIndex, date: &date)
     }
 
+    /// Tries to parse a date from a byte buffer.
+    ///
+    /// Parses an RFC 2822 date and time from the entire buffer.
+    ///
+    /// - Parameters:
+    ///   - buffer: The input byte buffer containing the date string.
+    ///   - date: On successful return, contains the parsed date. On failure,
+    ///     contains `nil`.
+    /// - Returns: `true` if the date was successfully parsed; otherwise, `false`.
     public static func tryParse(_ buffer: [UInt8]?, date: inout DateTimeOffset?) -> Bool {
         guard let buffer else {
             date = nil
@@ -519,6 +605,25 @@ public enum DateUtils {
         return tryParse(buffer, startIndex: 0, length: buffer.count, date: &date)
     }
 
+    /// Tries to parse a date from a string.
+    ///
+    /// Parses an RFC 2822 date and time from the specified text. This is the
+    /// most convenient method for parsing date strings.
+    ///
+    /// - Parameters:
+    ///   - text: The input text containing the date string.
+    ///   - date: On successful return, contains the parsed date. On failure,
+    ///     contains `nil`.
+    /// - Returns: `true` if the date was successfully parsed; otherwise, `false`.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// var date: DateTimeOffset?
+    /// if DateUtils.tryParse("Mon, 15 Mar 2024 14:30:00 -0500", date: &date) {
+    ///     print(date!)
+    /// }
+    /// ```
     public static func tryParse(_ text: String?, date: inout DateTimeOffset?) -> Bool {
         guard let text else {
             date = nil
@@ -528,6 +633,31 @@ public enum DateUtils {
         return tryParse(buffer, startIndex: 0, length: buffer.count, date: &date)
     }
 
+    /// Formats a date as an RFC 2822 date string.
+    ///
+    /// Formats the date and time in the format specified by RFC 2822, suitable
+    /// for use in the Date header of MIME messages.
+    ///
+    /// - Parameter date: The date to format.
+    /// - Returns: The formatted date string.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let date = DateTimeOffset.now()
+    /// let formatted = DateUtils.formatDate(date)
+    /// // "Mon, 15 Mar 2024 14:30:00 -0500"
+    /// ```
+    ///
+    /// ## Format
+    ///
+    /// The output format is: `Ddd, DD Mon YYYY HH:MM:SS +HHMM`
+    /// - Ddd: Three-letter weekday abbreviation
+    /// - DD: Two-digit day of month
+    /// - Mon: Three-letter month abbreviation
+    /// - YYYY: Four-digit year
+    /// - HH:MM:SS: Time in 24-hour format
+    /// - +HHMM: Timezone offset from UTC
     public static func formatDate(_ date: DateTimeOffset) -> String {
         let weekday = weekDays[date.dayOfWeek]
         let day = String(format: "%02d", date.day)

@@ -6,21 +6,70 @@
 
 import Foundation
 
+/// Errors that can occur when working with MIME headers.
 public enum HeaderError: Error, Equatable, Sendable {
+    /// The header identifier is unknown or invalid.
     case unknownHeaderId
+    /// The field name is empty.
     case emptyFieldName
+    /// The field name contains illegal characters.
     case invalidFieldName
+    /// The raw value is invalid (e.g., does not end with a newline).
     case invalidRawValue
+    /// The specified charset is not supported.
     case unsupportedCharset
 }
 
+/// A class representing a Message or MIME header.
+///
+/// Represents a single header field and value pair, such as `Subject: Hello World`
+/// or `Content-Type: text/plain; charset=utf-8`.
+///
+/// ## Overview
+///
+/// Headers in email messages follow the format defined in RFC 5322, with a field name
+/// followed by a colon, followed by the field value. Header values may be encoded
+/// according to RFC 2047 for non-ASCII characters.
+///
+/// ## Example
+///
+/// ```swift
+/// let header = Header(.subject, value: "Hello World")
+/// print(header.field)  // "Subject"
+/// print(header.value)  // "Hello World"
+/// ```
 public final class Header: CustomStringConvertible, Equatable, Comparable, Hashable {
+    /// The header identifier.
+    ///
+    /// This property provides an enumerated identifier for the header, which is useful
+    /// for switch statements and performance-sensitive code. For custom headers that
+    /// are not part of the ``HeaderId`` enumeration, this will be ``HeaderId/unknown``.
     public let id: HeaderId
+
+    /// The name of the header field.
+    ///
+    /// This is the string representation of the header name, such as "Subject",
+    /// "Content-Type", or "X-Custom-Header".
     public let field: String
+
+    /// The raw field name of the header as bytes.
+    ///
+    /// Contains the raw field name of the header as ASCII bytes.
     public let rawField: [UInt8]
+
+    /// Indicates whether the header is invalid.
+    ///
+    /// A header is considered invalid if it could not be properly parsed according
+    /// to RFC 5322 standards. Invalid headers are preserved but may not be
+    /// processed correctly.
     public internal(set) var isInvalid: Bool
+
     private var encodingStorage: String.Encoding
 
+    /// The character encoding used for encoding the header value.
+    ///
+    /// When setting a new value, the header will be re-encoded using this encoding
+    /// according to the rules of RFC 2047.
     public var encoding: String.Encoding {
         get { encodingStorage }
         set {
@@ -35,6 +84,14 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
     private var textValue: String?
     private var explicitRawValue: Bool
 
+    /// The decoded header value.
+    ///
+    /// Gets or sets the decoded header value, suitable for displaying to the user.
+    /// When getting, the value is decoded from the raw bytes using RFC 2047 decoding
+    /// and unfolded to remove line breaks.
+    ///
+    /// When setting, the value is encoded using UTF-8 by default. To use a different
+    /// encoding, use ``setValue(_:encoding:value:)`` instead.
     public var value: String {
         get {
             if let textValue {
@@ -49,12 +106,28 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
         }
     }
 
+    /// The raw value of the header as bytes.
+    ///
+    /// Contains the raw value of the header before any decoding or charset conversion.
+    /// This is the value as it appears in the message source.
     public var rawValue: [UInt8] {
         rawValueStorage
     }
 
     internal var changed: ((Header) -> Void)?
 
+    /// Creates a new header with the specified identifier and value.
+    ///
+    /// Creates a new message or entity header for the specified field and value pair
+    /// with the UTF-8 encoding.
+    ///
+    /// - Parameters:
+    ///   - id: The header identifier. Must not be ``HeaderId/unknown``.
+    ///   - value: The header value.
+    ///   - encoding: The character encoding to use for encoding the value according
+    ///               to RFC 2047. Defaults to UTF-8.
+    ///
+    /// - Precondition: `id` must not be ``HeaderId/unknown``.
     public init(_ id: HeaderId, value: String, encoding: String.Encoding = .utf8) {
         precondition(id != .unknown, "HeaderId.unknown is not valid for Header initialization.")
         self.options = .default
@@ -69,6 +142,20 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
         setValue(.default, encoding: encoding, value: value)
     }
 
+    /// Creates a new header with the specified field name and value.
+    ///
+    /// Creates a new message or entity header for the specified field and value pair
+    /// with the UTF-8 encoding.
+    ///
+    /// - Parameters:
+    ///   - field: The name of the header field. Must contain only ASCII characters
+    ///            that are valid in header field names.
+    ///   - value: The header value.
+    ///   - encoding: The character encoding to use for encoding the value according
+    ///               to RFC 2047. Defaults to UTF-8.
+    ///
+    /// - Precondition: `field` must not be empty and must contain only valid
+    ///                 ASCII field-text characters (printable ASCII except colon).
     public init(field: String, value: String, encoding: String.Encoding = .utf8) {
         let trimmed = field.trimmingCharacters(in: .whitespacesAndNewlines)
         precondition(!trimmed.isEmpty, "Header field names must not be empty.")
@@ -85,6 +172,18 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
         setValue(.default, encoding: encoding, value: value)
     }
 
+    /// Creates a new header with the specified identifier and value, with validation.
+    ///
+    /// Creates a new message or entity header for the specified field and value pair.
+    /// Unlike ``init(_:value:encoding:)``, this initializer throws an error instead
+    /// of using a precondition for invalid inputs.
+    ///
+    /// - Parameters:
+    ///   - id: The header identifier.
+    ///   - value: The header value.
+    ///   - encoding: The character encoding to use. Defaults to UTF-8.
+    ///
+    /// - Throws: ``HeaderError/unknownHeaderId`` if `id` is ``HeaderId/unknown``.
     public init(validating id: HeaderId, value: String, encoding: String.Encoding = .utf8) throws {
         guard id != .unknown else {
             throw HeaderError.unknownHeaderId
@@ -101,6 +200,20 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
         setValue(.default, encoding: encoding, value: value)
     }
 
+    /// Creates a new header with the specified field name and value, with validation.
+    ///
+    /// Creates a new message or entity header for the specified field and value pair.
+    /// Unlike ``init(field:value:encoding:)``, this initializer throws an error instead
+    /// of using a precondition for invalid inputs.
+    ///
+    /// - Parameters:
+    ///   - field: The name of the header field.
+    ///   - value: The header value.
+    ///   - encoding: The character encoding to use. Defaults to UTF-8.
+    ///
+    /// - Throws: ``HeaderError/emptyFieldName`` if the field name is empty.
+    /// - Throws: ``HeaderError/invalidFieldName`` if the field name contains
+    ///           illegal characters.
     public init(validating field: String, value: String, encoding: String.Encoding = .utf8) throws {
         let trimmed = field.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -146,6 +259,18 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
         self.explicitRawValue = false
     }
 
+    /// Returns a string representation of the header.
+    ///
+    /// Formats the header field and value in a way that is suitable for display
+    /// or writing to a message.
+    ///
+    /// - Parameters:
+    ///   - options: The formatting options to use. Defaults to ``FormatOptions/default``.
+    ///   - encode: If `true`, the raw encoded value is included; otherwise, the
+    ///             decoded value is used.
+    ///
+    /// - Returns: A string in the format "Field: Value" or just the raw content
+    ///            for invalid headers.
     public func toString(_ options: FormatOptions = .default, encode: Bool = false) -> String {
         if isInvalid {
             let bytes = rawField + rawValueStorage
@@ -169,6 +294,15 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
         return "\(field): \(value)"
     }
 
+    /// Gets the raw value of the header, optionally re-encoded with the specified format options.
+    ///
+    /// If the format options specify international encoding and the header value has not been
+    /// explicitly set as raw bytes, this method may re-encode the header value according to
+    /// the header type.
+    ///
+    /// - Parameter options: The formatting options to use.
+    ///
+    /// - Returns: The raw value as a byte array.
     public func getRawValue(_ options: FormatOptions) -> [UInt8] {
         if options.international && !explicitRawValue {
             switch id {
@@ -200,12 +334,30 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
         return rawValueStorage
     }
 
+    /// Gets the decoded header value using the specified character encoding.
+    ///
+    /// Decodes the raw header value using the specified character encoding for
+    /// character set conversion.
+    ///
+    /// - Parameter encoding: The character encoding to use for decoding.
+    ///
+    /// - Returns: The decoded and unfolded header value.
     public func getValue(_ encoding: String.Encoding) -> String {
         var options = self.options
         options.charsetEncoding = encoding
         return Header.unfold(Rfc2047.decodeText(options, rawValueStorage, startIndex: 0, count: rawValueStorage.count))
     }
 
+    /// Gets the decoded header value using the specified charset name.
+    ///
+    /// Decodes the raw header value using the specified charset for
+    /// character set conversion.
+    ///
+    /// - Parameter charset: The name of the charset to use (e.g., "utf-8", "iso-8859-1").
+    ///
+    /// - Returns: The decoded and unfolded header value.
+    ///
+    /// - Throws: ``HeaderError/unsupportedCharset`` if the charset is not supported.
     public func getValue(_ charset: String) throws -> String {
         guard let encoding = CharsetUtils.getEncoding(charset) else {
             throw HeaderError.unsupportedCharset
@@ -213,6 +365,15 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
         return getValue(encoding)
     }
 
+    /// Sets the header value using the specified formatting options and encoding.
+    ///
+    /// This method re-encodes the header value according to RFC 2047 using the
+    /// specified character encoding.
+    ///
+    /// - Parameters:
+    ///   - format: The formatting options to use when encoding the value.
+    ///   - encoding: The character encoding to use.
+    ///   - value: The new value for the header.
     public func setValue(_ format: FormatOptions, encoding: String.Encoding, value: String) {
         textValue = Header.unfold(value.trimmingCharacters(in: .whitespacesAndNewlines))
         rawValueStorage = Header.formatRawValue(options: options, format: format, encoding: encoding, field: field, id: id, value: textValue ?? "")
@@ -220,10 +381,26 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
         onChanged()
     }
 
+    /// Sets the header value using the specified encoding.
+    ///
+    /// This method re-encodes the header value according to RFC 2047 using the
+    /// specified character encoding with default formatting options.
+    ///
+    /// - Parameters:
+    ///   - encoding: The character encoding to use.
+    ///   - value: The new value for the header.
     public func setValue(_ encoding: String.Encoding, _ value: String) {
         setValue(.default, encoding: encoding, value: value)
     }
 
+    /// Sets the header value using the specified charset name.
+    ///
+    /// - Parameters:
+    ///   - format: The formatting options to use.
+    ///   - charset: The name of the charset to use.
+    ///   - value: The new value for the header.
+    ///
+    /// - Throws: ``HeaderError/unsupportedCharset`` if the charset is not supported.
     public func setValue(_ format: FormatOptions, charset: String, value: String) throws {
         guard let encoding = CharsetUtils.getEncoding(charset) else {
             throw HeaderError.unsupportedCharset
@@ -231,10 +408,26 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
         setValue(format, encoding: encoding, value: value)
     }
 
+    /// Sets the header value using the specified charset name.
+    ///
+    /// - Parameters:
+    ///   - charset: The name of the charset to use.
+    ///   - value: The new value for the header.
+    ///
+    /// - Throws: ``HeaderError/unsupportedCharset`` if the charset is not supported.
     public func setValue(_ charset: String, _ value: String) throws {
         try setValue(.default, charset: charset, value: value)
     }
 
+    /// Sets the raw value of the header directly from bytes.
+    ///
+    /// This method sets the raw value of the header without any encoding or
+    /// transformation. The value must end with a newline character (0x0A).
+    ///
+    /// - Parameter value: The raw bytes to set as the header value.
+    ///
+    /// - Throws: ``HeaderError/invalidRawValue`` if the value is empty or
+    ///           does not end with a newline.
     public func setRawValue(_ value: [UInt8]) throws {
         guard !value.isEmpty, value.last == 0x0A else {
             throw HeaderError.invalidRawValue
@@ -245,6 +438,12 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
         onChanged()
     }
 
+    /// Creates a copy of the header.
+    ///
+    /// Creates a deep copy of the header including its raw value, text value,
+    /// encoding, and invalid state.
+    ///
+    /// - Returns: A new ``Header`` instance with the same values as this header.
     public func copy() -> Header {
         let copied = Header(options, id, field, rawValueStorage)
         copied.explicitRawValue = explicitRawValue
@@ -254,6 +453,16 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
         return copied
     }
 
+    /// Unfolds a header value by removing line breaks.
+    ///
+    /// RFC 5322 allows header values to be folded across multiple lines for
+    /// display purposes. This method removes those line breaks to produce
+    /// a single-line value.
+    ///
+    /// - Parameter text: The text to unfold, or `nil`.
+    ///
+    /// - Returns: The unfolded text, or an empty string if the input was `nil`
+    ///            or empty.
     public static func unfold(_ text: String?) -> String {
         guard let text, !text.isEmpty else {
             return ""
@@ -294,14 +503,39 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
         changed?(self)
     }
 
+    /// Determines whether two headers are equal.
+    ///
+    /// Two headers are considered equal if they have the same identifier, field name,
+    /// and decoded value.
+    ///
+    /// - Parameters:
+    ///   - lhs: The first header to compare.
+    ///   - rhs: The second header to compare.
+    ///
+    /// - Returns: `true` if the headers are equal; otherwise, `false`.
     public static func == (lhs: Header, rhs: Header) -> Bool {
         lhs.id == rhs.id && lhs.field == rhs.field && lhs.value == rhs.value
     }
 
+    /// Compares two headers for ordering.
+    ///
+    /// Headers are ordered alphabetically by their field names, using
+    /// case-insensitive comparison.
+    ///
+    /// - Parameters:
+    ///   - lhs: The first header to compare.
+    ///   - rhs: The second header to compare.
+    ///
+    /// - Returns: `true` if `lhs` should be ordered before `rhs`.
     public static func < (lhs: Header, rhs: Header) -> Bool {
         lhs.field.caseInsensitiveCompare(rhs.field) == .orderedAscending
     }
 
+    /// Hashes the essential components of the header.
+    ///
+    /// The hash value is based on the lowercased field name.
+    ///
+    /// - Parameter hasher: The hasher to use.
     public func hash(into hasher: inout Hasher) {
         hasher.combine(field.lowercased())
     }
@@ -332,6 +566,18 @@ public final class Header: CustomStringConvertible, Equatable, Comparable, Hasha
 
 // MARK: - Formatting and parsing helpers
 extension Header {
+    /// Folds a header value to fit within the specified line length.
+    ///
+    /// RFC 5322 recommends that header lines be no longer than 78 characters.
+    /// This method folds long values by inserting line breaks at appropriate
+    /// positions.
+    ///
+    /// - Parameters:
+    ///   - format: The formatting options, including the maximum line length.
+    ///   - field: The header field name.
+    ///   - value: The header value to fold.
+    ///
+    /// - Returns: The folded header value.
     public static func fold(_ format: FormatOptions, field: String, value: String) -> String {
         foldInternal(format, field: field, value: value)
     }
@@ -1100,6 +1346,18 @@ extension Header {
 
 // MARK: - Parsing
 extension Header {
+    /// Tries to parse a header from a byte buffer.
+    ///
+    /// Attempts to parse a header from the specified region of a byte buffer.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - buffer: The byte buffer containing the header data.
+    ///   - startIndex: The starting index in the buffer.
+    ///   - length: The number of bytes to parse.
+    ///   - header: On return, contains the parsed header if successful, or `nil` if parsing failed.
+    ///
+    /// - Returns: `true` if a header was successfully parsed; otherwise, `false`.
     public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, length: Int, header: inout Header?) -> Bool {
         let endIndex = startIndex + length
         guard startIndex >= 0, length >= 0, endIndex <= buffer.count else {
@@ -1138,35 +1396,102 @@ extension Header {
         return true
     }
 
+    /// Tries to parse a header from a byte buffer using default options.
+    ///
+    /// - Parameters:
+    ///   - buffer: The byte buffer containing the header data.
+    ///   - startIndex: The starting index in the buffer.
+    ///   - length: The number of bytes to parse.
+    ///   - header: On return, contains the parsed header if successful.
+    ///
+    /// - Returns: `true` if a header was successfully parsed; otherwise, `false`.
     public static func tryParse(_ buffer: [UInt8], startIndex: Int, length: Int, header: inout Header?) -> Bool {
         tryParse(.default, buffer, startIndex: startIndex, length: length, header: &header)
     }
 
+    /// Tries to parse a header from a byte buffer, starting at the specified index.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - buffer: The byte buffer containing the header data.
+    ///   - startIndex: The starting index in the buffer.
+    ///   - header: On return, contains the parsed header if successful.
+    ///
+    /// - Returns: `true` if a header was successfully parsed; otherwise, `false`.
     public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, header: inout Header?) -> Bool {
         tryParse(options, buffer, startIndex: startIndex, length: buffer.count - startIndex, header: &header)
     }
 
+    /// Tries to parse a header from a byte buffer, starting at the specified index, using default options.
+    ///
+    /// - Parameters:
+    ///   - buffer: The byte buffer containing the header data.
+    ///   - startIndex: The starting index in the buffer.
+    ///   - header: On return, contains the parsed header if successful.
+    ///
+    /// - Returns: `true` if a header was successfully parsed; otherwise, `false`.
     public static func tryParse(_ buffer: [UInt8], startIndex: Int, header: inout Header?) -> Bool {
         tryParse(.default, buffer, startIndex: startIndex, length: buffer.count - startIndex, header: &header)
     }
 
+    /// Tries to parse a header from an entire byte buffer.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - buffer: The byte buffer containing the header data.
+    ///   - header: On return, contains the parsed header if successful.
+    ///
+    /// - Returns: `true` if a header was successfully parsed; otherwise, `false`.
     public static func tryParse(_ options: ParserOptions, _ buffer: [UInt8], header: inout Header?) -> Bool {
         tryParse(options, buffer, startIndex: 0, length: buffer.count, header: &header)
     }
 
+    /// Tries to parse a header from an entire byte buffer using default options.
+    ///
+    /// - Parameters:
+    ///   - buffer: The byte buffer containing the header data.
+    ///   - header: On return, contains the parsed header if successful.
+    ///
+    /// - Returns: `true` if a header was successfully parsed; otherwise, `false`.
     public static func tryParse(_ buffer: [UInt8], header: inout Header?) -> Bool {
         tryParse(.default, buffer, startIndex: 0, length: buffer.count, header: &header)
     }
 
+    /// Tries to parse a header from a string.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - text: The string containing the header data.
+    ///   - header: On return, contains the parsed header if successful.
+    ///
+    /// - Returns: `true` if a header was successfully parsed; otherwise, `false`.
     public static func tryParse(_ options: ParserOptions, _ text: String, header: inout Header?) -> Bool {
         let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
         return tryParse(options, buffer, startIndex: 0, length: buffer.count, header: &header)
     }
 
+    /// Tries to parse a header from a string using default options.
+    ///
+    /// - Parameters:
+    ///   - text: The string containing the header data.
+    ///   - header: On return, contains the parsed header if successful.
+    ///
+    /// - Returns: `true` if a header was successfully parsed; otherwise, `false`.
     public static func tryParse(_ text: String, header: inout Header?) -> Bool {
         tryParse(.default, text, header: &header)
     }
 
+    /// Parses a header from a byte buffer.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - buffer: The byte buffer containing the header data.
+    ///   - startIndex: The starting index in the buffer.
+    ///   - length: The number of bytes to parse.
+    ///
+    /// - Returns: The parsed ``Header``.
+    ///
+    /// - Throws: ``ParseException`` if the buffer does not contain a valid header.
     public static func parse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int, length: Int) throws -> Header {
         var header: Header? = nil
         if tryParse(options, buffer, startIndex: startIndex, length: length, header: &header), let header {
@@ -1175,31 +1500,94 @@ extension Header {
         throw ParseException("Invalid header.", tokenIndex: startIndex, errorIndex: startIndex)
     }
 
+    /// Parses a header from a byte buffer using default options.
+    ///
+    /// - Parameters:
+    ///   - buffer: The byte buffer containing the header data.
+    ///   - startIndex: The starting index in the buffer.
+    ///   - length: The number of bytes to parse.
+    ///
+    /// - Returns: The parsed ``Header``.
+    ///
+    /// - Throws: ``ParseException`` if the buffer does not contain a valid header.
     public static func parse(_ buffer: [UInt8], startIndex: Int, length: Int) throws -> Header {
         try parse(.default, buffer, startIndex: startIndex, length: length)
     }
 
+    /// Parses a header from a byte buffer, starting at the specified index.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - buffer: The byte buffer containing the header data.
+    ///   - startIndex: The starting index in the buffer.
+    ///
+    /// - Returns: The parsed ``Header``.
+    ///
+    /// - Throws: ``ParseException`` if the buffer does not contain a valid header.
     public static func parse(_ options: ParserOptions, _ buffer: [UInt8], startIndex: Int) throws -> Header {
         try parse(options, buffer, startIndex: startIndex, length: buffer.count - startIndex)
     }
 
+    /// Parses a header from a byte buffer using default options, starting at the specified index.
+    ///
+    /// - Parameters:
+    ///   - buffer: The byte buffer containing the header data.
+    ///   - startIndex: The starting index in the buffer.
+    ///
+    /// - Returns: The parsed ``Header``.
+    ///
+    /// - Throws: ``ParseException`` if the buffer does not contain a valid header.
     public static func parse(_ buffer: [UInt8], startIndex: Int) throws -> Header {
         try parse(.default, buffer, startIndex: startIndex, length: buffer.count - startIndex)
     }
 
+    /// Parses a header from an entire byte buffer.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - buffer: The byte buffer containing the header data.
+    ///
+    /// - Returns: The parsed ``Header``.
+    ///
+    /// - Throws: ``ParseException`` if the buffer does not contain a valid header.
     public static func parse(_ options: ParserOptions, _ buffer: [UInt8]) throws -> Header {
         try parse(options, buffer, startIndex: 0, length: buffer.count)
     }
 
+    /// Parses a header from an entire byte buffer using default options.
+    ///
+    /// - Parameters:
+    ///   - buffer: The byte buffer containing the header data.
+    ///
+    /// - Returns: The parsed ``Header``.
+    ///
+    /// - Throws: ``ParseException`` if the buffer does not contain a valid header.
     public static func parse(_ buffer: [UInt8]) throws -> Header {
         try parse(.default, buffer, startIndex: 0, length: buffer.count)
     }
 
+    /// Parses a header from a string.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - text: The string containing the header data.
+    ///
+    /// - Returns: The parsed ``Header``.
+    ///
+    /// - Throws: ``ParseException`` if the string does not contain a valid header.
     public static func parse(_ options: ParserOptions, _ text: String) throws -> Header {
         let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
         return try parse(options, buffer, startIndex: 0, length: buffer.count)
     }
 
+    /// Parses a header from a string using default options.
+    ///
+    /// - Parameters:
+    ///   - text: The string containing the header data.
+    ///
+    /// - Returns: The parsed ``Header``.
+    ///
+    /// - Throws: ``ParseException`` if the string does not contain a valid header.
     public static func parse(_ text: String) throws -> Header {
         try parse(.default, text)
     }

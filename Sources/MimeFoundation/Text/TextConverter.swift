@@ -6,6 +6,11 @@
 
 import Foundation
 
+/// An abstract class for converting text from one format to another.
+///
+/// An abstract class for converting text from one format to another.
+/// Subclasses implement specific text format conversions such as HTML to plain text,
+/// plain text to HTML, flowed text to HTML, etc.
 open class TextConverter {
     static let urlPatterns: [UrlPattern] = [
         UrlPattern(type: .addrspec, pattern: "@", prefix: "mailto:"),
@@ -26,13 +31,30 @@ open class TextConverter {
         UrlPattern(type: .web, pattern: "sip:", prefix: "")
     ]
 
+    /// Gets or sets whether the encoding of the input is detected from the byte order mark
+    /// or determined by the ``inputEncoding`` property.
+    ///
+    /// If set to `true`, the converter will examine the first few bytes of the input
+    /// to detect a byte order mark (BOM) and use the appropriate encoding. If no BOM
+    /// is detected, it falls back to the ``inputEncoding`` property.
     public var detectEncodingFromByteOrderMark: Bool = false
+
+    /// Gets or sets the input encoding.
+    ///
+    /// The encoding used to interpret the input data when converting from ``Data``.
     public var inputEncoding: String.Encoding = .utf8
+
+    /// Gets or sets the output encoding.
+    ///
+    /// The encoding used when converting to ``Data``.
     public var outputEncoding: String.Encoding = .utf8
 
     private var inputStreamBufferSizeStorage: Int = 4096
     private var outputStreamBufferSizeStorage: Int = 4096
 
+    /// Gets or sets the size of the input stream buffer.
+    ///
+    /// The buffer size used when reading from input streams. Must be greater than zero.
     public var inputStreamBufferSize: Int {
         get { inputStreamBufferSizeStorage }
         set {
@@ -41,6 +63,9 @@ open class TextConverter {
         }
     }
 
+    /// Gets or sets the size of the output stream buffer.
+    ///
+    /// The buffer size used when writing to output streams. Must be greater than zero.
     public var outputStreamBufferSize: Int {
         get { outputStreamBufferSizeStorage }
         set {
@@ -49,24 +74,52 @@ open class TextConverter {
         }
     }
 
+    /// Gets or sets the text that will be appended to the end of the output.
+    ///
+    /// The footer must be set before conversion begins. The format of the footer
+    /// depends on the specific converter implementation.
     public var footer: String?
+
+    /// Gets or sets text that will be prepended to the beginning of the output.
+    ///
+    /// The header must be set before conversion begins. The format of the header
+    /// depends on the specific converter implementation.
     public var header: String?
 
+    /// Initializes a new instance of the ``TextConverter`` class.
     public init() {
     }
 
+    /// Gets the input format.
+    ///
+    /// The text format that this converter accepts as input.
     open var inputFormat: TextFormat {
         fatalError("Override in subclasses")
     }
 
+    /// Gets the output format.
+    ///
+    /// The text format that this converter produces as output.
     open var outputFormat: TextFormat {
         fatalError("Override in subclasses")
     }
 
+    /// Converts the contents of the reader from the ``inputFormat`` to the ``outputFormat``
+    /// and uses the writer to write the resulting text.
+    ///
+    /// Subclasses must override this method to implement the actual conversion logic.
+    ///
+    /// - Parameters:
+    ///   - reader: The text reader providing the input.
+    ///   - writer: The text writer to receive the output.
     open func convert(_ reader: TextReadable, _ writer: TextWritable) {
         fatalError("Override in subclasses")
     }
 
+    /// Converts text from the ``inputFormat`` to the ``outputFormat``.
+    ///
+    /// - Parameter text: The text to convert.
+    /// - Returns: The converted text.
     public func convert(_ text: String) -> String {
         let reader = StringReader(text)
         let writer = StringWriter()
@@ -74,6 +127,14 @@ open class TextConverter {
         return writer.string
     }
 
+    /// Converts data from the ``inputFormat`` to the ``outputFormat``.
+    ///
+    /// The input data is decoded using the ``inputEncoding`` (or an encoding detected
+    /// from a byte order mark if ``detectEncodingFromByteOrderMark`` is `true`).
+    /// The output is encoded using the ``outputEncoding``.
+    ///
+    /// - Parameter data: The data to convert.
+    /// - Returns: The converted data.
     public func convert(_ data: Data) -> Data {
         let (encoding, offset) = resolveInputEncoding(for: data)
         let slice = data.subdata(in: offset..<data.count)

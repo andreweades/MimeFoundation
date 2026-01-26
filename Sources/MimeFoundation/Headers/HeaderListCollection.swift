@@ -6,11 +6,33 @@
 
 import Foundation
 
+/// Errors that can occur when working with a ``HeaderListCollection``.
 public enum HeaderListCollectionError: Error, Sendable {
+    /// The specified index is out of the valid range.
+    ///
+    /// - Parameters:
+    ///   - index: The index that was requested.
+    ///   - count: The number of elements in the collection.
     case indexOutOfRange(index: Int, count: Int)
+
+    /// The destination array does not have sufficient capacity.
+    ///
+    /// - Parameters:
+    ///   - required: The number of elements required.
+    ///   - available: The available capacity in the destination array.
     case insufficientCapacity(required: Int, available: Int)
 }
 
+/// A collection of ``HeaderList`` objects.
+///
+/// Represents a collection of header groups, typically used to store multiple
+/// sets of headers for a multipart MIME message.
+///
+/// ## Overview
+///
+/// ``HeaderListCollection`` provides methods for adding, removing, and accessing
+/// ``HeaderList`` objects. Changes to any contained ``HeaderList`` will trigger
+/// change notifications on the collection.
 public final class HeaderListCollection: RandomAccessCollection, MutableCollection, ExpressibleByArrayLiteral {
     public typealias Element = HeaderList
     public typealias Index = Int
@@ -19,10 +41,14 @@ public final class HeaderListCollection: RandomAccessCollection, MutableCollecti
 
     internal var changed: (() -> Void)?
 
+    /// Creates a new empty header list collection.
     public init() {
         self.groups = []
     }
 
+    /// Creates a new header list collection containing the specified header lists.
+    ///
+    /// - Parameter groups: An array of ``HeaderList`` objects to include in the collection.
     public init(_ groups: [HeaderList]) {
         self.groups = []
         for group in groups {
@@ -31,17 +57,35 @@ public final class HeaderListCollection: RandomAccessCollection, MutableCollecti
         }
     }
 
+    /// Creates a new header list collection from an array literal.
+    ///
+    /// - Parameter elements: The header lists to include in the collection.
     public convenience init(arrayLiteral elements: HeaderList...) {
         self.init(elements)
     }
 
+    /// The starting index of the collection.
     public var startIndex: Int { groups.startIndex }
+
+    /// The ending index of the collection.
     public var endIndex: Int { groups.endIndex }
 
+    /// Returns the index after the given index.
+    ///
+    /// - Parameter i: A valid index of the collection.
+    ///
+    /// - Returns: The index immediately after `i`.
     public func index(after i: Int) -> Int {
         groups.index(after: i)
     }
 
+    /// Accesses the header list at the specified position.
+    ///
+    /// - Parameter position: The index of the header list to access.
+    ///
+    /// - Returns: The header list at the specified index.
+    ///
+    /// - Precondition: `position` must be a valid index (0 <= position < count).
     public subscript(position: Int) -> HeaderList {
         get {
             precondition(position >= 0 && position < groups.count, "Index out of range")
@@ -59,10 +103,22 @@ public final class HeaderListCollection: RandomAccessCollection, MutableCollecti
         }
     }
 
+    /// The number of header lists in the collection.
     public var count: Int { groups.count }
 
+    /// A Boolean value indicating whether the collection is read-only.
+    ///
+    /// This property always returns `false` for ``HeaderListCollection``.
     public var isReadOnly: Bool { false }
 
+    /// Gets the header list at the specified index, with validation.
+    ///
+    /// - Parameter index: The index of the header list to retrieve.
+    ///
+    /// - Returns: The header list at the specified index.
+    ///
+    /// - Throws: ``HeaderListCollectionError/indexOutOfRange(index:count:)``
+    ///           if the index is out of range.
     public func group(at index: Int) throws -> HeaderList {
         guard index >= 0 && index < groups.count else {
             throw HeaderListCollectionError.indexOutOfRange(index: index, count: groups.count)
@@ -70,6 +126,14 @@ public final class HeaderListCollection: RandomAccessCollection, MutableCollecti
         return groups[index]
     }
 
+    /// Replaces the header list at the specified index.
+    ///
+    /// - Parameters:
+    ///   - index: The index of the header list to replace.
+    ///   - group: The new header list.
+    ///
+    /// - Throws: ``HeaderListCollectionError/indexOutOfRange(index:count:)``
+    ///           if the index is out of range.
     public func replaceGroup(at index: Int, with group: HeaderList) throws {
         guard index >= 0 && index < groups.count else {
             throw HeaderListCollectionError.indexOutOfRange(index: index, count: groups.count)
@@ -83,12 +147,16 @@ public final class HeaderListCollection: RandomAccessCollection, MutableCollecti
         onChanged()
     }
 
+    /// Adds a header list to the end of the collection.
+    ///
+    /// - Parameter group: The header list to add.
     public func add(_ group: HeaderList) {
         attach(group)
         groups.append(group)
         onChanged()
     }
 
+    /// Removes all header lists from the collection.
     public func clear() {
         for group in groups {
             detach(group)
@@ -97,10 +165,28 @@ public final class HeaderListCollection: RandomAccessCollection, MutableCollecti
         onChanged()
     }
 
+    /// Checks if the collection contains the specified header list.
+    ///
+    /// Uses identity comparison (===) rather than equality comparison.
+    ///
+    /// - Parameter group: The header list to search for.
+    ///
+    /// - Returns: `true` if the collection contains the header list;
+    ///            otherwise, `false`.
     public func contains(_ group: HeaderList) -> Bool {
         groups.contains { $0 === group }
     }
 
+    /// Copies the header lists to an array, starting at the specified index.
+    ///
+    /// - Parameters:
+    ///   - array: The destination array.
+    ///   - arrayIndex: The starting index in the destination array.
+    ///
+    /// - Throws: ``HeaderListCollectionError/indexOutOfRange(index:count:)``
+    ///           if `arrayIndex` is negative.
+    /// - Throws: ``HeaderListCollectionError/insufficientCapacity(required:available:)``
+    ///           if the destination array does not have enough capacity.
     public func copyTo(_ array: inout [HeaderList], startingAt arrayIndex: Int) throws {
         guard arrayIndex >= 0 else {
             throw HeaderListCollectionError.indexOutOfRange(index: arrayIndex, count: array.count)
@@ -113,6 +199,14 @@ public final class HeaderListCollection: RandomAccessCollection, MutableCollecti
         }
     }
 
+    /// Removes the first occurrence of the specified header list from the collection.
+    ///
+    /// Uses identity comparison (===) rather than equality comparison.
+    ///
+    /// - Parameter group: The header list to remove.
+    ///
+    /// - Returns: `true` if the header list was found and removed;
+    ///            otherwise, `false`.
     @discardableResult
     public func remove(_ group: HeaderList) -> Bool {
         guard let index = groups.firstIndex(where: { $0 === group }) else {

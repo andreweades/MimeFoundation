@@ -6,12 +6,29 @@
 
 import Foundation
 
+/// An abstract internet address, as specified by rfc0822.
+///
+/// An ``InternetAddress`` can be any type of address defined by the original Internet Message specification.
+///
+/// There are effectively two types of addresses: mailboxes and groups.
+///
+/// Mailbox addresses are what are most commonly known as email addresses and are
+/// represented by the ``MailboxAddress`` class.
+///
+/// Group addresses are themselves lists of addresses and are represented by the
+/// ``GroupAddress`` class. While rare, it is still important to handle these
+/// types of addresses. They typically only contain mailbox addresses, but may also
+/// contain other group addresses.
 public class InternetAddress: Comparable, Equatable, CustomStringConvertible {
     private static let atomSpecials = "()<>@,;:\\\".[]"
 
     private var encodingStorage: String.Encoding
     private var nameStorage: String?
 
+    /// The character encoding to use when encoding the name of the address.
+    ///
+    /// The character encoding is used to convert the ``name`` property, if it is set,
+    /// to a stream of bytes when encoding the internet address for transport.
     public var encoding: String.Encoding {
         get { encodingStorage }
         set {
@@ -21,6 +38,18 @@ public class InternetAddress: Comparable, Equatable, CustomStringConvertible {
         }
     }
 
+    /// The display name of the address.
+    ///
+    /// A name is optional and is typically set to the name of the person
+    /// or group that own the internet address.
+    ///
+    /// For example, the ``name`` property of the following ``MailboxAddress`` would be `"John Smith"`.
+    ///
+    /// `John Smith <j.smith@example.com>`
+    ///
+    /// Likewise, the ``name`` property of the following ``GroupAddress`` would be `"undisclosed-recipients"`.
+    ///
+    /// `undisclosed-recipients: Alice <alice@wonderland.com>, Bob <bob@the-builder.com>;`
     public var name: String? {
         get { nameStorage }
         set {
@@ -30,11 +59,21 @@ public class InternetAddress: Comparable, Equatable, CustomStringConvertible {
         }
     }
 
+    /// Initializes a new instance of the ``InternetAddress`` class.
+    ///
+    /// Initializes the ``encoding`` and ``name`` properties of the internet address.
+    ///
+    /// - Parameters:
+    ///   - encoding: The character encoding to be used for encoding the name.
+    ///   - name: The name of the mailbox or group.
     public init(encoding: String.Encoding, name: String?) {
         self.encodingStorage = encoding
         self.nameStorage = name
     }
 
+    /// Clones the address.
+    ///
+    /// - Returns: The cloned address.
     public func copy() -> InternetAddress {
         fatalError("Subclasses must override copy().")
     }
@@ -43,33 +82,60 @@ public class InternetAddress: Comparable, Equatable, CustomStringConvertible {
         fatalError("Subclasses must override encode().")
     }
 
-    /// Formats the address as a string with the specified options.
+    /// Serializes the ``InternetAddress`` to a string, optionally encoding it for transport.
+    ///
+    /// If the `encoded` parameter is `true`, then this method will return
+    /// an encoded version of the internet address according to the rules described in rfc2047.
+    ///
+    /// However, if the `encoded` parameter is `false`, then this method will
+    /// return a string suitable only for display purposes.
+    ///
     /// - Parameters:
     ///   - options: The formatting options to use.
-    ///   - encoded: Whether to encode non-ASCII characters.
-    /// - Returns: The formatted address string.
+    ///   - encoded: If `true`, the ``InternetAddress`` will be encoded for transport.
+    /// - Returns: A string representing the ``InternetAddress``.
     public func formatted(with options: FormatOptions = .default, encoded: Bool = false) -> String {
         fatalError("Subclasses must override formatted(with:encoded:).")
     }
 
+    /// A string representation of the ``InternetAddress`` suitable for display.
     public var description: String {
         formatted(with: .default, encoded: false)
     }
 
     internal var changed: ((InternetAddress) -> Void)?
 
+    /// Raises the internal changed event used to keep headers in sync.
+    ///
+    /// This method is called whenever a property of the internet address is changed.
     internal func onChanged() {
         changed?(self)
     }
 
+    /// Compares two internet addresses for sorting purposes.
+    ///
+    /// - Parameters:
+    ///   - lhs: The left-hand side address.
+    ///   - rhs: The right-hand side address.
+    /// - Returns: `true` if `lhs` should be ordered before `rhs`; otherwise, `false`.
     public static func < (lhs: InternetAddress, rhs: InternetAddress) -> Bool {
         lhs.compare(to: rhs) < 0
     }
 
+    /// Determines whether two internet addresses are equal.
+    ///
+    /// - Parameters:
+    ///   - lhs: The left-hand side address.
+    ///   - rhs: The right-hand side address.
+    /// - Returns: `true` if the addresses are equal; otherwise, `false`.
     public static func == (lhs: InternetAddress, rhs: InternetAddress) -> Bool {
         lhs.isEqual(to: rhs)
     }
 
+    /// Compares two internet addresses for the purpose of sorting.
+    ///
+    /// - Parameter other: The internet address to compare to.
+    /// - Returns: The sort order of the current internet address compared to the other internet address.
     internal func compare(to other: InternetAddress) -> Int {
         let lhsName = name ?? ""
         let rhsName = other.name ?? ""
@@ -113,10 +179,20 @@ public class InternetAddress: Comparable, Equatable, CustomStringConvertible {
         return 0
     }
 
+    /// Determines whether the specified ``InternetAddress`` is equal to the current ``InternetAddress``.
+    ///
+    /// Compares two internet addresses to determine if they are identical or not.
+    ///
+    /// - Parameter other: The ``InternetAddress`` to compare with the current ``InternetAddress``.
+    /// - Returns: `true` if the specified ``InternetAddress`` is equal to the current ``InternetAddress``; otherwise, `false`.
     internal func isEqual(to other: InternetAddress?) -> Bool {
         return false
     }
 
+    /// Encodes an internationalized phrase, quoting it if necessary.
+    ///
+    /// - Parameter phrase: The phrase to encode.
+    /// - Returns: The encoded phrase.
     internal static func encodeInternationalizedPhrase(_ phrase: String) -> String {
         for ch in phrase {
             if atomSpecials.contains(ch) {
@@ -669,17 +745,35 @@ public class InternetAddress: Comparable, Equatable, CustomStringConvertible {
 
     // MARK: - Swift-Idiomatic Parsing Factory Methods
 
-    /// Factory method for parsing - throws ParseException on failure.
-    /// Returns either MailboxAddress or GroupAddress depending on input.
+    /// Parses the given text into a new ``InternetAddress`` instance.
+    ///
+    /// Parses a single ``MailboxAddress`` or ``GroupAddress``. If the text contains
+    /// more data, then parsing will fail.
+    ///
     /// Use `try?` for optional behavior: `let addr = try? InternetAddress.parsed(from: text)`
+    ///
+    /// - Parameters:
+    ///   - text: The text to parse.
+    ///   - options: The parser options to use.
+    /// - Returns: The parsed ``InternetAddress`` (either ``MailboxAddress`` or ``GroupAddress``).
+    /// - Throws: ``ParseException`` if the text could not be parsed.
     public static func parsed(from text: String, options: ParserOptions = .default) throws -> InternetAddress {
         let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
         return try parsed(from: buffer, options: options)
     }
 
-    /// Factory method for parsing - throws ParseException on failure.
-    /// Returns either MailboxAddress or GroupAddress depending on input.
+    /// Parses the given input buffer into a new ``InternetAddress`` instance.
+    ///
+    /// Parses a single ``MailboxAddress`` or ``GroupAddress``. If the buffer contains
+    /// more data, then parsing will fail.
+    ///
     /// Use `try?` for optional behavior: `let addr = try? InternetAddress.parsed(from: buffer)`
+    ///
+    /// - Parameters:
+    ///   - buffer: The input buffer to parse.
+    ///   - options: The parser options to use.
+    /// - Returns: The parsed ``InternetAddress`` (either ``MailboxAddress`` or ``GroupAddress``).
+    /// - Throws: ``ParseException`` if the buffer could not be parsed.
     public static func parsed(from buffer: [UInt8], options: ParserOptions = .default) throws -> InternetAddress {
         var index = 0
         let endIndex = buffer.count

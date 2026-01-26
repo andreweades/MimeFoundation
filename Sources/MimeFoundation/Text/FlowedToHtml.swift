@@ -4,15 +4,48 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// A flowed text to HTML converter.
+///
+/// Used to convert flowed text (as described in RFC 3676) into HTML.
+/// The flowed text format is commonly used in email messages to allow
+/// text to be reflowed by the recipient's mail client.
 public final class FlowedToHtml: TextConverter {
     private let scanner: UrlScanner
 
+    /// Gets or sets whether the trailing space on a wrapped line should be deleted.
+    ///
+    /// The flowed text format defines a Content-Type parameter called "delsp" which can
+    /// have a value of "yes" or "no". If the parameter exists and the value is "yes", then
+    /// ``deleteSpace`` should be set to `true`, otherwise ``deleteSpace``
+    /// should be set to `false`.
     public var deleteSpace: Bool = false
+
+    /// Gets or sets the footer format.
+    ///
+    /// Specifies whether the ``TextConverter/footer`` property contains plain text
+    /// or HTML markup.
     public var footerFormat: HeaderFooterFormat = .text
+
+    /// Gets or sets the header format.
+    ///
+    /// Specifies whether the ``TextConverter/header`` property contains plain text
+    /// or HTML markup.
     public var headerFormat: HeaderFooterFormat = .text
+
+    /// Gets or sets the ``HtmlTagCallback`` method to use for custom filtering of HTML tags and content.
+    ///
+    /// Allows customization of how HTML tags are rendered during conversion.
     public var htmlTagCallback: HtmlTagCallback?
+
+    /// Gets or sets whether the converter should only output an HTML fragment.
+    ///
+    /// If `true`, the converter outputs only the body content without the
+    /// `<html>` and `<body>` wrapper tags. If `false`, a complete HTML document is produced.
     public var outputHtmlFragment: Bool = false
 
+    /// Initializes a new instance of the ``FlowedToHtml`` class.
+    ///
+    /// Creates a new flowed text to HTML converter.
     public override init() {
         scanner = UrlScanner()
         for pattern in TextConverter.urlPatterns {
@@ -21,10 +54,16 @@ public final class FlowedToHtml: TextConverter {
         super.init()
     }
 
+    /// Gets the input format.
+    ///
+    /// Always returns ``TextFormat/flowed`` for this converter.
     public override var inputFormat: TextFormat {
         .flowed
     }
 
+    /// Gets the output format.
+    ///
+    /// Always returns ``TextFormat/html`` for this converter.
     public override var outputFormat: TextFormat {
         .html
     }
@@ -202,6 +241,15 @@ public final class FlowedToHtml: TextConverter {
         }
     }
 
+    /// Converts the contents of the reader from the ``inputFormat`` to the ``outputFormat``
+    /// and uses the writer to write the resulting text.
+    ///
+    /// Converts flowed text to HTML, handling quote levels, paragraph detection,
+    /// and URL auto-linking.
+    ///
+    /// - Parameters:
+    ///   - reader: The text reader providing the flowed text input.
+    ///   - writer: The text writer to receive the HTML output.
     public override func convert(_ reader: TextReadable, _ writer: TextWritable) {
         if !outputHtmlFragment {
             writer.write("<html><body>")

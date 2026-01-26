@@ -10,13 +10,43 @@ import Security
 #endif
 @_spi(CMS) import X509
 
-/// Represents a recipient for CMS encryption operations.
+/// An S/MIME recipient for CMS encryption operations.
 ///
-/// A recipient is identified by their certificate, which contains the
-/// public key used to encrypt the message encryption key.
+/// A recipient is identified by their X.509 certificate, which contains the
+/// public key used to encrypt the message encryption key. When encrypting
+/// a message for multiple recipients, each recipient's certificate is used
+/// to create an encrypted copy of the symmetric encryption key.
+///
+/// ## Usage
+///
+/// ```swift
+/// // Create a recipient from a certificate
+/// let recipient = try CmsRecipient(pemEncoded: certificatePEM)
+///
+/// // Create a collection and encrypt
+/// var recipients = CmsRecipientCollection()
+/// recipients.add(recipient)
+///
+/// let context = SecureMimeContext()
+/// let encrypted = try context.encrypt(recipients: recipients, entity: entity)
+/// ```
+///
+/// ## Topics
+///
+/// ### Creating a Recipient
+/// - ``init(certificate:)``
+/// - ``init(pemEncoded:)``
+/// - ``init(derEncoded:)``
+/// - ``init(secCertificate:)``
+///
+/// ### Properties
+/// - ``certificate``
 @available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *)
 public struct CmsRecipient: Sendable {
-    /// The recipient's certificate.
+    /// The recipient's X.509 certificate.
+    ///
+    /// This certificate contains the public key that will be used to encrypt
+    /// the message encryption key for this recipient.
     public let certificate: Certificate
 
     /// Creates a new CMS recipient with the specified certificate.
@@ -29,7 +59,8 @@ public struct CmsRecipient: Sendable {
     /// Creates a CMS recipient from a PEM-encoded certificate.
     ///
     /// - Parameter pemEncoded: The PEM-encoded certificate string.
-    /// - Throws: `SecureMimeError` if the certificate cannot be parsed.
+    /// - Throws: ``SecureMimeError/invalidCertificate(_:)`` if the certificate
+    ///   cannot be parsed.
     public init(pemEncoded: String) throws {
         do {
             self.certificate = try Certificate(pemEncoded: pemEncoded)
@@ -41,7 +72,8 @@ public struct CmsRecipient: Sendable {
     /// Creates a CMS recipient from DER-encoded certificate data.
     ///
     /// - Parameter derEncoded: The DER-encoded certificate bytes.
-    /// - Throws: `SecureMimeError` if the certificate cannot be parsed.
+    /// - Throws: ``SecureMimeError/invalidCertificate(_:)`` if the certificate
+    ///   cannot be parsed.
     public init(derEncoded: [UInt8]) throws {
         do {
             self.certificate = try Certificate(derEncoded: derEncoded)
@@ -51,10 +83,13 @@ public struct CmsRecipient: Sendable {
     }
 
     #if canImport(Security)
-    /// Creates a CMS recipient from a SecCertificate.
+    /// Creates a CMS recipient from a Security framework certificate.
     ///
-    /// - Parameter secCertificate: The Security framework certificate.
-    /// - Throws: `SecureMimeError` if the certificate cannot be converted.
+    /// This initializer is only available on Apple platforms.
+    ///
+    /// - Parameter secCertificate: The `SecCertificate` to convert.
+    /// - Throws: ``SecureMimeError/invalidCertificate(_:)`` if the certificate
+    ///   cannot be converted.
     public init(secCertificate: SecCertificate) throws {
         do {
             self.certificate = try Certificate(secCertificate)
@@ -63,10 +98,12 @@ public struct CmsRecipient: Sendable {
         }
     }
 
-    /// Converts this recipient's certificate to a SecCertificate.
+    /// Converts this recipient's certificate to a Security framework certificate.
     ///
-    /// - Returns: The Security framework certificate.
-    /// - Throws: `SecureMimeError` if conversion fails.
+    /// This method is only available on Apple platforms.
+    ///
+    /// - Returns: The `SecCertificate` representation.
+    /// - Throws: ``SecureMimeError/invalidCertificate(_:)`` if conversion fails.
     public func toSecCertificate() throws -> SecCertificate {
         do {
             return try SecCertificate.makeWithCertificate(certificate)
@@ -77,7 +114,22 @@ public struct CmsRecipient: Sendable {
     #endif
 }
 
-/// A collection of CMS recipients for encryption operations.
+/// A collection of S/MIME recipients for encryption operations.
+///
+/// This collection is used to specify multiple recipients when encrypting
+/// a message. Each recipient in the collection will receive their own
+/// encrypted copy of the symmetric encryption key.
+///
+/// ## Topics
+///
+/// ### Creating a Collection
+/// - ``init()``
+/// - ``init(_:)``
+/// - ``init(arrayLiteral:)``
+///
+/// ### Adding Recipients
+/// - ``add(_:)``
+/// - ``add(certificate:)``
 @available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *)
 public struct CmsRecipientCollection: Sendable, RandomAccessCollection, ExpressibleByArrayLiteral {
     public typealias Element = CmsRecipient

@@ -7,13 +7,20 @@
 import Foundation
 
 /// A text previewer for plain text.
+///
+/// Generates a preview from plain text by collapsing whitespace and
+/// truncating to the maximum preview length.
 public class PlainTextPreviewer: TextPreviewer {
-    /// Initialize a new instance of the `PlainTextPreviewer` class.
+    /// Initializes a new instance of the ``PlainTextPreviewer`` class.
+    ///
+    /// Creates a new previewer for plain text.
     public override init() {
         super.init()
     }
 
-    /// Get the input format.
+    /// Gets the input format.
+    ///
+    /// Always returns ``TextFormat/plain`` for this previewer.
     public override var inputFormat: TextFormat {
         .plain
     }
@@ -31,7 +38,13 @@ public class PlainTextPreviewer: TextPreviewer {
         return false
     }
 
-    /// Get a text preview of a string of text.
+    /// Gets a text preview of a string of text.
+    ///
+    /// Collapses whitespace and generates a preview string limited to
+    /// ``TextPreviewer/maximumPreviewLength`` characters.
+    ///
+    /// - Parameter text: The original text.
+    /// - Returns: A string representing a shortened preview of the original text.
     public override func getPreviewText(_ text: String) -> String {
         if text.isEmpty {
             return ""
@@ -72,7 +85,13 @@ public class PlainTextPreviewer: TextPreviewer {
         return preview
     }
 
-    /// Get a text preview of a stream of text.
+    /// Gets a text preview of a stream of text.
+    ///
+    /// Reads from the stream, collapses whitespace, and generates a preview string
+    /// limited to ``TextPreviewer/maximumPreviewLength`` characters.
+    ///
+    /// - Parameter reader: The original text stream.
+    /// - Returns: A string representing a shortened preview of the original text.
     public override func getPreviewText(_ reader: TextReadable) -> String {
         var preview = ""
         preview.reserveCapacity(maximumPreviewLength)

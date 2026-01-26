@@ -6,24 +6,108 @@
 
 import Foundation
 
+/// A DKIM-Signature verifier.
+///
+/// Verifies DomainKeys Identified Mail (DKIM) signatures as specified in RFC 6376.
+///
+/// DKIM provides a method for validating a domain name identity that is associated
+/// with a message through cryptographic authentication. The verifier uses a
+/// ``DkimPublicKeyLocator`` to retrieve the signer's public key via DNS.
+///
+/// ## Usage
+///
+/// ```swift
+/// // Create a verifier with a public key locator
+/// let locator = MyDkimPublicKeyLocator()
+/// let verifier = DkimVerifier(publicKeyLocator: locator)
+///
+/// // Find and verify DKIM signatures
+/// for header in message.headers {
+///     if header.id == .dkimSignature {
+///         let isValid = try verifier.verify(message, header)
+///         print("Signature valid: \(isValid)")
+///     }
+/// }
+/// ```
+///
+/// ## Topics
+///
+/// ### Creating a Verifier
+/// - ``init(publicKeyLocator:)``
+///
+/// ### Verifying Signatures
+/// - ``verify(_:_:_:)``
+/// - ``verify(_:_:)``
+/// - ``verifyAsync(_:_:_:)``
+/// - ``verifyAsync(_:_:)``
+///
+/// ### Related Types
+/// - ``DkimPublicKeyLocator``
+/// - ``DkimSignatureAlgorithm``
 public final class DkimVerifier: DkimVerifierBase {
+    /// Creates a new DKIM verifier with the specified public key locator.
+    ///
+    /// - Parameter publicKeyLocator: The service used to retrieve public keys for
+    ///   signature verification. This is typically implemented using DNS lookups.
     public override init(publicKeyLocator: DkimPublicKeyLocator) {
         super.init(publicKeyLocator: publicKeyLocator)
     }
 
+    /// Verifies the specified DKIM-Signature header.
+    ///
+    /// - Parameters:
+    ///   - options: The formatting options to use when canonicalizing the message.
+    ///   - message: The message containing the signature to verify.
+    ///   - dkimSignature: The DKIM-Signature header to verify.
+    /// - Returns: `true` if the DKIM-Signature is valid; otherwise, `false`.
+    /// - Throws: ``DkimVerifierError/invalidArgument`` if `dkimSignature` is not
+    ///   a DKIM-Signature header, or ``DkimVerifierError/malformedHeader(_:)`` if
+    ///   the header value is malformed.
     public func verify(_ options: FormatOptions, _ message: MimeMessage, _ dkimSignature: Header) throws -> Bool {
         try verifyInternal(options: options, message: message, dkimSignature: dkimSignature)
     }
 
+    /// Verifies the specified DKIM-Signature header using default formatting options.
+    ///
+    /// - Parameters:
+    ///   - message: The message containing the signature to verify.
+    ///   - dkimSignature: The DKIM-Signature header to verify.
+    /// - Returns: `true` if the DKIM-Signature is valid; otherwise, `false`.
+    /// - Throws: ``DkimVerifierError/invalidArgument`` if `dkimSignature` is not
+    ///   a DKIM-Signature header, or ``DkimVerifierError/malformedHeader(_:)`` if
+    ///   the header value is malformed.
     public func verify(_ message: MimeMessage, _ dkimSignature: Header) throws -> Bool {
         try verify(.default, message, dkimSignature)
     }
 
+    /// Asynchronously verifies the specified DKIM-Signature header.
+    ///
+    /// This method supports cancellation through Swift's structured concurrency.
+    ///
+    /// - Parameters:
+    ///   - options: The formatting options to use when canonicalizing the message.
+    ///   - message: The message containing the signature to verify.
+    ///   - dkimSignature: The DKIM-Signature header to verify.
+    /// - Returns: `true` if the DKIM-Signature is valid; otherwise, `false`.
+    /// - Throws: ``DkimVerifierError/invalidArgument`` if `dkimSignature` is not
+    ///   a DKIM-Signature header, ``DkimVerifierError/malformedHeader(_:)`` if
+    ///   the header value is malformed, or `CancellationError` if the task is cancelled.
     public func verifyAsync(_ options: FormatOptions, _ message: MimeMessage, _ dkimSignature: Header) async throws -> Bool {
         try Task.checkCancellation()
         return try await verifyInternalAsync(options: options, message: message, dkimSignature: dkimSignature)
     }
 
+    /// Asynchronously verifies the specified DKIM-Signature header using default formatting options.
+    ///
+    /// This method supports cancellation through Swift's structured concurrency.
+    ///
+    /// - Parameters:
+    ///   - message: The message containing the signature to verify.
+    ///   - dkimSignature: The DKIM-Signature header to verify.
+    /// - Returns: `true` if the DKIM-Signature is valid; otherwise, `false`.
+    /// - Throws: ``DkimVerifierError/invalidArgument`` if `dkimSignature` is not
+    ///   a DKIM-Signature header, ``DkimVerifierError/malformedHeader(_:)`` if
+    ///   the header value is malformed, or `CancellationError` if the task is cancelled.
     public func verifyAsync(_ message: MimeMessage, _ dkimSignature: Header) async throws -> Bool {
         try await verifyAsync(.default, message, dkimSignature)
     }

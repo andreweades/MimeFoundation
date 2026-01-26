@@ -7,21 +7,27 @@
 import Foundation
 
 /// An abstract class for generating a text preview of a message.
+///
+/// An abstract class for generating a text preview of a message. Subclasses
+/// implement specific text format handling such as plain text or HTML.
 open class TextPreviewer {
     private var _maximumPreviewLength: Int = 230
 
-    /// Initialize a new instance of the `TextPreviewer` class.
+    /// Initializes a new instance of the ``TextPreviewer`` class.
     public init() {
     }
 
-    /// Get the input format.
+    /// Gets the input format.
+    ///
+    /// The text format that this previewer accepts as input.
     open var inputFormat: TextFormat {
         fatalError("Override in subclasses")
     }
 
-    /// Get or set the maximum text preview length.
+    /// Gets or sets the maximum text preview length.
     ///
     /// The default value is `230` which is what the GMail web API seems to use.
+    /// Valid values range from 1 to 1024.
     public var maximumPreviewLength: Int {
         get { _maximumPreviewLength }
         set {
@@ -32,6 +38,10 @@ open class TextPreviewer {
         }
     }
 
+    /// Creates a text previewer for the specified format.
+    ///
+    /// - Parameter format: The text format.
+    /// - Returns: A text previewer appropriate for the format.
     static func create(for format: TextFormat) -> TextPreviewer {
         switch format {
         case .html:
@@ -41,7 +51,10 @@ open class TextPreviewer {
         }
     }
 
-    /// Get a text preview of the text part.
+    /// Gets a text preview of the text part.
+    ///
+    /// Automatically determines the appropriate previewer based on the text part's format
+    /// and generates a preview string.
     ///
     /// - Parameter body: The text part.
     /// - Returns: A string representing a shortened preview of the original text.
@@ -73,7 +86,10 @@ open class TextPreviewer {
         return previewer.getPreviewText(text)
     }
 
-    /// Get a text preview of a string of text.
+    /// Gets a text preview of a string of text.
+    ///
+    /// Generates a shortened preview of the original text, limited to
+    /// ``maximumPreviewLength`` characters.
     ///
     /// - Parameter text: The original text.
     /// - Returns: A string representing a shortened preview of the original text.
@@ -82,7 +98,9 @@ open class TextPreviewer {
         return getPreviewText(reader)
     }
 
-    /// Get a text preview of a stream of text.
+    /// Gets a text preview of a stream of text.
+    ///
+    /// Subclasses must override this method to implement format-specific preview generation.
     ///
     /// - Parameter reader: The original text stream.
     /// - Returns: A string representing a shortened preview of the original text.

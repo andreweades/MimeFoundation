@@ -7,13 +7,20 @@
 import Foundation
 
 /// A text previewer for HTML content.
+///
+/// Generates a plain text preview from HTML content by extracting visible
+/// text while ignoring scripts, styles, and other non-visible elements.
 public class HtmlTextPreviewer: TextPreviewer {
-    /// Initialize a new instance of the `HtmlTextPreviewer` class.
+    /// Initializes a new instance of the ``HtmlTextPreviewer`` class.
+    ///
+    /// Creates a new previewer for HTML.
     public override init() {
         super.init()
     }
 
-    /// Get the input format.
+    /// Gets the input format.
+    ///
+    /// Always returns ``TextFormat/html`` for this previewer.
     public override var inputFormat: TextFormat {
         .html
     }
@@ -103,7 +110,13 @@ public class HtmlTextPreviewer: TextPreviewer {
         return stack.last(where: { $0.tagId == .ol || $0.tagId == .ul })
     }
 
-    /// Get a text preview of a stream of text.
+    /// Gets a text preview of a stream of text.
+    ///
+    /// Parses the HTML content and extracts visible text to generate a preview
+    /// string. The preview is limited to ``TextPreviewer/maximumPreviewLength`` characters.
+    ///
+    /// - Parameter reader: The original text stream containing HTML.
+    /// - Returns: A string representing a shortened preview of the original text.
     public override func getPreviewText(_ reader: TextReadable) -> String {
         let tokenizer = HtmlTokenizer(reader)
         

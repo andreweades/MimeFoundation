@@ -7,6 +7,9 @@
 import Foundation
 
 /// A TNEF property reader.
+///
+/// The `TnefPropertyReader` is used to read MAPI properties from a TNEF stream.
+/// It provides methods to navigate through properties and read their values in various formats.
 public class TnefPropertyReader {
     private var propertyTagValue: TnefPropertyTag = .null
     private unowned let reader: TnefReader
@@ -23,56 +26,78 @@ public class TnefPropertyReader {
     internal var attachMethod: TnefAttachMethod = .none
 
     /// Get a value indicating whether the current property is an embedded TNEF message.
+    ///
+    /// `true` if the current property is an embedded TNEF message; otherwise, `false`.
     public var isEmbeddedMessage: Bool {
         propertyTagValue.id == .attachData && attachMethod == .embeddedMessage
     }
 
     /// Get a value indicating whether the current property has multiple values.
+    ///
+    /// `true` if the current property has multiple values; otherwise, `false`.
     public var isMultiValuedProperty: Bool {
         propertyTagValue.isMultiValued
     }
 
     /// Get a value indicating whether the current property is a named property.
+    ///
+    /// `true` if the current property is a named property; otherwise, `false`.
     public var isNamedProperty: Bool {
         propertyTagValue.isNamed
     }
 
     /// Get a value indicating whether the current property contains object values.
+    ///
+    /// `true` if the current property contains object values; otherwise, `false`.
     public var isObjectProperty: Bool {
         propertyTagValue.type == .object
     }
 
     /// Get the number of properties available.
+    ///
+    /// The total number of properties available to be read in the current attribute or row.
     public var propertyCountAvailable: Int {
         propertyCount
     }
 
     /// Get the property name identifier.
+    ///
+    /// For named properties, this returns the identifier used to look up the property name.
     public var propertyNameId: TnefNameId {
         propertyName
     }
 
     /// Get the property tag.
+    ///
+    /// The property tag contains both the property identifier and the property type.
     public var propertyTag: TnefPropertyTag {
         propertyTagValue
     }
 
     /// Get the length of the raw value.
+    ///
+    /// The number of bytes in the current property's raw value.
     public var rawValueLengthAvailable: Int {
         rawValueLength
     }
 
     /// Get the raw value stream offset.
+    ///
+    /// The byte offset within the TNEF stream where the current property's raw value begins.
     public var rawValueStreamOffset: Int {
         rawValueOffset
     }
 
     /// Get the number of table rows available.
+    ///
+    /// For recipient tables, this returns the number of rows available to be read.
     public var rowCountAvailable: Int {
         rowCount
     }
 
     /// Get the number of values available.
+    ///
+    /// For multi-valued properties, this returns the number of values in the current property.
     public var valueCountAvailable: Int {
         valueCount
     }
@@ -82,6 +107,11 @@ public class TnefPropertyReader {
     }
 
     /// Get the embedded TNEF message reader.
+    ///
+    /// Gets a new `TnefReader` for reading the embedded TNEF message.
+    ///
+    /// - Returns: A new `TnefReader` for the embedded message.
+    /// - Throws: `StreamError.notSupported` if the current property is not an embedded message.
     public func getEmbeddedMessageReader() throws -> TnefReader {
         guard isEmbeddedMessage else {
             throw StreamError.notSupported
@@ -100,6 +130,10 @@ public class TnefPropertyReader {
     }
 
     /// Get the raw value of the attribute or property as a stream.
+    ///
+    /// Gets a stream that can be used to read the raw value data.
+    ///
+    /// - Returns: A `MimeStream` for reading the raw value.
     public func getRawValueReadStream() -> MimeStream {
         let startOffset = rawValueOffset
         var length = rawValueLength
@@ -246,6 +280,11 @@ public class TnefPropertyReader {
     }
 
     /// Advance to the next MAPI property.
+    ///
+    /// Advances to the next MAPI property in the current attribute or row.
+    ///
+    /// - Returns: `true` if there is another property available to be read; otherwise, `false`.
+    /// - Throws: ``TnefException`` if the TNEF data is corrupt or invalid.
     public func readNextProperty() throws -> Bool {
         while try readNextValue() {}
 
@@ -283,6 +322,11 @@ public class TnefPropertyReader {
     }
 
     /// Advance to the next table row of properties.
+    ///
+    /// Advances to the next table row of properties in a recipient table.
+    ///
+    /// - Returns: `true` if there is another row available to be read; otherwise, `false`.
+    /// - Throws: ``TnefException`` if the TNEF data is corrupt or invalid.
     public func readNextRow() throws -> Bool {
         while try readNextProperty() {}
 
@@ -296,6 +340,11 @@ public class TnefPropertyReader {
     }
 
     /// Advance to the next value in the TNEF stream.
+    ///
+    /// Advances to the next value in a multi-valued property.
+    ///
+    /// - Returns: `true` if there is another value available to be read; otherwise, `false`.
+    /// - Throws: ``TnefException`` if the TNEF data is corrupt or invalid.
     public func readNextValue() throws -> Bool {
         if valueIndex >= valueCount || propertyCount == 0 {
             return false
@@ -405,6 +454,11 @@ public class TnefPropertyReader {
     }
 
     /// Read the value as a boolean.
+    ///
+    /// Reads any integer-based attribute or property value as a boolean.
+    ///
+    /// - Returns: The value as a boolean.
+    /// - Throws: `StreamError.notSupported` if there are no more values to read or the value cannot be read as a boolean.
     public func readValueAsBoolean() throws -> Bool {
         if valueIndex >= valueCount || reader.streamOffset > rawValueOffset {
             throw StreamError.notSupported
@@ -446,6 +500,11 @@ public class TnefPropertyReader {
     }
 
     /// Read the value as a 16-bit integer.
+    ///
+    /// Reads any integer-based attribute or property value as a 16-bit integer.
+    ///
+    /// - Returns: The value as a 16-bit integer.
+    /// - Throws: `StreamError.notSupported` if there are no more values to read or the value cannot be read as an integer.
     public func readValueAsInt16() throws -> Int16 {
         if valueIndex >= valueCount || reader.streamOffset > rawValueOffset {
             throw StreamError.notSupported
@@ -487,6 +546,11 @@ public class TnefPropertyReader {
     }
 
     /// Read the value as a 32-bit integer.
+    ///
+    /// Reads any integer-based attribute or property value as a 32-bit integer.
+    ///
+    /// - Returns: The value as a 32-bit integer.
+    /// - Throws: `StreamError.notSupported` if there are no more values to read or the value cannot be read as an integer.
     public func readValueAsInt32() throws -> Int32 {
         if valueIndex >= valueCount || reader.streamOffset > rawValueOffset {
             throw StreamError.notSupported
@@ -528,6 +592,11 @@ public class TnefPropertyReader {
     }
 
     /// Read the value as a 64-bit integer.
+    ///
+    /// Reads any integer-based attribute or property value as a 64-bit integer.
+    ///
+    /// - Returns: The value as a 64-bit integer.
+    /// - Throws: `StreamError.notSupported` if there are no more values to read or the value cannot be read as an integer.
     public func readValueAsInt64() throws -> Int64 {
         if valueIndex >= valueCount || reader.streamOffset > rawValueOffset {
             throw StreamError.notSupported
@@ -569,6 +638,11 @@ public class TnefPropertyReader {
     }
 
     /// Read the value as a string.
+    ///
+    /// Reads any string or binary blob values as a string.
+    ///
+    /// - Returns: The value as a string.
+    /// - Throws: `StreamError.notSupported` if there are no more values to read or the value cannot be read as a string.
     public func readValueAsString() throws -> String {
         if valueIndex >= valueCount || reader.streamOffset > rawValueOffset {
             throw StreamError.notSupported
@@ -598,6 +672,11 @@ public class TnefPropertyReader {
     }
 
     /// Read the value as a sequence of bytes.
+    ///
+    /// Reads any string, binary blob, Class ID, or Object attribute or property value as a byte array.
+    ///
+    /// - Returns: The value as a byte array.
+    /// - Throws: `StreamError.notSupported` if there are no more values to read or the value cannot be read as bytes.
     public func readValueAsBytes() throws -> [UInt8] {
         if valueIndex >= valueCount || reader.streamOffset > rawValueOffset {
             throw StreamError.notSupported
@@ -627,6 +706,11 @@ public class TnefPropertyReader {
     }
 
     /// Read the value as a date and time.
+    ///
+    /// Reads any date and time attribute or property value as a `DateTimeOffset`.
+    ///
+    /// - Returns: The value as a date and time.
+    /// - Throws: `StreamError.notSupported` if there are no more values to read or the value cannot be read as a date and time.
     public func readValueAsDateTime() throws -> DateTimeOffset {
         if valueIndex >= valueCount || reader.streamOffset > rawValueOffset {
             throw StreamError.notSupported
@@ -655,6 +739,11 @@ public class TnefPropertyReader {
     }
 
     /// Read the value as a URI.
+    ///
+    /// Reads any string or binary blob values as a URL.
+    ///
+    /// - Returns: The value as a URL, or `nil` if the string is not a valid URL.
+    /// - Throws: `StreamError.notSupported` if there are no more values to read or the value cannot be read as a string.
     public func readValueAsUri() throws -> URL? {
         let value = try readValueAsString()
         return URL(string: value)

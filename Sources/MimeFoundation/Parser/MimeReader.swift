@@ -6,38 +6,48 @@
 
 import Foundation
 
+/// Errors that can occur during MIME reading.
 public enum MimeReaderError: Error, Equatable, Sendable {
 }
 
+/// Information about a line in the parsed content.
 internal struct LineInfo {
+    /// The byte offset where the line starts.
     let start: Int
+    /// The byte offset where the line content ends (before any line break).
     let end: Int
+    /// The length of the line break sequence (1 for LF, 2 for CRLF, 0 for last line without break).
     let breakLength: Int
 }
 
+/// A map of lines in parsed content for efficient line number lookups.
 internal struct LineMap {
+    /// The array of line information.
     let lines: [LineInfo]
 
+    /// Initializes a line map from the given byte data.
+    ///
+    /// - Parameter data: The byte data to create a line map for.
     init(_ data: [UInt8]) {
         #if MIME_UseUnsafe
         self.lines = data.withUnsafeBufferPointer { buffer in
             var items: [LineInfo] = []
             items.reserveCapacity(data.count / 40) // heuristic
-            
+
             guard let baseAddress = buffer.baseAddress else {
                 if data.isEmpty {
                     return [LineInfo(start: 0, end: 0, breakLength: 0)]
                 }
-                return [] 
+                return []
             }
-            
+
             let count = buffer.count
             var index = 0
             var lineStart = 0
-            
+
             while index < count {
                 let byte = baseAddress[index]
-                
+
                 if byte == 0x0D { // CR
                     if index + 1 < count && baseAddress[index + 1] == 0x0A { // CRLF
                         items.append(LineInfo(start: lineStart, end: index, breakLength: 2))
@@ -56,11 +66,11 @@ internal struct LineMap {
                     index += 1
                 }
             }
-            
+
             if lineStart <= count {
                 items.append(LineInfo(start: lineStart, end: count, breakLength: 0))
             }
-            
+
             return items
         }
         #else
@@ -97,6 +107,10 @@ internal struct LineMap {
         #endif
     }
 
+    /// Gets the line number (1-based) for the given byte offset.
+    ///
+    /// - Parameter offset: The byte offset.
+    /// - Returns: The line number containing the offset.
     func lineNumber(for offset: Int) -> Int {
         if lines.isEmpty {
             return 1
@@ -117,6 +131,10 @@ internal struct LineMap {
         return result + 1
     }
 
+    /// Gets the line index (0-based) containing the given byte offset.
+    ///
+    /// - Parameter offset: The byte offset.
+    /// - Returns: The index of the line containing the offset.
     func lineIndex(containing offset: Int) -> Int {
         if lines.isEmpty {
             return 0
@@ -137,6 +155,12 @@ internal struct LineMap {
         return result
     }
 
+    /// Counts the number of lines between two byte offsets.
+    ///
+    /// - Parameters:
+    ///   - startOffset: The starting byte offset.
+    ///   - endOffset: The ending byte offset.
+    /// - Returns: The number of lines in the range.
     func lineCount(from startOffset: Int, to endOffset: Int) -> Int {
         if endOffset <= startOffset {
             return 0
@@ -147,18 +171,70 @@ internal struct LineMap {
     }
 }
 
+/// Represents an mbox "From " marker location.
 internal struct MboxMarker {
+    /// The byte offset where the marker starts.
     let start: Int
+    /// The line index (0-based) of the marker.
     let lineIndex: Int
+    /// The byte offset where the marker line content ends.
     let lineEnd: Int
+    /// The length of the line break after the marker.
     let lineBreakLength: Int
 }
 
+/// A MIME message and entity reader.
+///
+/// `MimeReader` provides forward-only, read-only access to MIME data in a stream.
+/// Unlike ``MimeParser``, which constructs complete ``MimeMessage`` and ``MimeEntity``
+/// objects, `MimeReader` provides event-based callbacks as MIME structures are encountered,
+/// allowing for more efficient processing of large messages.
+///
+/// ## Overview
+///
+/// To use `MimeReader`, subclass it and override the event methods to receive callbacks
+/// as different parts of the MIME structure are encountered during parsing.
+///
+/// ## Example Usage
+///
+/// ```swift
+/// class MyReader: MimeReader {
+///     override func onMimeMessageBegin(_ beginOffset: Int, _ beginLineNumber: Int) {
+///         print("Message starts at offset \(beginOffset)")
+///     }
+///
+///     override func onMimePartEnd(_ contentType: ContentType, _ beginOffset: Int,
+///                                  _ beginLineNumber: Int, _ headersEndOffset: Int,
+///                                  _ endOffset: Int, _ lines: Int) {
+///         print("Found part: \(contentType.mimeType)")
+///     }
+/// }
+///
+/// let reader = try MyReader(stream)
+/// try reader.readMessage()
+/// ```
 open class MimeReader {
+    /// The parser options used when reading MIME content.
+    ///
+    /// Gets or sets the parser options. These options control various aspects of parsing
+    /// behavior such as RFC compliance modes and content length handling.
     public var options: ParserOptions
 
+    /// The format of the input stream.
+    ///
+    /// Gets a value indicating whether the reader was initialized to parse a single entity
+    /// (``MimeFormat/entity``) or an mbox stream containing multiple messages (``MimeFormat/mbox``).
     public private(set) var format: MimeFormat
+
+    /// A value indicating whether the reader has reached the end of the input stream.
+    ///
+    /// When reading mbox-formatted streams, this property can be used to determine when
+    /// all messages have been processed.
     public internal(set) var isEndOfStream: Bool = false
+
+    /// The current position of the reader within the stream.
+    ///
+    /// Gets the current stream offset indicating how many bytes have been consumed.
     public var position: Int { currentOffset }
 
     private var data: [UInt8] = []
@@ -167,27 +243,54 @@ open class MimeReader {
     private var currentOffset: Int = 0
     private var currentMarkerIndex: Int = 0
 
+    /// Provides access to the raw byte data being parsed (for internal use).
     internal var rawData: [UInt8] {
         data
     }
 
+    /// Provides access to the current offset (for internal use).
     internal var internalOffset: Int {
         get { currentOffset }
         set { currentOffset = newValue }
     }
 
+    /// Initializes a new instance of the `MimeReader` class.
+    ///
+    /// Creates a new `MimeReader` that will parse the specified stream using the default parser options.
+    ///
+    /// - Parameters:
+    ///   - stream: The stream to parse.
+    ///   - format: The format of the stream. Defaults to ``MimeFormat/default``.
+    /// - Throws: An error if the stream cannot be read.
     public init(_ stream: MimeStream, _ format: MimeFormat = .default) throws {
         self.options = ParserOptions.default
         self.format = format
         try setStream(stream, format)
     }
 
+    /// Initializes a new instance of the `MimeReader` class with custom parser options.
+    ///
+    /// Creates a new `MimeReader` that will parse the specified stream using the provided parser options.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - stream: The stream to parse.
+    ///   - format: The format of the stream. Defaults to ``MimeFormat/default``.
+    /// - Throws: An error if the stream cannot be read.
     public init(_ options: ParserOptions, _ stream: MimeStream, _ format: MimeFormat = .default) throws {
         self.options = options
         self.format = format
         try setStream(stream, format)
     }
 
+    /// Sets the stream to parse.
+    ///
+    /// Resets the reader state and prepares to parse the specified stream.
+    ///
+    /// - Parameters:
+    ///   - stream: The stream to parse.
+    ///   - format: The format of the stream. Defaults to ``MimeFormat/default``.
+    /// - Throws: An error if the stream cannot be read.
     public func setStream(_ stream: MimeStream, _ format: MimeFormat = .default) throws {
         self.format = format
         self.data = try readAllBytes(from: stream)
@@ -202,6 +305,12 @@ open class MimeReader {
         }
     }
 
+    /// Reads the next message from the stream.
+    ///
+    /// Reads and processes the next MIME message from the stream, calling the appropriate
+    /// event methods as different parts of the message structure are encountered.
+    ///
+    /// - Throws: An error if there was a problem reading the message.
     public func readMessage() throws {
         if isEndOfStream {
             return
@@ -220,36 +329,135 @@ open class MimeReader {
         }
     }
 
+    /// Asynchronously reads the next message from the stream.
+    ///
+    /// Reads and processes the next MIME message from the stream, calling the appropriate
+    /// event methods as different parts of the message structure are encountered.
+    ///
+    /// - Throws: An error if there was a problem reading the message.
     public func readMessageAsync() async throws {
         try readMessage()
     }
 
     // MARK: - Events (override points)
 
+    /// Called when an mbox marker is encountered in the stream.
+    ///
+    /// Override this method to receive notifications when an mbox "From " marker is found.
+    /// This method is only called when parsing mbox-formatted streams.
+    ///
+    /// - Parameters:
+    ///   - marker: The buffer containing the mbox marker bytes.
+    ///   - startIndex: The index within the marker buffer where the marker begins.
+    ///   - count: The length of the marker in bytes.
+    ///   - beginOffset: The offset into the stream where the mbox marker begins.
+    ///   - lineNumber: The line number where the mbox marker exists within the stream.
     open func onMboxMarkerRead(_ marker: [UInt8], startIndex: Int, count: Int, beginOffset: Int, lineNumber: Int) {
     }
 
+    /// Called when the beginning of a message is encountered in the stream.
+    ///
+    /// Override this method to receive notifications when a new message begins.
+    /// This method is always paired with a corresponding call to ``onMimeMessageEnd(_:_:_:_:_:)``.
+    ///
+    /// - Parameters:
+    ///   - beginOffset: The offset into the stream where the message begins.
+    ///   - beginLineNumber: The line number where the message begins.
     open func onMimeMessageBegin(_ beginOffset: Int, _ beginLineNumber: Int) {
     }
 
+    /// Called when the end of a message is encountered in the stream.
+    ///
+    /// Override this method to receive notifications when a message ends.
+    /// This method is always paired with a corresponding call to ``onMimeMessageBegin(_:_:)``.
+    ///
+    /// - Parameters:
+    ///   - beginOffset: The offset into the stream where the message began.
+    ///   - beginLineNumber: The line number where the message began.
+    ///   - headersEndOffset: The offset where the message headers ended and content began.
+    ///   - endOffset: The offset into the stream where the message ended.
+    ///   - lines: The length of the message as measured in lines.
     open func onMimeMessageEnd(_ beginOffset: Int, _ beginLineNumber: Int, _ headersEndOffset: Int, _ endOffset: Int, _ lines: Int) {
     }
 
+    /// Called when the beginning of a multipart entity is encountered in the stream.
+    ///
+    /// Override this method to receive notifications when a multipart entity begins.
+    /// This method is always paired with a corresponding call to ``onMultipartEnd(_:_:_:_:_:_:)``.
+    ///
+    /// - Parameters:
+    ///   - contentType: The content type of the multipart entity.
+    ///   - beginOffset: The offset into the stream where the entity begins.
+    ///   - beginLineNumber: The line number where the entity begins.
     open func onMultipartBegin(_ contentType: ContentType, _ beginOffset: Int, _ beginLineNumber: Int) {
     }
 
+    /// Called when the end of a multipart entity is encountered in the stream.
+    ///
+    /// Override this method to receive notifications when a multipart entity ends.
+    /// This method is always paired with a corresponding call to ``onMultipartBegin(_:_:_:)``.
+    ///
+    /// - Parameters:
+    ///   - contentType: The content type of the multipart entity.
+    ///   - beginOffset: The offset into the stream where the entity began.
+    ///   - beginLineNumber: The line number where the entity began.
+    ///   - headersEndOffset: The offset where the entity headers ended and content began.
+    ///   - endOffset: The offset into the stream where the entity ended.
+    ///   - lines: The length of the entity as measured in lines.
     open func onMultipartEnd(_ contentType: ContentType, _ beginOffset: Int, _ beginLineNumber: Int, _ headersEndOffset: Int, _ endOffset: Int, _ lines: Int) {
     }
 
+    /// Called when the beginning of a message part entity is encountered in the stream.
+    ///
+    /// Override this method to receive notifications when a message part (e.g., message/rfc822) begins.
+    /// This method is always paired with a corresponding call to ``onMessagePartEnd(_:_:_:_:_:_:)``.
+    ///
+    /// - Parameters:
+    ///   - contentType: The content type of the message part entity.
+    ///   - beginOffset: The offset into the stream where the entity begins.
+    ///   - beginLineNumber: The line number where the entity begins.
     open func onMessagePartBegin(_ contentType: ContentType, _ beginOffset: Int, _ beginLineNumber: Int) {
     }
 
+    /// Called when the end of a message part entity is encountered in the stream.
+    ///
+    /// Override this method to receive notifications when a message part (e.g., message/rfc822) ends.
+    /// This method is always paired with a corresponding call to ``onMessagePartBegin(_:_:_:)``.
+    ///
+    /// - Parameters:
+    ///   - contentType: The content type of the message part entity.
+    ///   - beginOffset: The offset into the stream where the entity began.
+    ///   - beginLineNumber: The line number where the entity began.
+    ///   - headersEndOffset: The offset where the entity headers ended and content began.
+    ///   - endOffset: The offset into the stream where the entity ended.
+    ///   - lines: The length of the entity as measured in lines.
     open func onMessagePartEnd(_ contentType: ContentType, _ beginOffset: Int, _ beginLineNumber: Int, _ headersEndOffset: Int, _ endOffset: Int, _ lines: Int) {
     }
 
+    /// Called when the beginning of a MIME part is encountered in the stream.
+    ///
+    /// Override this method to receive notifications when a MIME part (leaf node) begins.
+    /// This method is always paired with a corresponding call to ``onMimePartEnd(_:_:_:_:_:_:)``.
+    ///
+    /// - Parameters:
+    ///   - contentType: The content type of the MIME part.
+    ///   - beginOffset: The offset into the stream where the part begins.
+    ///   - beginLineNumber: The line number where the part begins.
     open func onMimePartBegin(_ contentType: ContentType, _ beginOffset: Int, _ beginLineNumber: Int) {
     }
 
+    /// Called when the end of a MIME part is encountered in the stream.
+    ///
+    /// Override this method to receive notifications when a MIME part (leaf node) ends.
+    /// This method is always paired with a corresponding call to ``onMimePartBegin(_:_:_:)``.
+    ///
+    /// - Parameters:
+    ///   - contentType: The content type of the MIME part.
+    ///   - beginOffset: The offset into the stream where the part began.
+    ///   - beginLineNumber: The line number where the part began.
+    ///   - headersEndOffset: The offset where the part headers ended and content began.
+    ///   - endOffset: The offset into the stream where the part ended.
+    ///   - lines: The length of the part as measured in lines.
     open func onMimePartEnd(_ contentType: ContentType, _ beginOffset: Int, _ beginLineNumber: Int, _ headersEndOffset: Int, _ endOffset: Int, _ lines: Int) {
     }
 }

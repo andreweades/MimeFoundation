@@ -6,9 +6,32 @@
 
 import Foundation
 
+/// An address group, as specified by rfc0822.
+///
+/// Group addresses are rarely used anymore. Typically, if you see a group address,
+/// it will be of the form: `"undisclosed-recipients: ;"`.
 public final class GroupAddress: InternetAddress {
+    /// The members of the group.
+    ///
+    /// Represents the member addresses of the group. If the group address properly conforms
+    /// to the internet standards, every group member should be of the ``MailboxAddress``
+    /// variety. When handling group addresses constructed by third-party software, it is possible
+    /// for groups to contain members of the ``GroupAddress`` variety.
+    ///
+    /// When constructing new messages, it is recommended that address groups not contain
+    /// anything other than ``MailboxAddress`` members in order to comply with internet
+    /// standards.
     public private(set) var members: InternetAddressList
 
+    /// Initializes a new instance of the ``GroupAddress`` class.
+    ///
+    /// Creates a new ``GroupAddress`` with the specified name and list of addresses. The
+    /// specified text encoding is used when encoding the name according to the rules of rfc2047.
+    ///
+    /// - Parameters:
+    ///   - encoding: The character encoding to be used for encoding the name.
+    ///   - name: The name of the group.
+    ///   - members: A list of addresses.
     public init(encoding: String.Encoding, name: String?, members: InternetAddressList) {
         self.members = members
         super.init(encoding: encoding, name: name)
@@ -17,10 +40,25 @@ public final class GroupAddress: InternetAddress {
         }
     }
 
+    /// Initializes a new instance of the ``GroupAddress`` class.
+    ///
+    /// Creates a new ``GroupAddress`` with the specified name and list of addresses.
+    ///
+    /// - Parameters:
+    ///   - name: The name of the group.
+    ///   - members: A list of addresses.
     public convenience init(name: String?, members: [InternetAddress]) {
         self.init(encoding: .utf8, name: name, members: InternetAddressList(members))
     }
 
+    /// Initializes a new instance of the ``GroupAddress`` class.
+    ///
+    /// Creates a new ``GroupAddress`` with the specified name. The specified
+    /// text encoding is used when encoding the name according to the rules of rfc2047.
+    ///
+    /// - Parameters:
+    ///   - encoding: The character encoding to be used for encoding the name.
+    ///   - name: The name of the group.
     public override init(encoding: String.Encoding, name: String?) {
         self.members = InternetAddressList()
         super.init(encoding: encoding, name: name)
@@ -29,10 +67,18 @@ public final class GroupAddress: InternetAddress {
         }
     }
 
+    /// Initializes a new instance of the ``GroupAddress`` class.
+    ///
+    /// Creates a new ``GroupAddress`` with the specified name.
+    ///
+    /// - Parameter name: The name of the group.
     public convenience init(name: String?) {
         self.init(encoding: .utf8, name: name)
     }
 
+    /// Clones the group address.
+    ///
+    /// - Returns: The cloned group address.
     public override func copy() -> InternetAddress {
         let copiedMembers = members.map { $0.copy() }
         return GroupAddress(encoding: encoding, name: name, members: InternetAddressList(copiedMembers))
@@ -73,6 +119,17 @@ public final class GroupAddress: InternetAddress {
         lineLength += 1
     }
 
+    /// Returns a string representation of the ``GroupAddress``, optionally encoding it for transport.
+    ///
+    /// Returns a string containing the formatted group of addresses. If the `encoded`
+    /// parameter is `true`, then the name of the group and all member addresses will be encoded
+    /// according to the rules defined in rfc2047, otherwise the names will not be encoded at all and
+    /// will therefore only be suitable for display purposes.
+    ///
+    /// - Parameters:
+    ///   - options: The formatting options.
+    ///   - encoded: If `true`, the ``GroupAddress`` will be encoded for transport.
+    /// - Returns: A string representing the ``GroupAddress``.
     public override func formatted(with options: FormatOptions = .default, encoded: Bool = false) -> String {
         if encoded {
             var builder = ""
@@ -95,6 +152,12 @@ public final class GroupAddress: InternetAddress {
         return builder
     }
 
+    /// Determines whether the specified ``GroupAddress`` is equal to the current ``GroupAddress``.
+    ///
+    /// Compares two group addresses to determine if they are identical or not.
+    ///
+    /// - Parameter other: The ``InternetAddress`` to compare with the current ``GroupAddress``.
+    /// - Returns: `true` if the specified address is equal to the current ``GroupAddress``; otherwise, `false`.
     internal override func isEqual(to other: InternetAddress?) -> Bool {
         guard let group = other as? GroupAddress else {
             return false
@@ -225,15 +288,33 @@ public final class GroupAddress: InternetAddress {
 
     // MARK: - Swift-Idiomatic Parsing Initializers
 
-    /// Throwing initializer - throws ParseException on failure.
+    /// Parses the given text into a new ``GroupAddress`` instance.
+    ///
+    /// Parses a single ``GroupAddress``. If the address is not a group address or
+    /// there is more than a single group address, then parsing will fail.
+    ///
     /// Use `try?` for optional behavior: `let grp = try? GroupAddress(parsing: text)`
+    ///
+    /// - Parameters:
+    ///   - text: The text to parse.
+    ///   - options: The parser options to use.
+    /// - Throws: ``ParseException`` if the text could not be parsed.
     public convenience init(parsing text: String, options: ParserOptions = .default) throws {
         let buffer = CharsetUtils.getBytes(text, encoding: .utf8)
         try self.init(parsing: buffer, options: options)
     }
 
-    /// Throwing initializer - throws ParseException on failure.
+    /// Parses the given input buffer into a new ``GroupAddress`` instance.
+    ///
+    /// Parses a single ``GroupAddress``. If the address is not a group address or
+    /// there is more than a single group address, then parsing will fail.
+    ///
     /// Use `try?` for optional behavior: `let grp = try? GroupAddress(parsing: buffer)`
+    ///
+    /// - Parameters:
+    ///   - buffer: The input buffer to parse.
+    ///   - options: The parser options to use.
+    /// - Throws: ``ParseException`` if the buffer could not be parsed.
     public convenience init(parsing buffer: [UInt8], options: ParserOptions = .default) throws {
         var group: GroupAddress? = nil
         var index = 0

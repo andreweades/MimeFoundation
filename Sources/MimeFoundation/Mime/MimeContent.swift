@@ -6,29 +6,59 @@
 
 import Foundation
 
+/// Errors that can occur when working with MIME content.
 public enum MimeContentError: Error, Sendable {
+    /// The stream does not support reading.
     case streamNotReadable
+
+    /// The stream does not support seeking.
     case streamNotSeekable
+
+    /// The content has been disposed.
     case disposed
 }
 
+/// Encapsulates a content stream used by `MimePart`.
+///
+/// A `MimeContent` encapsulates the content stream of a MIME part and provides
+/// methods to read, write, and decode the content. The content is stored in its
+/// encoded form (e.g., base64) and can be decoded when accessed.
 public final class MimeContent {
     private static let bufferLength = 4096
 
+    /// The encoding of the content stream.
+    ///
+    /// The encoding is used when decoding the content stream. For example,
+    /// if the encoding is `.base64`, the stream will be base64-decoded when
+    /// reading the content.
     public let encoding: ContentEncoding
+
+    /// The new line format detected in the content, if any.
     public var newLineFormat: NewLineFormat?
 
     private var stream: MimeStream?
 
     /// Creates content from a stream with statically-known read and seek capabilities.
+    ///
     /// This initializer cannot fail since the stream type guarantees the required capabilities.
+    ///
+    /// - Parameters:
+    ///   - stream: A stream that conforms to `ContentStream` (readable and seekable).
+    ///   - encoding: The content transfer encoding of the stream data.
     public init(_ stream: some ContentStream, encoding: ContentEncoding = .default) {
         self.encoding = encoding
         self.stream = stream
     }
 
     /// Creates content from any MimeStream, throwing if required capabilities are missing.
+    ///
     /// Prefer using the non-throwing initializer with `ContentStream` when possible.
+    ///
+    /// - Parameters:
+    ///   - stream: The stream containing the content.
+    ///   - encoding: The content transfer encoding of the stream data.
+    /// - Throws: `MimeContentError.streamNotReadable` if the stream cannot be read,
+    ///           or `MimeContentError.streamNotSeekable` if the stream cannot seek.
     public init(stream: MimeStream, encoding: ContentEncoding = .default) throws {
         guard stream.canRead else {
             throw MimeContentError.streamNotReadable
@@ -40,6 +70,14 @@ public final class MimeContent {
         self.stream = stream
     }
 
+    /// Opens the content stream for reading and decodes it.
+    ///
+    /// Opens a stream that will decode the content using the encoding specified
+    /// when the `MimeContent` was created. For example, if the encoding is `.base64`,
+    /// reading from the returned stream will return the decoded bytes.
+    ///
+    /// - Returns: A stream that decodes the content as it is read.
+    /// - Throws: `MimeContentError.disposed` if the content has been disposed.
     public func open() throws -> MimeStream {
         try checkDisposed()
         guard let stream else {
@@ -52,6 +90,13 @@ public final class MimeContent {
         return filtered
     }
 
+    /// Writes the raw (encoded) content to the destination stream.
+    ///
+    /// Copies the raw encoded content to the destination without decoding it.
+    /// Use `decodeTo(_:)` if you need the decoded content.
+    ///
+    /// - Parameter destination: The stream to write to.
+    /// - Throws: `MimeContentError.disposed` if the content has been disposed.
     public func writeTo(_ destination: MimeStream) throws {
         try checkDisposed()
         guard let source = stream else {
@@ -69,6 +114,13 @@ public final class MimeContent {
         }
     }
 
+    /// Asynchronously writes the raw (encoded) content to the destination stream.
+    ///
+    /// Copies the raw encoded content to the destination without decoding it.
+    /// Use `decodeToAsync(_:)` if you need the decoded content.
+    ///
+    /// - Parameter destination: The stream to write to.
+    /// - Throws: `MimeContentError.disposed` if the content has been disposed.
     public func writeToAsync(_ destination: MimeStream) async throws {
         try Task.checkCancellation()
         try checkDisposed()
@@ -88,6 +140,13 @@ public final class MimeContent {
         }
     }
 
+    /// Decodes the content and writes it to the destination stream.
+    ///
+    /// Decodes the content using the encoding specified when the `MimeContent`
+    /// was created and writes the decoded bytes to the destination.
+    ///
+    /// - Parameter destination: The stream to write decoded content to.
+    /// - Throws: `MimeContentError.disposed` if the content has been disposed.
     public func decodeTo(_ destination: MimeStream) throws {
         try checkDisposed()
         guard let source = stream else {
@@ -109,6 +168,13 @@ public final class MimeContent {
         }
     }
 
+    /// Asynchronously decodes the content and writes it to the destination stream.
+    ///
+    /// Decodes the content using the encoding specified when the `MimeContent`
+    /// was created and writes the decoded bytes to the destination.
+    ///
+    /// - Parameter destination: The stream to write decoded content to.
+    /// - Throws: `MimeContentError.disposed` if the content has been disposed.
     public func decodeToAsync(_ destination: MimeStream) async throws {
         try Task.checkCancellation()
         try checkDisposed()

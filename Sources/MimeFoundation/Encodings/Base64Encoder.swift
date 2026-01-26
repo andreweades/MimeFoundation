@@ -4,9 +4,22 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// Incrementally encodes content using the Base64 encoding.
+///
+/// Base64 is an encoding often used in MIME to encode binary content such as images
+/// and other types of multimedia to ensure that the data remains intact when sent
+/// via 7-bit transports such as SMTP.
+///
+/// The encoder processes input in triplets (3 bytes) and outputs quartets (4 characters).
+/// Input bytes that don't complete a triplet are buffered internally until more data
+/// is provided or ``flush(_:startIndex:length:output:)`` is called.
 public final class Base64Encoder: MimeEncoder {
     private static let alphabet: [UInt8] = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".utf8)
 
+    /// Gets or sets whether the encoder should use hardware acceleration when available.
+    ///
+    /// When enabled, the encoder will use SIMD instructions if the platform supports them.
+    /// This can significantly improve encoding performance for large inputs.
     public var enableHardwareAcceleration: Bool = false
 
     private let quartetsPerLine: Int
@@ -15,10 +28,22 @@ public final class Base64Encoder: MimeEncoder {
     private var saved2: UInt8 = 0
     private var saved: Int = 0
 
+    /// Initializes a new instance of the ``Base64Encoder`` class with the default maximum line length of 76 characters.
+    ///
+    /// Creates a new Base64 encoder that wraps output lines at 76 characters, which is the
+    /// standard line length for MIME Base64-encoded content.
     public convenience init() {
         self.init(uncheckedMaxLineLength: 76)
     }
 
+    /// Initializes a new instance of the ``Base64Encoder`` class with the specified maximum line length.
+    ///
+    /// Creates a new Base64 encoder that wraps output lines at the specified length.
+    /// The maximum line length must be between ``FormatOptions/minimumLineLength`` (60) and
+    /// ``FormatOptions/maximumLineLength`` (998), inclusive.
+    ///
+    /// - Parameter maxLineLength: The maximum number of octets allowed per line (not counting the newline character).
+    /// - Throws: ``MimeCodingError/lengthOutOfRange`` if the maximum line length is not within the valid range.
     public init(maxLineLength: Int) throws {
         if maxLineLength < FormatOptions.minimumLineLength || maxLineLength > FormatOptions.maximumLineLength {
             throw MimeCodingError.lengthOutOfRange
@@ -31,10 +56,20 @@ public final class Base64Encoder: MimeEncoder {
         quartetsPerLine = uncheckedMaxLineLength / 4
     }
 
+    /// The content encoding that this encoder supports.
+    ///
+    /// Always returns ``ContentEncoding/base64`` for this encoder.
     public var encoding: ContentEncoding {
         .base64
     }
 
+    /// Creates a copy of this encoder with its current state.
+    ///
+    /// Creates a new ``Base64Encoder`` with exactly the same state as the current encoder,
+    /// including any buffered input bytes and the current line position. This allows the
+    /// encoding process to be forked or saved at a particular point.
+    ///
+    /// - Returns: A new ``Base64Encoder`` with identical state.
     public func copy() -> any MimeEncoder {
         let copied = Base64Encoder(uncheckedMaxLineLength: quartetsPerLine * 4)
         copied.enableHardwareAcceleration = enableHardwareAcceleration
@@ -45,12 +80,40 @@ public final class Base64Encoder: MimeEncoder {
         return copied
     }
 
+    /// Estimates the number of bytes needed to encode the specified number of input bytes.
+    ///
+    /// This method calculates the maximum possible output size, accounting for the Base64
+    /// expansion ratio (4 output bytes for every 3 input bytes) plus line breaks.
+    /// Use this to allocate an appropriately sized output buffer before calling
+    /// ``encode(_:startIndex:length:output:)`` or ``flush(_:startIndex:length:output:)``.
+    ///
+    /// - Parameter inputLength: The number of input bytes to be encoded.
+    /// - Returns: The estimated maximum number of bytes needed in the output buffer.
     public func estimateOutputLength(_ inputLength: Int) -> Int {
         let maxLineLength = (quartetsPerLine * 4) + 1
         let maxInputPerLine = quartetsPerLine * 3
         return (((inputLength + 2) / maxInputPerLine) * maxLineLength) + maxLineLength
     }
 
+    /// Encodes the specified input into the output buffer.
+    ///
+    /// Encodes the specified input into the output buffer. The output buffer should be large enough
+    /// to hold all the encoded input. For estimating the size needed for the output buffer,
+    /// see ``estimateOutputLength(_:)``.
+    ///
+    /// Any input bytes that do not complete a triplet are buffered internally and will be
+    /// included in subsequent calls to ``encode(_:startIndex:length:output:)`` or
+    /// ``flush(_:startIndex:length:output:)``.
+    ///
+    /// - Parameters:
+    ///   - input: The input buffer containing bytes to encode.
+    ///   - startIndex: The starting index within the input buffer.
+    ///   - length: The number of bytes to encode from the input buffer.
+    ///   - output: The output buffer to write encoded bytes to.
+    /// - Returns: The number of bytes written to the output buffer.
+    /// - Throws: ``MimeCodingError/startIndexOutOfRange`` if the start index is invalid.
+    /// - Throws: ``MimeCodingError/lengthOutOfRange`` if the length is invalid.
+    /// - Throws: ``MimeCodingError/outputTooSmall`` if the output buffer is not large enough.
     public func encode(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
 
@@ -119,6 +182,24 @@ public final class Base64Encoder: MimeEncoder {
         return outIndex
     }
 
+    /// Encodes the specified input into the output buffer, flushing any internal buffer state.
+    ///
+    /// Encodes the specified input into the output buffer, flushing any internal state as well.
+    /// This method should be called when encoding the final chunk of data to ensure all
+    /// buffered content is written to the output, including any necessary padding characters.
+    ///
+    /// The output buffer should be large enough to hold all the encoded input.
+    /// For estimating the size needed for the output buffer, see ``estimateOutputLength(_:)``.
+    ///
+    /// - Parameters:
+    ///   - input: The input buffer containing bytes to encode.
+    ///   - startIndex: The starting index within the input buffer.
+    ///   - length: The number of bytes to encode from the input buffer.
+    ///   - output: The output buffer to write encoded bytes to.
+    /// - Returns: The number of bytes written to the output buffer.
+    /// - Throws: ``MimeCodingError/startIndexOutOfRange`` if the start index is invalid.
+    /// - Throws: ``MimeCodingError/lengthOutOfRange`` if the length is invalid.
+    /// - Throws: ``MimeCodingError/outputTooSmall`` if the output buffer is not large enough.
     public func flush(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
 
@@ -152,6 +233,11 @@ public final class Base64Encoder: MimeEncoder {
         return outIndex
     }
 
+    /// Resets the encoder to its initial state.
+    ///
+    /// Resets the internal state of the encoder, clearing any buffered input bytes
+    /// and resetting the line position. After calling this method, the encoder can
+    /// be reused to encode new content from the beginning.
     public func reset() {
         quartets = 0
         saved1 = 0

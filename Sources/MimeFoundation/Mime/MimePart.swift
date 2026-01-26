@@ -7,18 +7,44 @@
 import Foundation
 import CryptoKit
 
+/// Errors that can occur when working with MIME parts.
 public enum MimePartError: Error, Equatable, Sendable {
+    /// The media type is empty.
     case emptyMediaType
+
+    /// The media subtype is empty.
     case emptyMediaSubtype
+
+    /// The content duration is invalid (must be non-negative).
     case invalidContentDuration
+
+    /// The encoding constraint is invalid.
     case invalidEncodingConstraint
+
+    /// The content transfer encoding is invalid.
     case invalidContentTransferEncoding
+
+    /// The part has no content.
     case noContent
+
+    /// Cryptographic operations are not available.
     case cryptoUnavailable
+
+    /// Duplicate content was specified.
     case duplicateContent
+
+    /// An invalid argument was provided.
     case invalidArgument
 }
 
+/// A leaf-node MIME entity that contains a content body.
+///
+/// A `MimePart` is a leaf-node MIME entity, meaning it does not contain other
+/// child entities. It contains content such as text, images, audio, video, or
+/// other binary data.
+///
+/// The content of a `MimePart` is encapsulated in a `MimeContent` object
+/// which can be accessed through the `content` property.
 open class MimePart: MimeEntity {
     private static var octetStreamContentType: ContentType {
         guard let ct = try? ContentType("application", "octet-stream") else {
@@ -36,8 +62,16 @@ open class MimePart: MimeEntity {
     private var contentTransferEncodingCache: ContentEncoding = .default
     private var contentTransferEncodingLoaded = false
 
+    /// The content of this MIME part.
+    ///
+    /// The `MimeContent` object encapsulates the content stream and provides
+    /// methods for reading and decoding the content.
     public var content: MimeContent?
 
+    /// The Content-Description header of this MIME part.
+    ///
+    /// The Content-Description header contains a textual description of the
+    /// content, typically used to describe attachments.
     public var contentDescription: String? {
         get {
             if !contentDescriptionLoaded {
@@ -61,6 +95,10 @@ open class MimePart: MimeEntity {
         }
     }
 
+    /// The Content-Duration header of this MIME part.
+    ///
+    /// The Content-Duration header specifies the duration of audio or video
+    /// content in seconds.
     public var contentDuration: Int? {
         get {
             if !contentDurationLoaded {
@@ -78,6 +116,10 @@ open class MimePart: MimeEntity {
         }
     }
 
+    /// The Content-MD5 header of this MIME part.
+    ///
+    /// The Content-MD5 header contains a base64-encoded MD5 checksum of the
+    /// content that can be used to verify content integrity.
     public var contentMd5: String? {
         get {
             if !contentMd5Loaded {
@@ -101,6 +143,10 @@ open class MimePart: MimeEntity {
         }
     }
 
+    /// The Content-Transfer-Encoding header of this MIME part.
+    ///
+    /// The Content-Transfer-Encoding header specifies how the content is
+    /// encoded for transport (e.g., base64, quoted-printable).
     public var contentTransferEncoding: ContentEncoding {
         get {
             if !contentTransferEncodingLoaded {
@@ -124,6 +170,11 @@ open class MimePart: MimeEntity {
         }
     }
 
+    /// Gets or sets whether this MIME part is an attachment.
+    ///
+    /// A value of `true` indicates that the part should be treated as an
+    /// attachment rather than displayed inline. This property modifies the
+    /// Content-Disposition header.
     public var isAttachment: Bool {
         get {
             contentDisposition?.isAttachment ?? false
@@ -140,6 +191,11 @@ open class MimePart: MimeEntity {
         }
     }
 
+    /// The suggested file name for this MIME part.
+    ///
+    /// Gets or sets the file name from the Content-Disposition header's filename
+    /// parameter, falling back to the Content-Type's name parameter. When setting,
+    /// both parameters are updated.
     public var fileName: String? {
         get {
             var name: String? = nil
@@ -161,14 +217,31 @@ open class MimePart: MimeEntity {
         }
     }
 
+    /// Initializes a new MIME part with the specified content type.
+    ///
+    /// - Parameter contentType: The content type for this MIME part.
     public override init(_ contentType: ContentType) {
         super.init(contentType)
     }
 
+    /// Initializes a new MIME part with the specified media type, subtype, and additional arguments.
+    ///
+    /// - Parameters:
+    ///   - mediaType: The media type (e.g., "image", "audio").
+    ///   - mediaSubtype: The media subtype (e.g., "jpeg", "mp3").
+    ///   - args: Additional arguments such as headers or content.
+    /// - Throws: An error if the media type or subtype is invalid.
     public convenience init(_ mediaType: String, _ mediaSubtype: String, _ args: Any...) throws {
         try self.init(mediaType, mediaSubtype, args: args)
     }
 
+    /// Initializes a new MIME part with the specified media type, subtype, and array of arguments.
+    ///
+    /// - Parameters:
+    ///   - mediaType: The media type (e.g., "image", "audio").
+    ///   - mediaSubtype: The media subtype (e.g., "jpeg", "mp3").
+    ///   - args: An array of additional arguments such as headers or content.
+    /// - Throws: An error if the media type or subtype is invalid.
     public convenience init(_ mediaType: String, _ mediaSubtype: String, args: [Any?]) throws {
         guard !mediaType.isEmpty else {
             throw MimePartError.emptyMediaType
@@ -205,6 +278,11 @@ open class MimePart: MimeEntity {
         }
     }
 
+    /// Initializes a new MIME part with the specified content type and additional arguments.
+    ///
+    /// - Parameters:
+    ///   - contentType: The content type for this MIME part.
+    ///   - args: Additional arguments such as headers.
     public convenience init(_ contentType: ContentType, _ args: Any...) {
         self.init(contentType)
         for arg in args {
@@ -212,15 +290,26 @@ open class MimePart: MimeEntity {
         }
     }
 
+    /// Initializes a new MIME part with the specified media type and subtype.
+    ///
+    /// - Parameters:
+    ///   - mediaType: The media type (e.g., "image", "audio").
+    ///   - mediaSubtype: The media subtype (e.g., "jpeg", "mp3").
+    /// - Throws: An error if the media type or subtype is invalid.
     public convenience init(_ mediaType: String, _ mediaSubtype: String) throws {
         try self.init(mediaType, mediaSubtype, args: [])
     }
 
+    /// Initializes a new MIME part by parsing a MIME type string.
+    ///
+    /// - Parameter mimeType: The MIME type string (e.g., "image/jpeg").
+    /// - Throws: An error if the MIME type string cannot be parsed.
     public convenience init(_ mimeType: String) throws {
         let parsed = try ContentType(parsing: mimeType)
         self.init(parsed)
     }
 
+    /// Initializes a new MIME part with an application/octet-stream content type.
     public convenience init() {
         self.init(Self.octetStreamContentType)
     }
@@ -239,6 +328,11 @@ open class MimePart: MimeEntity {
         return false
     }
 
+    /// Computes the MD5 checksum of the content and updates the Content-MD5 header.
+    ///
+    /// - Returns: The base64-encoded MD5 checksum.
+    /// - Throws: `MimePartError.noContent` if there is no content,
+    ///           or `MimePartError.cryptoUnavailable` if MD5 is not available.
     public func computeContentMd5() throws -> String {
         guard let content else {
             throw MimePartError.noContent
@@ -254,6 +348,10 @@ open class MimePart: MimeEntity {
         throw MimePartError.cryptoUnavailable
     }
 
+    /// Verifies the Content-MD5 checksum against the actual content.
+    ///
+    /// - Returns: `true` if the computed MD5 matches the Content-MD5 header,
+    ///            `false` otherwise or if verification cannot be performed.
     public func verifyContentMd5() -> Bool {
         guard let expected = contentMd5 else {
             return false
@@ -272,6 +370,14 @@ open class MimePart: MimeEntity {
         return false
     }
 
+    /// Gets the best content transfer encoding for the specified constraint.
+    ///
+    /// Determines the optimal encoding based on the content and the transport
+    /// constraint (7-bit, 8-bit, or binary).
+    ///
+    /// - Parameter constraint: The encoding constraint.
+    /// - Returns: The recommended content encoding.
+    /// - Throws: An error if the constraint is invalid.
     public func getBestEncoding(_ constraint: EncodingConstraint) throws -> ContentEncoding {
         switch constraint {
         case .sevenBit:
@@ -283,6 +389,13 @@ open class MimePart: MimeEntity {
         }
     }
 
+    /// Prepares the MIME part for transport by setting an appropriate encoding.
+    ///
+    /// Analyzes the content and sets the Content-Transfer-Encoding header to
+    /// an appropriate value based on the transport constraint.
+    ///
+    /// - Parameter constraint: The encoding constraint for transport.
+    /// - Throws: An error if preparation fails.
     public func prepare(_ constraint: EncodingConstraint) throws {
         if constraint == .none {
             return
@@ -293,6 +406,10 @@ open class MimePart: MimeEntity {
         }
     }
 
+    /// Sets the Content-Duration header value.
+    ///
+    /// - Parameter value: The duration in seconds, or `nil` to remove the header.
+    /// - Throws: `MimePartError.invalidContentDuration` if the value is negative.
     public func setContentDuration(_ value: Int?) throws {
         contentDurationLoaded = true
         guard let value else {
@@ -307,6 +424,12 @@ open class MimePart: MimeEntity {
         setHeader(.contentDuration, String(value))
     }
 
+    /// Writes this MIME part to the specified stream.
+    ///
+    /// - Parameters:
+    ///   - options: The formatting options to use.
+    ///   - stream: The stream to write to.
+    /// - Throws: An error if writing fails.
     open override func writeTo(_ options: FormatOptions, _ stream: MimeStream) throws {
         try super.writeTo(options, stream)
     }
@@ -352,10 +475,18 @@ open class MimePart: MimeEntity {
         try filtered.flush()
     }
 
+    /// Accepts the visitor for processing this MIME part.
+    ///
+    /// - Parameter visitor: The visitor to accept.
     public override func accept(_ visitor: MimeVisitor) {
         visitor.visit(self)
     }
 
+    /// Called when the headers collection changes.
+    ///
+    /// - Parameters:
+    ///   - action: The type of change that occurred.
+    ///   - header: The header that was affected, or `nil` if headers were cleared.
     public override func headersChanged(_ action: HeaderListChangedAction, header: Header?) {
         super.headersChanged(action, header: header)
 

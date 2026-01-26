@@ -12,31 +12,82 @@ import Security
 import Crypto
 import _CryptoExtras
 
-/// Represents a signer for CMS (Cryptographic Message Syntax) operations.
+/// An S/MIME signer for CMS (Cryptographic Message Syntax) operations.
 ///
-/// A `CmsSigner` wraps a certificate and its associated private key,
-/// along with configuration options for signing operations.
+/// If the X.509 certificate is known for the signer, you may wish to use a
+/// ``CmsSigner`` as opposed to having the ``SecureMimeContext`` do its own
+/// certificate lookup.
+///
+/// A ``CmsSigner`` wraps a certificate and its associated private key, along
+/// with configuration options for signing operations.
+///
+/// ## Usage
+///
+/// ```swift
+/// // Create a signer from PEM files
+/// let signer = try CmsSigner(
+///     certificatePath: "/path/to/cert.pem",
+///     privateKeyPath: "/path/to/key.pem"
+/// )
+///
+/// // Create a signed message
+/// let context = SecureMimeContext()
+/// let signedMessage = try MultipartSigned.create(entity, signer: signer, context: context)
+/// ```
+///
+/// ## Topics
+///
+/// ### Creating a Signer
+/// - ``init(certificate:privateKey:certificateChain:digestAlgorithm:)``
+/// - ``init(certificatePEM:privateKeyPEM:certificateChain:digestAlgorithm:)``
+/// - ``init(certificateDER:privateKeyDER:certificateChain:digestAlgorithm:)``
+/// - ``init(certificatePath:privateKeyPath:certificateChain:digestAlgorithm:)``
+/// - ``init(pkcs12Data:password:digestAlgorithm:)``
+/// - ``init(pkcs12Path:password:digestAlgorithm:)``
+///
+/// ### Properties
+/// - ``certificate``
+/// - ``privateKey``
+/// - ``certificateChain``
+/// - ``digestAlgorithm``
 @available(macOS 11.0, iOS 14, tvOS 14, watchOS 7, macCatalyst 14, *)
 public struct CmsSigner: Sendable {
-    /// The certificate used for signing.
+    /// The signer's certificate.
+    ///
+    /// The signer's certificate contains a public key that can be used for
+    /// verifying the digital signature.
     public let certificate: Certificate
 
-    /// The private key used for signing.
+    /// The signer's private key.
+    ///
+    /// The private key is used for generating digital signatures.
     public let privateKey: Certificate.PrivateKey
 
+    /// The certificate chain.
+    ///
     /// Additional intermediate certificates to include in the signature.
+    /// These certificates help recipients build a chain of trust from the
+    /// signer's certificate to a trusted root certificate.
     public var certificateChain: [Certificate]
 
     /// The digest algorithm to use for signing.
+    ///
+    /// Specifies which digest algorithm to use to generate the cryptographic
+    /// hash of the content being signed. The default is ``DigestAlgorithm/sha256``.
     public var digestAlgorithm: DigestAlgorithm
 
     /// Creates a new CMS signer with a certificate and private key.
+    ///
+    /// The initial value of ``digestAlgorithm`` will be set to
+    /// ``DigestAlgorithm/sha256``.
     ///
     /// - Parameters:
     ///   - certificate: The certificate to use for signing.
     ///   - privateKey: The private key corresponding to the certificate.
     ///   - certificateChain: Additional intermediate certificates to include.
-    ///   - digestAlgorithm: The digest algorithm to use. Defaults to SHA-256.
+    ///     Defaults to an empty array.
+    ///   - digestAlgorithm: The digest algorithm to use. Defaults to
+    ///     ``DigestAlgorithm/sha256``.
     public init(
         certificate: Certificate,
         privateKey: Certificate.PrivateKey,
@@ -51,12 +102,17 @@ public struct CmsSigner: Sendable {
 
     /// Creates a CMS signer from PEM-encoded certificate and private key data.
     ///
+    /// The initial value of ``digestAlgorithm`` will be set to
+    /// ``DigestAlgorithm/sha256``.
+    ///
     /// - Parameters:
-    ///   - certificatePEM: The PEM-encoded certificate.
-    ///   - privateKeyPEM: The PEM-encoded private key.
+    ///   - certificatePEM: The PEM-encoded certificate string.
+    ///   - privateKeyPEM: The PEM-encoded private key string.
     ///   - certificateChain: Additional intermediate certificates.
-    ///   - digestAlgorithm: The digest algorithm to use.
-    /// - Throws: `SecureMimeError` if the certificate or key cannot be parsed.
+    ///   - digestAlgorithm: The digest algorithm to use. Defaults to SHA-256.
+    /// - Throws: ``SecureMimeError/invalidCertificate(_:)`` if the certificate
+    ///   cannot be parsed, or ``SecureMimeError/invalidPrivateKey(_:)`` if the
+    ///   key cannot be parsed.
     public init(
         certificatePEM: String,
         privateKeyPEM: String,
@@ -81,12 +137,17 @@ public struct CmsSigner: Sendable {
 
     /// Creates a CMS signer from DER-encoded certificate and private key data.
     ///
+    /// The initial value of ``digestAlgorithm`` will be set to
+    /// ``DigestAlgorithm/sha256``.
+    ///
     /// - Parameters:
     ///   - certificateDER: The DER-encoded certificate bytes.
     ///   - privateKeyDER: The DER-encoded private key bytes (PKCS#8 format).
     ///   - certificateChain: Additional intermediate certificates.
-    ///   - digestAlgorithm: The digest algorithm to use.
-    /// - Throws: `SecureMimeError` if the certificate or key cannot be parsed.
+    ///   - digestAlgorithm: The digest algorithm to use. Defaults to SHA-256.
+    /// - Throws: ``SecureMimeError/invalidCertificate(_:)`` if the certificate
+    ///   cannot be parsed, or ``SecureMimeError/invalidPrivateKey(_:)`` if the
+    ///   key cannot be parsed.
     public init(
         certificateDER: [UInt8],
         privateKeyDER: [UInt8],
@@ -111,12 +172,18 @@ public struct CmsSigner: Sendable {
 
     /// Creates a CMS signer by loading a certificate and private key from files.
     ///
+    /// The initial value of ``digestAlgorithm`` will be set to
+    /// ``DigestAlgorithm/sha256``.
+    ///
     /// - Parameters:
     ///   - certificatePath: Path to the PEM-encoded certificate file.
     ///   - privateKeyPath: Path to the PEM-encoded private key file.
     ///   - certificateChain: Additional intermediate certificates.
-    ///   - digestAlgorithm: The digest algorithm to use.
-    /// - Throws: `SecureMimeError` if the files cannot be read or parsed.
+    ///   - digestAlgorithm: The digest algorithm to use. Defaults to SHA-256.
+    /// - Throws: ``SecureMimeError/fileReadFailed(_:)`` if the files cannot be read,
+    ///   ``SecureMimeError/invalidCertificate(_:)`` if the certificate cannot be
+    ///   parsed, or ``SecureMimeError/invalidPrivateKey(_:)`` if the key cannot
+    ///   be parsed.
     public init(
         certificatePath: String,
         privateKeyPath: String,
@@ -160,22 +227,29 @@ public struct CmsSigner: Sendable {
     /// PKCS#12 (also known as PFX) is a binary format for storing a certificate
     /// and its private key together, protected by a password.
     ///
+    /// The initial value of ``digestAlgorithm`` will be set to
+    /// ``DigestAlgorithm/sha256``.
+    ///
     /// - Parameters:
     ///   - pkcs12Data: The PKCS#12 data.
     ///   - password: The password to decrypt the PKCS#12 data.
     ///   - digestAlgorithm: The digest algorithm to use. Defaults to SHA-256.
-    /// - Throws: `SecureMimeError` if the PKCS#12 data cannot be loaded or parsed.
+    /// - Throws: ``SecureMimeError/pkcs12LoadFailed(_:)`` if the PKCS#12 data
+    ///   cannot be loaded, ``SecureMimeError/invalidCertificate(_:)`` if the
+    ///   certificate cannot be converted, or ``SecureMimeError/invalidPrivateKey(_:)``
+    ///   if the key cannot be converted.
     ///
     /// - Note: This initializer is only available on Apple platforms.
     ///
     /// - Important: Due to key format incompatibilities between Apple's Security framework
     ///   and swift-crypto, this initializer may fail to convert the private key. If you
     ///   encounter this issue, convert your PKCS#12 to PEM format using OpenSSL:
-    ///   ```
+    ///   ```bash
     ///   openssl pkcs12 -in file.p12 -nocerts -nodes -out key.pem
     ///   openssl pkcs12 -in file.p12 -clcerts -nokeys -out cert.pem
     ///   ```
-    ///   Then use `init(certificatePath:privateKeyPath:)` instead.
+    ///   Then use ``init(certificatePath:privateKeyPath:certificateChain:digestAlgorithm:)``
+    ///   instead.
     public init(
         pkcs12Data: Data,
         password: String,
@@ -251,11 +325,15 @@ public struct CmsSigner: Sendable {
 
     /// Creates a CMS signer from a PKCS#12 file.
     ///
+    /// The initial value of ``digestAlgorithm`` will be set to
+    /// ``DigestAlgorithm/sha256``.
+    ///
     /// - Parameters:
     ///   - pkcs12Path: Path to the PKCS#12 file (.p12 or .pfx).
     ///   - password: The password to decrypt the PKCS#12 file.
     ///   - digestAlgorithm: The digest algorithm to use. Defaults to SHA-256.
-    /// - Throws: `SecureMimeError` if the file cannot be read or parsed.
+    /// - Throws: ``SecureMimeError/fileReadFailed(_:)`` if the file cannot be read,
+    ///   or other ``SecureMimeError`` cases if the PKCS#12 content cannot be parsed.
     ///
     /// - Note: This initializer is only available on Apple platforms.
     public init(
@@ -493,7 +571,12 @@ public struct CmsSigner: Sendable {
     }
     #endif
 
-    /// Returns the signature algorithm to use based on the private key type and digest algorithm.
+    /// The signature algorithm to use based on the private key type and digest algorithm.
+    ///
+    /// This property automatically selects the appropriate signature algorithm
+    /// based on the type of private key and the configured ``digestAlgorithm``.
+    /// For example, an EC key with SHA-256 digest will use ECDSA with SHA-256,
+    /// while an RSA key will use RSA-SHA256.
     internal var signatureAlgorithm: Certificate.SignatureAlgorithm {
         let supported = privateKey.supportedSignatureAlgorithms
 

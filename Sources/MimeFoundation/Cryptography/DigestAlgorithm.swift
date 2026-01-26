@@ -6,33 +6,90 @@
 
 import Foundation
 
-/// Represents a cryptographic digest (hash) algorithm.
+/// A cryptographic digest (hash) algorithm.
+///
+/// Digest algorithms are secure hashing algorithms that are used to generate
+/// unique fixed-length signatures for arbitrary data.
+///
+/// The most commonly used digest algorithms are currently MD5 and SHA-1, however,
+/// MD5 was successfully broken in 2008 and should be avoided. In late 2013,
+/// Microsoft announced that they would be retiring their use of SHA-1 in their
+/// products by 2016 with the assumption that its days as an unbroken digest
+/// algorithm were numbered.
+///
+/// Microsoft and other vendors have moved to the SHA-2 suite of digest algorithms
+/// which includes SHA-224, SHA-256, SHA-384, and SHA-512.
+///
+/// ## Recommendations
+///
+/// - Use ``sha256`` or stronger for all new implementations
+/// - Avoid ``md5`` and ``sha1`` unless required for compatibility
+/// - ``sha256`` provides a good balance of security and performance
+///
+/// ## Topics
+///
+/// ### Secure Algorithms (Recommended)
+/// - ``sha256``
+/// - ``sha384``
+/// - ``sha512``
+///
+/// ### Legacy Algorithms (Avoid if Possible)
+/// - ``sha1``
+/// - ``md5``
 public enum DigestAlgorithm: String, Sendable, Equatable, Hashable, CaseIterable {
     /// No digest algorithm specified.
+    ///
+    /// This value indicates that no algorithm has been selected or that the
+    /// algorithm is unknown.
     case none = "none"
 
-    /// MD5 digest algorithm (deprecated, insecure).
+    /// The MD5 digest algorithm.
+    ///
+    /// - Warning: MD5 was successfully broken in 2008 and should not be used
+    ///   for security-sensitive applications. Use ``sha256`` or stronger instead.
     case md5 = "md5"
 
-    /// SHA-1 digest algorithm (deprecated, weak).
+    /// The SHA-1 digest algorithm.
+    ///
+    /// - Warning: SHA-1 is considered weak and vulnerable to collision attacks.
+    ///   It should not be used for new implementations. Use ``sha256`` or
+    ///   stronger instead.
     case sha1 = "sha1"
 
-    /// SHA-256 digest algorithm (recommended).
+    /// The SHA-256 digest algorithm.
+    ///
+    /// This is the recommended digest algorithm for most use cases. It provides
+    /// a good balance of security (256-bit output) and performance.
     case sha256 = "sha256"
 
-    /// SHA-384 digest algorithm.
+    /// The SHA-384 digest algorithm.
+    ///
+    /// This algorithm provides 384-bit output and is suitable for applications
+    /// requiring higher security margins than SHA-256.
     case sha384 = "sha384"
 
-    /// SHA-512 digest algorithm.
+    /// The SHA-512 digest algorithm.
+    ///
+    /// This algorithm provides 512-bit output and offers the highest security
+    /// level in the SHA-2 family.
     case sha512 = "sha512"
 
-    /// The default digest algorithm (SHA-256).
+    /// The default digest algorithm.
+    ///
+    /// Returns ``sha256``, which is the recommended algorithm for most applications.
     public static var `default`: DigestAlgorithm { .sha256 }
 
-    /// Returns the micalg parameter value for this digest algorithm.
+    /// The micalg parameter value for this digest algorithm.
     ///
-    /// The micalg (Message Integrity Check Algorithm) parameter is used
-    /// in multipart/signed messages to indicate the digest algorithm.
+    /// The micalg (Message Integrity Check Algorithm) parameter is used in
+    /// `multipart/signed` messages to indicate the digest algorithm used for
+    /// signing. This property returns the appropriate string value for use
+    /// in MIME headers.
+    ///
+    /// For example:
+    /// - ``sha256`` returns `"sha-256"`
+    /// - ``sha1`` returns `"sha-1"`
+    /// - ``md5`` returns `"md5"`
     public var micalg: String {
         switch self {
         case .none:
@@ -50,8 +107,19 @@ public enum DigestAlgorithm: String, Sendable, Equatable, Hashable, CaseIterable
         }
     }
 
-    /// Initializes a DigestAlgorithm from a micalg parameter string.
-    /// - Parameter micalg: The micalg parameter value.
+    /// Creates a ``DigestAlgorithm`` from a micalg parameter string.
+    ///
+    /// This initializer parses the micalg parameter value commonly found in
+    /// `multipart/signed` MIME headers and returns the corresponding algorithm.
+    ///
+    /// - Parameter micalg: The micalg parameter value (e.g., `"sha-256"`, `"sha-1"`).
+    ///   If `nil` or unrecognized, ``none`` is returned.
+    ///
+    /// ## Example
+    /// ```swift
+    /// let algorithm = DigestAlgorithm(micalg: "sha-256")
+    /// // algorithm == .sha256
+    /// ```
     public init(micalg: String?) {
         guard let micalg = micalg?.lowercased().trimmingCharacters(in: .whitespaces) else {
             self = .none
@@ -74,8 +142,22 @@ public enum DigestAlgorithm: String, Sendable, Equatable, Hashable, CaseIterable
         }
     }
 
-    /// Initializes a DigestAlgorithm from an OID string.
-    /// - Parameter oid: The OID string (e.g., "2.16.840.1.101.3.4.2.1" for SHA-256).
+    /// Creates a ``DigestAlgorithm`` from an OID (Object Identifier) string.
+    ///
+    /// This initializer parses ASN.1 Object Identifier strings commonly found
+    /// in X.509 certificates and CMS/PKCS#7 structures.
+    ///
+    /// - Parameter oid: The OID string (e.g., `"2.16.840.1.101.3.4.2.1"` for SHA-256).
+    ///   If unrecognized, ``none`` is returned.
+    ///
+    /// ## Common OIDs
+    /// | Algorithm | OID |
+    /// |-----------|-----|
+    /// | MD5 | 1.2.840.113549.2.5 |
+    /// | SHA-1 | 1.3.14.3.2.26 |
+    /// | SHA-256 | 2.16.840.1.101.3.4.2.1 |
+    /// | SHA-384 | 2.16.840.1.101.3.4.2.2 |
+    /// | SHA-512 | 2.16.840.1.101.3.4.2.3 |
     public init(oid: String) {
         switch oid {
         case "1.2.840.113549.2.5":
@@ -94,6 +176,11 @@ public enum DigestAlgorithm: String, Sendable, Equatable, Hashable, CaseIterable
     }
 
     /// The OID (Object Identifier) for this digest algorithm.
+    ///
+    /// Returns the ASN.1 Object Identifier string for this algorithm, suitable
+    /// for use in X.509 certificates and CMS/PKCS#7 structures.
+    ///
+    /// Returns an empty string for ``none``.
     public var oid: String {
         switch self {
         case .none:

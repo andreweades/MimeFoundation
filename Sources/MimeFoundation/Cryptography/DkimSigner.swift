@@ -6,6 +6,44 @@
 
 import Foundation
 
+/// A DKIM signer for digitally signing email messages.
+///
+/// Creates DomainKeys Identified Mail (DKIM) signatures as specified in RFC 6376.
+/// DKIM provides a method for validating a domain name identity that is associated
+/// with a message through cryptographic authentication.
+///
+/// ## Usage
+///
+/// ```swift
+/// // Create a signer with your private key
+/// let signer = try DkimSigner(
+///     privateKey: privateKey,
+///     domain: "example.com",
+///     selector: "selector1",
+///     algorithm: .rsaSha256
+/// )
+///
+/// // Sign the message
+/// try signer.sign(message, headers: [.from, .to, .subject, .date])
+/// ```
+///
+/// ## Security Considerations
+///
+/// Due to the recognized weakness of the SHA-1 hash algorithm and the wide
+/// availability of SHA-256 (required since DKIM was standardized in 2007),
+/// it is recommended that ``DkimSignatureAlgorithm/rsaSha1`` NOT be used.
+///
+/// ## Topics
+///
+/// ### Configuration
+/// - ``agentOrUserIdentifier``
+/// - ``queryMethod``
+///
+/// ### Signing Messages
+/// - ``sign(_:_:headers:)-4h4k5``
+/// - ``sign(_:headers:)-1jgq``
+/// - ``sign(_:_:headers:)-8n4fz``
+/// - ``sign(_:headers:)-5jf1n``
 public final class DkimSigner: DkimSignerBase {
     private static let shouldNotInclude: Set<String> = [
         "return-path",
@@ -17,18 +55,77 @@ public final class DkimSigner: DkimSignerBase {
         "dkim-signature"
     ]
 
+    /// The agent or user identifier (AUID) for the signature.
+    ///
+    /// This is an optional identifier that provides additional information about
+    /// the signing agent. If set, it will be included in the signature as the
+    /// `i=` tag. The domain part of this identifier must match or be a subdomain
+    /// of the signing domain.
+    ///
+    /// For example, if the signing domain is `example.com`, valid values include:
+    /// - `user@example.com`
+    /// - `@example.com`
+    /// - `user@subdomain.example.com`
     public var agentOrUserIdentifier: String?
+
+    /// The public key query method.
+    ///
+    /// A colon-separated list of query methods used to retrieve the public key
+    /// (plain-text; OPTIONAL, default is `"dns/txt"`). Each query method is of
+    /// the form `"type[/options]"`, where the syntax and semantics of the options
+    /// depend on the type and specified options.
+    ///
+    /// If set, this value will be included in the signature as the `q=` tag.
     public var queryMethod: String?
 
+    /// Digitally signs the message using a DKIM signature.
+    ///
+    /// This method signs the specified headers of the message and prepends a
+    /// DKIM-Signature header to the message.
+    ///
+    /// - Parameters:
+    ///   - options: The formatting options to use when canonicalizing the message.
+    ///   - message: The message to sign.
+    ///   - headers: The list of header field names to sign.
+    /// - Throws: ``DkimSignerError/invalidArgument`` if the headers list is invalid.
+    ///
+    /// ## Important
+    ///
+    /// The headers list:
+    /// - MUST include the `"From"` header
+    /// - SHOULD NOT include: Return-Path, Received, Comments, Keywords, Bcc,
+    ///   Resent-Bcc, or DKIM-Signature
     public func sign(_ options: FormatOptions, _ message: MimeMessage, headers: [String]) throws {
         let fields = try validateHeaderFields(headers)
         try dkimSign(options, message: message, headers: fields)
     }
 
+    /// Digitally signs the message using a DKIM signature with default formatting options.
+    ///
+    /// - Parameters:
+    ///   - message: The message to sign.
+    ///   - headers: The list of header field names to sign.
+    /// - Throws: ``DkimSignerError/invalidArgument`` if the headers list is invalid.
     public func sign(_ message: MimeMessage, headers: [String]) throws {
         try sign(.default, message, headers: headers)
     }
 
+    /// Digitally signs the message using a DKIM signature.
+    ///
+    /// This method signs the specified headers of the message and prepends a
+    /// DKIM-Signature header to the message.
+    ///
+    /// - Parameters:
+    ///   - options: The formatting options to use when canonicalizing the message.
+    ///   - message: The message to sign.
+    ///   - headers: The list of header identifiers to sign.
+    /// - Throws: ``DkimSignerError/invalidArgument`` if the headers list is invalid.
+    ///
+    /// ## Important
+    ///
+    /// The headers list:
+    /// - MUST include ``HeaderId/from``
+    /// - SHOULD NOT include headers that may be modified in transit
     public func sign(_ options: FormatOptions, _ message: MimeMessage, headers: [HeaderId]) throws {
         var fields: [String] = []
         fields.reserveCapacity(headers.count)
@@ -55,6 +152,12 @@ public final class DkimSigner: DkimSignerBase {
         try dkimSign(options, message: message, headers: fields)
     }
 
+    /// Digitally signs the message using a DKIM signature with default formatting options.
+    ///
+    /// - Parameters:
+    ///   - message: The message to sign.
+    ///   - headers: The list of header identifiers to sign.
+    /// - Throws: ``DkimSignerError/invalidArgument`` if the headers list is invalid.
     public func sign(_ message: MimeMessage, headers: [HeaderId]) throws {
         try sign(.default, message, headers: headers)
     }
