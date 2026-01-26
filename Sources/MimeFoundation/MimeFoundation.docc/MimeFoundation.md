@@ -51,6 +51,7 @@ message.body = TextPart("plain", "This is the message body.")
 - <doc:SigningMessages>
 - <doc:EncryptingMessages>
 - <doc:VerifyingSignatures>
+- <doc:CertificateManagement>
 - <doc:DKIMSigning>
 
 ### Advanced Topics
@@ -96,6 +97,17 @@ message.body = TextPart("plain", "This is the message body.")
 - ``CmsRecipient``
 - ``DkimSigner``
 - ``DkimVerifier``
+
+### Certificate Management
+
+- ``X509CertificateStore``
+- ``X509CertificateRecord``
+- ``X509CertificateDatabaseProtocol``
+- ``SqliteCertificateDatabase``
+- ``X509ChainValidator``
+- ``ChainValidationResult``
+- ``ChainValidationError``
+- ``X509KeyUsageFlags``
 
 ### Parsing and I/O
 

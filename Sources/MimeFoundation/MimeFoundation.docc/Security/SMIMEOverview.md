@@ -59,6 +59,10 @@ X.509 certificates bind a public key to an identity. You need:
 - **Your certificate + private key**: For signing messages you send
 - **Recipient certificates**: For encrypting messages to others
 
+MimeFoundation provides a complete certificate management infrastructure including
+in-memory stores, persistent SQLite databases, and chain validation. See
+<doc:CertificateManagement> for details.
+
 ### S/MIME Context
 
 The ``SecureMimeContext`` provides cryptographic operations:
@@ -267,6 +271,7 @@ func verifyMessage(_ message: MimeMessage) throws -> Bool {
 - <doc:SigningMessages> - Detailed guide to signing
 - <doc:EncryptingMessages> - Detailed guide to encryption
 - <doc:VerifyingSignatures> - Verifying signed messages
+- <doc:CertificateManagement> - Managing certificates and trust
 
 ## Topics
 
@@ -284,3 +289,4 @@ func verifyMessage(_ message: MimeMessage) throws -> Bool {
 - <doc:SigningMessages>
 - <doc:EncryptingMessages>
 - <doc:VerifyingSignatures>
+- <doc:CertificateManagement>
