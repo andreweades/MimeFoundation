@@ -319,7 +319,7 @@ Comprehensive DocC documentation is available in `Sources/MimeFoundation/MimeFou
 ### Generate Documentation Locally
 
 ```bash
-swift package generate-documentation \
+swift package plugin --allow-writing-to-directory ./docs generate-documentation \
   --target MimeFoundation \
   --output-path ./docs \
   --transform-for-static-hosting

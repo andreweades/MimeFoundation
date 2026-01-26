@@ -25,7 +25,7 @@ jobs:
 
       - name: Generate DocC
         run: |
-          swift package generate-documentation \
+          swift package plugin --allow-writing-to-directory .build/docc generate-documentation \
             --target MimeFoundation \
             --output-path .build/docc \
             --transform-for-static-hosting \

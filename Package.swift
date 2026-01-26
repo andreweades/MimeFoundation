@@ -21,6 +21,7 @@ let includeBenchmarks = isModernMacOS && (ProcessInfo.processInfo.environment["M
 var dependencies: [Package.Dependency] = [
     .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0"),
     .package(url: "https://github.com/apple/swift-certificates.git", from: "1.0.0"),
+    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.0"),
 ]
 
 var targets: [Target] = [
