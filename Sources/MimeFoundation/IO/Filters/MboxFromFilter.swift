@@ -6,10 +6,48 @@
 
 import Foundation
 
+/// A filter that munges lines beginning with "From " by stuffing a '>' into the beginning of the line.
+///
+/// Munging Mbox-style "From "-lines is a workaround to prevent Mbox parsers from misinterpreting a
+/// line beginning with "From " as an mbox marker delineating messages. This munging is non-reversible but
+/// is necessary to properly format a message for saving to an Mbox file.
+///
+/// ## Overview
+///
+/// The mbox format uses lines beginning with "From " to separate individual messages in a mailbox file.
+/// When message content contains lines that begin with "From ", these must be "munged" by prepending
+/// a '>' character to prevent them from being interpreted as message separators.
+///
+/// ## Example Usage
+///
+/// ```swift
+/// let filter = MboxFromFilter()
+/// let input = "From someone@example.com\nHello".utf8.map { UInt8($0) }
+/// var outputIndex = 0
+/// var outputLength = 0
+/// let output = filter.filter(input, startIndex: 0, length: input.count,
+///                            outputIndex: &outputIndex, outputLength: &outputLength, flush: true)
+/// // Result: ">From someone@example.com\nHello"
+/// ```
 public final class MboxFromFilter: MimeFilterBase {
     private static let marker = Array("From ".utf8)
     private var midline = false
 
+    /// Filters the specified input, prepending '>' to lines beginning with "From ".
+    ///
+    /// This method processes the input buffer and identifies lines that start with "From ".
+    /// For each such line found, a '>' character is inserted at the beginning to prevent
+    /// mbox parsers from misinterpreting them as message boundaries.
+    ///
+    /// - Parameters:
+    ///   - input: The input buffer containing data to filter.
+    ///   - startIndex: The starting index of the input buffer.
+    ///   - length: The length of the input buffer, starting at `startIndex`.
+    ///   - outputIndex: When this method returns, contains the starting index of the output in the returned buffer.
+    ///   - outputLength: When this method returns, contains the length of the output buffer.
+    ///   - flush: If `true`, all internally buffered data should be flushed to the output buffer.
+    ///
+    /// - Returns: The filtered output buffer.
     public override func filter(_ input: [UInt8], startIndex: Int, length: Int, outputIndex: inout Int, outputLength: inout Int, flush: Bool) -> [UInt8] {
         let span = Array(input[startIndex..<(startIndex + length)])
         var fromOffsets: [Int] = []
@@ -81,6 +119,10 @@ public final class MboxFromFilter: MimeFilterBase {
         return input
     }
 
+    /// Resets the filter state.
+    ///
+    /// Resets the filter to its initial state, clearing any internal tracking
+    /// of whether the filter is currently processing a line.
     public override func reset() {
         midline = false
         super.reset()

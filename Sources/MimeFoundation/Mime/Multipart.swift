@@ -6,13 +6,62 @@
 
 import Foundation
 
+/// Errors that can occur when working with multipart entities.
 public enum MultipartError: Error, Equatable, Sendable {
+    /// The multipart subtype cannot be empty.
     case emptySubtype
+
+    /// An invalid argument was provided.
     case invalidArgument
+
+    /// The specified index is out of range.
     case indexOutOfRange
+
+    /// The maximum line length value is invalid.
     case invalidMaxLineLength
 }
 
+/// A multipart MIME entity.
+///
+/// A ``Multipart`` entity is a MIME entity that contains one or more child MIME entities.
+/// Common subtypes include multipart/mixed, multipart/alternative, multipart/related,
+/// and multipart/signed.
+///
+/// The child entities are separated by a boundary string specified in the Content-Type
+/// header. The multipart may also contain optional preamble and epilogue text that
+/// appears before the first boundary and after the last boundary, respectively.
+///
+/// ## Topics
+///
+/// ### Creating Multipart Entities
+/// - ``init(_:)``
+/// - ``init()``
+/// - ``init(_:_:)``
+/// - ``init(_:args:)``
+///
+/// ### Managing Child Parts
+/// - ``add(_:)``
+/// - ``insert(_:at:)``
+/// - ``remove(_:)``
+/// - ``remove(at:)``
+/// - ``clear()``
+/// - ``contains(_:)``
+/// - ``indexOf(_:)``
+///
+/// ### Multipart Properties
+/// - ``boundary``
+/// - ``preamble``
+/// - ``epilogue``
+/// - ``writeEndBoundary``
+///
+/// ### Collection Conformance
+/// - ``count``
+/// - ``subscript(_:)``
+/// - ``startIndex``
+/// - ``endIndex``
+///
+/// ### Preparing for Transport
+/// - ``prepare(_:maxLineLength:)``
 open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
     public typealias Element = MimeEntity
     public typealias Index = Int
@@ -56,10 +105,18 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
 
     public var count: Int { children.count }
 
+    /// The boundary string used to separate child parts.
+    ///
+    /// The boundary is specified in the Content-Type header and is used to delimit
+    /// the child parts within the multipart entity.
     public var boundary: String {
         contentType.boundary ?? ""
     }
 
+    /// The preamble text that appears before the first boundary.
+    ///
+    /// The preamble is text that appears before the first boundary in the multipart
+    /// body. It is typically used to provide information for non-MIME clients.
     public var preamble: String? {
         get { preambleStorage }
         set {
@@ -72,6 +129,10 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
         }
     }
 
+    /// The epilogue text that appears after the last boundary.
+    ///
+    /// The epilogue is text that appears after the final boundary in the multipart
+    /// body. It is typically used to provide information for non-MIME clients.
     public var epilogue: String? {
         get { epilogueStorage }
         set {
@@ -89,6 +150,13 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
         super.init(contentType)
     }
 
+    /// Initializes a new multipart entity with the specified subtype.
+    ///
+    /// Creates a new multipart entity with the media type "multipart" and the specified
+    /// subtype. A boundary string is automatically generated.
+    ///
+    /// - Parameter subtype: The media subtype (e.g., "mixed", "alternative", "related").
+    /// - Throws: ``MultipartError/emptySubtype`` if the subtype is empty.
     public init(_ subtype: String) throws {
         if subtype.isEmpty {
             throw MultipartError.emptySubtype
@@ -107,6 +175,9 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
         try applyArgs(args)
     }
 
+    /// Initializes a new multipart/mixed entity.
+    ///
+    /// Creates a new multipart/mixed entity with an automatically generated boundary.
     public convenience init() {
         do {
             try self.init("mixed")
@@ -120,11 +191,21 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
         contentType.boundary = value
     }
 
+    /// Adds a child entity to the multipart.
+    ///
+    /// - Parameter entity: The MIME entity to add.
+    /// - Throws: An error if adding fails.
     public func add(_ entity: MimeEntity) throws {
         rawBody = nil
         children.append(entity)
     }
 
+    /// Inserts a child entity at the specified index.
+    ///
+    /// - Parameters:
+    ///   - entity: The MIME entity to insert.
+    ///   - index: The index at which to insert the entity.
+    /// - Throws: ``MultipartError/indexOutOfRange`` if the index is invalid.
     public func insert(_ entity: MimeEntity, at index: Int) throws {
         guard index >= 0 && index <= children.count else {
             throw MultipartError.indexOutOfRange
@@ -133,6 +214,10 @@ open class Multipart: MimeEntity, RandomAccessCollection, MutableCollection {
         children.insert(entity, at: index)
     }
 
+    /// Removes the specified child entity from the multipart.
+    ///
+    /// - Parameter entity: The MIME entity to remove.
+    /// - Returns: `true` if the entity was found and removed; otherwise, `false`.
     @discardableResult
     public func remove(_ entity: MimeEntity) -> Bool {
         guard let index = children.firstIndex(where: { $0 === entity }) else {

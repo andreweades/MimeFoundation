@@ -6,15 +6,53 @@
 
 import Foundation
 
+/// Errors that can occur when working with Content-Type values.
 public enum ContentTypeError: Error, Sendable {
+    /// The media type is invalid or empty.
     case invalidMediaType
+
+    /// The media subtype is invalid or empty.
     case invalidMediaSubtype
 }
 
+/// A MIME Content-Type header value.
+///
+/// The Content-Type header specifies the media type and subtype of the content,
+/// along with optional parameters such as charset or boundary. This class provides
+/// convenient access to the media type, subtype, and commonly-used parameters.
+///
+/// ## Topics
+///
+/// ### Creating Content Types
+/// - ``init(_:_:)``
+///
+/// ### Media Type
+/// - ``mediaType``
+/// - ``mediaSubtype``
+/// - ``mimeType``
+/// - ``setMediaType(_:)``
+/// - ``setMediaSubtype(_:)``
+/// - ``isMimeType(_:_:)``
+///
+/// ### Parameters
+/// - ``parameters``
+/// - ``boundary``
+/// - ``charset``
+/// - ``charsetEncoding``
+/// - ``format``
+/// - ``name``
+///
+/// ### Encoding and Formatting
+/// - ``encode(_:_:)``
+/// - ``copy()``
 public final class ContentType: Equatable {
     private var type: String
     private var subtype: String
 
+    /// The list of parameters on the Content-Type header.
+    ///
+    /// Parameters provide additional information about the content type, such as
+    /// charset for text content or boundary for multipart content.
     public var parameters: ParameterList {
         didSet {
             parameters.changed = { [weak self] _ in
@@ -24,6 +62,13 @@ public final class ContentType: Equatable {
         }
     }
 
+    /// Initializes a new Content-Type with the specified media type and subtype.
+    ///
+    /// - Parameters:
+    ///   - mediaType: The media type (e.g., "text", "image", "application").
+    ///   - mediaSubtype: The media subtype (e.g., "plain", "html", "jpeg").
+    /// - Throws: ``ContentTypeError/invalidMediaType`` if the media type is empty,
+    ///           or ``ContentTypeError/invalidMediaSubtype`` if the media subtype is empty.
     public init(_ mediaType: String, _ mediaSubtype: String) throws {
         if mediaType.isEmpty {
             throw ContentTypeError.invalidMediaType
@@ -49,6 +94,9 @@ public final class ContentType: Equatable {
         }
     }
 
+    /// The media type of the Content-Type.
+    ///
+    /// The media type is the first part of the MIME type (e.g., "text" in "text/plain").
     public var mediaType: String {
         get { type }
         set {
@@ -63,6 +111,9 @@ public final class ContentType: Equatable {
         }
     }
 
+    /// The media subtype of the Content-Type.
+    ///
+    /// The media subtype is the second part of the MIME type (e.g., "plain" in "text/plain").
     public var mediaSubtype: String {
         get { subtype }
         set {
@@ -77,6 +128,10 @@ public final class ContentType: Equatable {
         }
     }
 
+    /// The boundary parameter value, if present.
+    ///
+    /// The boundary is used in multipart entities to delimit the parts.
+    /// This is a convenience property for accessing the "boundary" parameter.
     public var boundary: String? {
         get { parameters["boundary"] }
         set {
@@ -87,6 +142,10 @@ public final class ContentType: Equatable {
         }
     }
 
+    /// The charset parameter value, if present.
+    ///
+    /// The charset specifies the character encoding used for text content.
+    /// This is a convenience property for accessing the "charset" parameter.
     public var charset: String? {
         get { parameters["charset"] }
         set {
@@ -97,6 +156,11 @@ public final class ContentType: Equatable {
         }
     }
 
+    /// The charset as a Swift string encoding, if present.
+    ///
+    /// Gets or sets the charset parameter value as a Swift `String.Encoding`.
+    /// When getting, returns the encoding corresponding to the charset parameter,
+    /// or `nil` if the charset is not set or not recognized.
     public var charsetEncoding: String.Encoding? {
         get {
             guard let charset else { return nil }
@@ -107,6 +171,11 @@ public final class ContentType: Equatable {
         }
     }
 
+    /// The format parameter value, if present.
+    ///
+    /// The format parameter is used for additional type information,
+    /// such as "flowed" for text/plain with format=flowed.
+    /// This is a convenience property for accessing the "format" parameter.
     public var format: String? {
         get { parameters["format"] }
         set {
@@ -117,6 +186,10 @@ public final class ContentType: Equatable {
         }
     }
 
+    /// The name parameter value, if present.
+    ///
+    /// The name parameter suggests a filename for the content.
+    /// This is a convenience property for accessing the "name" parameter.
     public var name: String? {
         get { parameters["name"] }
         set {
@@ -127,10 +200,19 @@ public final class ContentType: Equatable {
         }
     }
 
+    /// The complete MIME type string.
+    ///
+    /// Returns the media type and subtype joined with a slash (e.g., "text/plain").
     public var mimeType: String {
         "\(type)/\(subtype)"
     }
 
+    /// Checks whether this Content-Type matches the specified media type and subtype.
+    ///
+    /// - Parameters:
+    ///   - mediaType: The media type to match (use "*" for wildcard).
+    ///   - mediaSubtype: The media subtype to match (use "*" for wildcard).
+    /// - Returns: `true` if this Content-Type matches; otherwise, `false`.
     public func isMimeType(_ mediaType: String, _ mediaSubtype: String) -> Bool {
         if mediaType == "*" || mediaType.caseInsensitiveCompare(type) == .orderedSame {
             return mediaSubtype == "*" || mediaSubtype.caseInsensitiveCompare(subtype) == .orderedSame

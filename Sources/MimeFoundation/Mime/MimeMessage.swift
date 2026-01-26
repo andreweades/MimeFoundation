@@ -5,28 +5,171 @@
 //
 
 import Foundation
+
+/// Errors that can occur when working with MIME messages.
 public enum MimeMessageError: Error, Equatable, Sendable {
+    /// The maximum line length value is invalid.
     case invalidMaxLineLength
+
+    /// A duplicate body was specified when creating the message.
     case duplicateBody
+
+    /// An invalid argument was provided.
     case invalidArgument
+
+    /// The Message-Id value is not valid.
     case invalidMessageId
+
+    /// The Resent-Message-Id value is not valid.
     case invalidResentMessageId
+
+    /// The In-Reply-To value is not valid.
     case invalidInReplyTo
 }
 
+/// A MIME message.
+///
+/// A message consists of header fields and, optionally, a body. The body of the message
+/// can either be plain text or it can be a tree of MIME entities such as a text/plain
+/// MIME part and a collection of file attachments.
+///
+/// ## Topics
+///
+/// ### Creating Messages
+/// - ``init()``
+/// - ``init(_:)``
+/// - ``init(args:)``
+/// - ``init(headers:)``
+/// - ``init(from:to:subject:body:)``
+///
+/// ### Headers and Addresses
+/// - ``headers``
+/// - ``from``
+/// - ``to``
+/// - ``cc``
+/// - ``bcc``
+/// - ``replyTo``
+/// - ``sender``
+/// - ``resentFrom``
+/// - ``resentTo``
+/// - ``resentCc``
+/// - ``resentBcc``
+/// - ``resentReplyTo``
+/// - ``resentSender``
+///
+/// ### Message Properties
+/// - ``subject``
+/// - ``date``
+/// - ``resentDate``
+/// - ``messageId``
+/// - ``resentMessageId``
+/// - ``inReplyTo``
+/// - ``references``
+/// - ``mimeVersion``
+/// - ``body``
+///
+/// ### Priority and Importance
+/// - ``importance``
+/// - ``priority``
+/// - ``xPriority``
+///
+/// ### Working with Content
+/// - ``textBody``
+/// - ``htmlBody``
+/// - ``getTextBody(_:)``
+/// - ``bodyParts``
+/// - ``attachments``
+/// - ``getRecipients(_:)``
+///
+/// ### Writing and Loading
+/// - ``writeTo(_:)``
+/// - ``writeTo(_:_:)``
+/// - ``load(_:)``
+/// - ``load(_:_:)``
+/// - ``prepare(_:maxLineLength:)``
+///
+/// ### Visiting
+/// - ``accept(_:)``
 public final class MimeMessage {
+    /// The list of headers for this message.
+    ///
+    /// Represents the list of headers for a message. Typically, the headers of
+    /// a message will contain transmission headers such as From and To along
+    /// with metadata headers such as Subject and Date, but may include just
+    /// about anything.
+    ///
+    /// - Note: To access any MIME headers such as Content-Type, Content-Disposition,
+    ///   Content-Transfer-Encoding or any other Content-* header, you will need to
+    ///   access the ``MimeEntity/headers`` property of the ``body``.
     public let headers: HeaderList
+
+    /// The body of the message.
+    ///
+    /// The body can be any MIME entity, including a multipart container with nested
+    /// parts, a text part, or a message part.
     public var body: MimeEntity?
+
+    /// The list of addresses in the From header.
+    ///
+    /// The "From" field specifies the author(s) of the message.
     public let from: InternetAddressList
+
+    /// The list of addresses in the To header.
+    ///
+    /// The "To" field specifies the primary recipient(s) of the message.
     public let to: InternetAddressList
+
+    /// The list of addresses in the Cc header.
+    ///
+    /// The "Cc" field specifies the carbon-copy recipient(s) of the message.
     public let cc: InternetAddressList
+
+    /// The list of addresses in the Reply-To header.
+    ///
+    /// When the sender of the message wants replies to go to a different address,
+    /// the Reply-To header is used to specify those addresses.
     public let replyTo: InternetAddressList
+
+    /// The list of addresses in the Bcc header.
+    ///
+    /// The "Bcc" field specifies the blind carbon-copy recipient(s) of the message.
+    /// Recipients in the Bcc list are not visible to other recipients.
     public let bcc: InternetAddressList
+
+    /// The list of addresses in the Resent-From header.
+    ///
+    /// When a message is resent, the Resent-From header specifies the author(s)
+    /// of the resent message.
     public let resentFrom: InternetAddressList
+
+    /// The list of addresses in the Resent-Reply-To header.
+    ///
+    /// When a message is resent and replies should go to a different address,
+    /// the Resent-Reply-To header is used to specify those addresses.
     public let resentReplyTo: InternetAddressList
+
+    /// The list of addresses in the Resent-To header.
+    ///
+    /// When a message is resent, the Resent-To header specifies the primary
+    /// recipient(s) of the resent message.
     public let resentTo: InternetAddressList
+
+    /// The list of addresses in the Resent-Cc header.
+    ///
+    /// When a message is resent, the Resent-Cc header specifies the carbon-copy
+    /// recipient(s) of the resent message.
     public let resentCc: InternetAddressList
+
+    /// The list of addresses in the Resent-Bcc header.
+    ///
+    /// When a message is resent, the Resent-Bcc header specifies the blind
+    /// carbon-copy recipient(s) of the resent message.
     public let resentBcc: InternetAddressList
+
+    /// The list of message identifiers in the References header.
+    ///
+    /// The "References" field lists the message identifiers of messages to which
+    /// this message is related, typically used in threading.
     public let references: MessageIdList
 
     private var subjectStorage: String?
@@ -43,6 +186,9 @@ public final class MimeMessage {
     private var xPriorityStorage: XMessagePriority = .normal
     private var isUpdatingHeaders = false
 
+    /// The subject of the message.
+    ///
+    /// The "Subject" field contains a short string identifying the topic of the message.
     public var subject: String? {
         get { subjectStorage }
         set {
@@ -51,6 +197,9 @@ public final class MimeMessage {
         }
     }
 
+    /// The date of the message.
+    ///
+    /// The "Date" field specifies the date and time at which the message was written.
     public var date: DateTimeOffset? {
         get { dateStorage }
         set {
@@ -59,6 +208,9 @@ public final class MimeMessage {
         }
     }
 
+    /// The date the message was resent.
+    ///
+    /// The "Resent-Date" field specifies the date and time at which the message was resent.
     public var resentDate: DateTimeOffset? {
         get { resentDateStorage }
         set {
@@ -67,6 +219,15 @@ public final class MimeMessage {
         }
     }
 
+    /// The address in the Sender header.
+    ///
+    /// The "Sender" field specifies the mailbox of the agent responsible for
+    /// the actual transmission of the message. For example, if a secretary were to send
+    /// a message for another person, the mailbox of the secretary would appear in the
+    /// "Sender" field and the mailbox of the actual author would appear in the "From"
+    /// field. If the originator of the message can be indicated by a single mailbox and
+    /// the author and transmitter are identical, the "Sender" field should not be used.
+    /// Otherwise, both fields should appear.
     public var sender: MailboxAddress? {
         get { senderStorage }
         set {
@@ -75,6 +236,10 @@ public final class MimeMessage {
         }
     }
 
+    /// The address in the Resent-Sender header.
+    ///
+    /// The resent sender may differ from the addresses in ``resentFrom`` if
+    /// the message was sent by someone on behalf of someone else.
     public var resentSender: MailboxAddress? {
         get { resentSenderStorage }
         set {
@@ -83,6 +248,13 @@ public final class MimeMessage {
         }
     }
 
+    /// The message identifier in the Message-Id header.
+    ///
+    /// The "Message-Id" field contains a single unique message identifier that refers
+    /// to a particular version of a particular message. The uniqueness of the message
+    /// identifier is guaranteed by the host that generates it.
+    ///
+    /// This property returns the message ID without the angle brackets.
     public var messageId: String? {
         get { messageIdStorage }
         set {
@@ -90,6 +262,12 @@ public final class MimeMessage {
         }
     }
 
+    /// The message identifier in the Resent-Message-Id header.
+    ///
+    /// The "Resent-Message-Id" field contains a unique message identifier that refers
+    /// to a particular version of a resent message.
+    ///
+    /// This property returns the message ID without the angle brackets.
     public var resentMessageId: String? {
         get { resentMessageIdStorage }
         set {
@@ -97,6 +275,12 @@ public final class MimeMessage {
         }
     }
 
+    /// The message identifier in the In-Reply-To header.
+    ///
+    /// The "In-Reply-To" field contains the message identifier of the message to which
+    /// this message is a reply. This is used to establish threading relationships between messages.
+    ///
+    /// This property returns the message ID without the angle brackets.
     public var inReplyTo: String? {
         get { inReplyToStorage }
         set {
@@ -104,6 +288,10 @@ public final class MimeMessage {
         }
     }
 
+    /// The MIME version of the message.
+    ///
+    /// The "MIME-Version" field indicates the version of the MIME protocol used in
+    /// constructing the message. Most messages will have a MIME version of "1.0".
     public var mimeVersion: MimeVersion? {
         get { mimeVersionStorage }
         set {
@@ -112,6 +300,9 @@ public final class MimeMessage {
         }
     }
 
+    /// The importance of the message.
+    ///
+    /// The "Importance" header is used to indicate the relative importance of the message.
     public var importance: MessageImportance {
         get { importanceStorage }
         set {
@@ -120,6 +311,9 @@ public final class MimeMessage {
         }
     }
 
+    /// The priority of the message.
+    ///
+    /// The "Priority" header is used to indicate the relative priority of the message.
     public var priority: MessagePriority {
         get { priorityStorage }
         set {
@@ -128,6 +322,10 @@ public final class MimeMessage {
         }
     }
 
+    /// The X-Priority of the message.
+    ///
+    /// The "X-Priority" header is a non-standard extension used to indicate message
+    /// priority on a scale from 1 (highest) to 5 (lowest).
     public var xPriority: XMessagePriority {
         get { xPriorityStorage }
         set {
@@ -177,14 +375,28 @@ public final class MimeMessage {
         }
     }
 
+    /// Initializes a new instance of ``MimeMessage``.
+    ///
+    /// Creates a new MIME message with default headers including From, Date, Subject,
+    /// and Message-Id.
     public convenience init() {
         self.init(addDefaults: true)
     }
 
+    /// Initializes a new instance of ``MimeMessage`` with the specified arguments.
+    ///
+    /// - Parameter args: An array of initialization parameters: headers and message parts.
+    /// - Throws: ``MimeMessageError/duplicateBody`` if more than one body is specified,
+    ///           or ``MimeMessageError/invalidArgument`` if an unknown argument type is provided.
     public convenience init(_ args: Any?...) throws {
         try self.init(args: args)
     }
 
+    /// Initializes a new instance of ``MimeMessage`` with the specified arguments.
+    ///
+    /// - Parameter args: An array of initialization parameters: headers and message parts.
+    /// - Throws: ``MimeMessageError/duplicateBody`` if more than one body is specified,
+    ///           or ``MimeMessageError/invalidArgument`` if an unknown argument type is provided.
     public convenience init(args: [Any?]) throws {
         self.init(addDefaults: false)
         var body: MimeEntity?
@@ -232,6 +444,9 @@ public final class MimeMessage {
         }
     }
 
+    /// Initializes a new instance of ``MimeMessage`` with the specified headers.
+    ///
+    /// - Parameter headers: A list of initial message headers.
     public convenience init(headers: [Header]) {
         self.init(addDefaults: false)
         for header in headers where !header.field.lowercased().hasPrefix("content-") {
@@ -240,6 +455,15 @@ public final class MimeMessage {
         syncFromHeaders()
     }
 
+    /// Initializes a new instance of ``MimeMessage`` with the specified details.
+    ///
+    /// Creates a new MIME message, specifying details at creation time.
+    ///
+    /// - Parameters:
+    ///   - from: The list of addresses in the From header.
+    ///   - to: The list of addresses in the To header.
+    ///   - subject: The subject of the message.
+    ///   - body: The body of the message.
     public convenience init(from: [InternetAddress], to: [InternetAddress], subject: String, body: MimeEntity) {
         self.init(addDefaults: true)
         self.from.addRange(from)
@@ -248,6 +472,16 @@ public final class MimeMessage {
         self.body = body
     }
 
+    /// Prepares the message for transport using the specified encoding constraints.
+    ///
+    /// Ensures that the message body is properly encoded according to the specified
+    /// constraints, preparing it for transmission over protocols that may have
+    /// encoding or line length restrictions.
+    ///
+    /// - Parameters:
+    ///   - constraint: The encoding constraint to apply.
+    ///   - maxLineLength: The maximum line length. Defaults to 78 characters.
+    /// - Throws: ``MimeMessageError/invalidMaxLineLength`` if the max line length is invalid.
     public func prepare(_ constraint: EncodingConstraint, maxLineLength: Int = FormatOptions.defaultMaxLineLength) throws {
         if maxLineLength < FormatOptions.minimumLineLength || maxLineLength > FormatOptions.maximumLineLength {
             throw MimeMessageError.invalidMaxLineLength
@@ -262,14 +496,28 @@ public final class MimeMessage {
         }
     }
 
+    /// The text body of the message, if available.
+    ///
+    /// Traverses the MIME structure to find and return the plain text body of the message.
+    /// This is a convenience property that calls ``getTextBody(_:)`` with ``TextFormat/plain``.
     public var textBody: String? {
         getTextBody(.plain)
     }
 
+    /// The HTML body of the message, if available.
+    ///
+    /// Traverses the MIME structure to find and return the HTML body of the message.
+    /// This is a convenience property that calls ``getTextBody(_:)`` with ``TextFormat/html``.
     public var htmlBody: String? {
         getTextBody(.html)
     }
 
+    /// Gets the text body in the specified format.
+    ///
+    /// Traverses the MIME structure to find and return the body in the specified format.
+    ///
+    /// - Parameter format: The desired text format.
+    /// - Returns: The text body in the specified format, or `nil` if not found.
     public func getTextBody(_ format: TextFormat) -> String? {
         if let multipart = body as? Multipart {
             var text: TextPart? = nil
@@ -282,22 +530,50 @@ public final class MimeMessage {
         return nil
     }
 
+    /// All MIME parts in the message body.
+    ///
+    /// Recursively enumerates all MIME parts contained in the message body,
+    /// flattening any multipart structures into a single array.
     public var bodyParts: [MimeEntity] {
         return enumerateMimeParts(body)
     }
 
+    /// All attachments in the message.
+    ///
+    /// Returns all MIME entities in the message that have a Content-Disposition
+    /// header indicating they are attachments.
     public var attachments: [MimeEntity] {
         return enumerateMimeParts(body).filter { $0.contentDisposition?.isAttachment ?? false }
     }
 
+    /// Gets the list of recipients for the message.
+    ///
+    /// Returns a list of mailbox addresses representing the recipients of the message,
+    /// including To, Cc, and Bcc recipients. If resent headers are present, returns
+    /// the resent recipients instead.
+    ///
+    /// - Parameter onlyUnique: If `true`, returns only unique addresses (case-insensitive).
+    /// - Returns: An array of mailbox addresses.
     public func getRecipients(_ onlyUnique: Bool = false) -> [MailboxAddress] {
         return getMailboxes(includeSenders: false, onlyUnique: onlyUnique)
     }
 
+    /// Writes the message to the specified stream using default formatting options.
+    ///
+    /// - Parameter stream: The output stream.
+    /// - Throws: An error if writing fails.
     public func writeTo(_ stream: MimeStream) throws {
         try writeTo(.default, stream)
     }
 
+    /// Writes the message to the specified stream using the specified formatting options.
+    ///
+    /// Serializes the message, including all headers and body content, to the output stream.
+    ///
+    /// - Parameters:
+    ///   - options: The formatting options to use.
+    ///   - stream: The output stream.
+    /// - Throws: An error if writing fails.
     public func writeTo(_ options: FormatOptions, _ stream: MimeStream) throws {
         let combinedHeaders = HeaderList()
         for header in headers {
@@ -330,6 +606,12 @@ public final class MimeMessage {
         }
     }
 
+    /// Accepts the specified visitor for processing this message.
+    ///
+    /// Implements the visitor design pattern, allowing external code to process
+    /// this message without modifying its class.
+    ///
+    /// - Parameter visitor: The visitor to accept.
     public func accept(_ visitor: MimeVisitor) {
         visitor.visit(self)
     }
@@ -369,11 +651,23 @@ public final class MimeMessage {
         return stream.generateHash()
     }
 
+    /// Loads a MIME message from the specified stream using default parser options.
+    ///
+    /// - Parameter stream: The stream to load the message from.
+    /// - Returns: The parsed MIME message.
+    /// - Throws: An error if loading or parsing fails.
     public static func load(_ stream: MimeStream) throws -> MimeMessage {
         let bytes = try readAllBytes(from: stream)
         return try parse(.default, bytes)
     }
 
+    /// Loads a MIME message from the specified stream using the specified parser options.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - stream: The stream to load the message from.
+    /// - Returns: The parsed MIME message.
+    /// - Throws: An error if loading or parsing fails.
     public static func load(_ options: ParserOptions, _ stream: MimeStream) throws -> MimeMessage {
         let bytes = try readAllBytes(from: stream)
         return try parse(options, bytes)
@@ -1132,6 +1426,10 @@ public final class MimeMessage {
         isUpdatingHeaders = false
     }
 
+    /// Sets the Message-Id header value.
+    ///
+    /// - Parameter value: The message ID value, or `nil` to remove the header.
+    /// - Throws: ``MimeMessageError/invalidMessageId`` if the value is not a valid message ID.
     public func setMessageId(_ value: String?) throws {
         if let value {
             let msgid = try parseMessageIdValue(value, error: .invalidMessageId)
@@ -1143,6 +1441,10 @@ public final class MimeMessage {
         }
     }
 
+    /// Sets the Resent-Message-Id header value.
+    ///
+    /// - Parameter value: The resent message ID value, or `nil` to remove the header.
+    /// - Throws: ``MimeMessageError/invalidResentMessageId`` if the value is not a valid message ID.
     public func setResentMessageId(_ value: String?) throws {
         if let value {
             let msgid = try parseMessageIdValue(value, error: .invalidResentMessageId)
@@ -1154,6 +1456,10 @@ public final class MimeMessage {
         }
     }
 
+    /// Sets the In-Reply-To header value.
+    ///
+    /// - Parameter value: The In-Reply-To message ID value, or `nil` to remove the header.
+    /// - Throws: ``MimeMessageError/invalidInReplyTo`` if the value is not a valid message ID.
     public func setInReplyTo(_ value: String?) throws {
         if let value {
             let msgid = try parseMessageIdValue(value, error: .invalidInReplyTo)

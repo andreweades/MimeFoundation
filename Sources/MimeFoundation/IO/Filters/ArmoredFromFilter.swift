@@ -6,10 +6,53 @@
 
 import Foundation
 
+/// A filter that armors lines beginning with "From " by encoding the 'F' with
+/// Quoted-Printable encoding.
+///
+/// From-armoring serves a similar purpose as the ``MboxFromFilter``, but uses
+/// quoted-printable encoding to replace lines beginning with "From " using "=46rom "
+/// instead of replacing those lines with ">From " (which is irreversible).
+///
+/// ## Overview
+///
+/// From-armoring is a better alternative to using the ``MboxFromFilter``, but also
+/// requires the content transfer encoding property of the MIME part containing the
+/// content modified by this filter to be set to Quoted-Printable in order to work
+/// properly.
+///
+/// This armoring technique ensures that the receiving client will still be able to
+/// verify PGP/MIME and S/MIME signatures.
+///
+/// ## Example Usage
+///
+/// ```swift
+/// let filter = ArmoredFromFilter()
+/// let input = "From someone@example.com".utf8.map { UInt8($0) }
+/// var outputIndex = 0
+/// var outputLength = 0
+/// let output = filter.filter(input, startIndex: 0, length: input.count,
+///                            outputIndex: &outputIndex, outputLength: &outputLength, flush: true)
+/// // Result: "=46rom someone@example.com"
+/// ```
 public final class ArmoredFromFilter: MimeFilterBase {
     private static let marker = Array("From ".utf8)
     private var midline = false
 
+    /// Filters the specified input, encoding 'F' in lines beginning with "From " using Quoted-Printable.
+    ///
+    /// This method processes the input buffer and identifies lines that start with "From ".
+    /// For each such line found, the 'F' character is replaced with "=46" (the Quoted-Printable
+    /// encoding of 'F'), resulting in "=46rom ".
+    ///
+    /// - Parameters:
+    ///   - input: The input buffer containing data to filter.
+    ///   - startIndex: The starting index of the input buffer.
+    ///   - length: The length of the input buffer, starting at `startIndex`.
+    ///   - outputIndex: When this method returns, contains the starting index of the output in the returned buffer.
+    ///   - outputLength: When this method returns, contains the length of the output buffer.
+    ///   - flush: If `true`, all internally buffered data should be flushed to the output buffer.
+    ///
+    /// - Returns: The filtered output buffer.
     public override func filter(_ input: [UInt8], startIndex: Int, length: Int, outputIndex: inout Int, outputLength: inout Int, flush: Bool) -> [UInt8] {
         let span = Array(input[startIndex..<(startIndex + length)])
         var fromOffsets: [Int] = []
@@ -84,6 +127,10 @@ public final class ArmoredFromFilter: MimeFilterBase {
         return input
     }
 
+    /// Resets the filter state.
+    ///
+    /// Resets the filter to its initial state, clearing any internal tracking
+    /// of whether the filter is currently processing a line.
     public override func reset() {
         midline = false
         super.reset()

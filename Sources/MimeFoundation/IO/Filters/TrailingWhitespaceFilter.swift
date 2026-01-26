@@ -4,9 +4,51 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// A filter for stripping trailing whitespace from lines in a textual stream.
+///
+/// ``TrailingWhitespaceFilter`` removes spaces and tabs that appear at the end of lines,
+/// just before line break characters (`\r` or `\n`). This is useful for cleaning up text
+/// files and ensuring consistent formatting.
+///
+/// ## Overview
+///
+/// This filter is useful when:
+/// - Cleaning up text files with inconsistent whitespace
+/// - Preparing content for systems that are sensitive to trailing whitespace
+/// - Normalizing text before cryptographic signing
+///
+/// The filter buffers whitespace characters (spaces and tabs) and only outputs them
+/// if they are followed by non-whitespace content on the same line.
+///
+/// ## Example Usage
+///
+/// ```swift
+/// let filter = TrailingWhitespaceFilter()
+/// let input = "Hello   \nWorld\t\n".utf8.map { UInt8($0) }
+/// var outputIndex = 0
+/// var outputLength = 0
+/// let output = filter.filter(input, startIndex: 0, length: input.count,
+///                            outputIndex: &outputIndex, outputLength: &outputLength, flush: true)
+/// // Result: "Hello\nWorld\n" (trailing whitespace removed)
+/// ```
 public final class TrailingWhitespaceFilter: MimeFilterBase {
     private var pending: [UInt8] = []
 
+    /// Filters the specified input, removing trailing whitespace from lines.
+    ///
+    /// This method processes the input buffer and removes any spaces or tabs that appear
+    /// at the end of lines (before `\r` or `\n` characters). Whitespace in the middle of
+    /// lines is preserved.
+    ///
+    /// - Parameters:
+    ///   - input: The input buffer containing data to filter.
+    ///   - startIndex: The starting index of the input buffer.
+    ///   - length: The length of the input buffer, starting at `startIndex`.
+    ///   - outputIndex: When this method returns, contains the starting index of the output in the returned buffer.
+    ///   - outputLength: When this method returns, contains the length of the output buffer.
+    ///   - flush: If `true`, all internally buffered data should be flushed to the output buffer.
+    ///
+    /// - Returns: The filtered output buffer.
     public override func filter(_ input: [UInt8], startIndex: Int, length: Int, outputIndex: inout Int, outputLength: inout Int, flush: Bool) -> [UInt8] {
         if length == 0 {
             if flush {
@@ -47,6 +89,9 @@ public final class TrailingWhitespaceFilter: MimeFilterBase {
         return out
     }
 
+    /// Resets the filter state.
+    ///
+    /// Clears any pending whitespace that was buffered.
     public override func reset() {
         pending.removeAll(keepingCapacity: true)
         super.reset()

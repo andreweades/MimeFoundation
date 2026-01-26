@@ -8,38 +8,50 @@
 ///
 /// Used to convert HTML into HTML with optional filtering and transformation.
 public final class HtmlToHtml: TextConverter {
-    /// Whether the converter should remove HTML comments from the output.
+    /// Gets or sets whether the converter should remove HTML comments from the output.
     ///
-    /// `true` if the converter should remove comments; otherwise, `false`.
+    /// When set to `true`, HTML comments will be removed from the output.
     public var filterComments: Bool = false
 
-    /// Whether executable scripts should be stripped from the output.
+    /// Gets or sets whether executable scripts should be stripped from the output.
     ///
-    /// `true` if executable scripts should be filtered; otherwise, `false`.
+    /// When set to `true`, `<script>` tags and their content will be removed from the output.
     public var filterHtml: Bool = false
 
-    /// The footer format.
+    /// Gets or sets the footer format.
+    ///
+    /// Specifies whether the ``TextConverter/footer`` property contains plain text
+    /// or HTML markup.
     public var footerFormat: HeaderFooterFormat = .text
 
-    /// The header format.
+    /// Gets or sets the header format.
+    ///
+    /// Specifies whether the ``TextConverter/header`` property contains plain text
+    /// or HTML markup.
     public var headerFormat: HeaderFooterFormat = .text
 
-    /// The `HtmlTagCallback` method to use for custom filtering of HTML tags and content.
+    /// Gets or sets the ``HtmlTagCallback`` method to use for custom filtering of HTML tags and content.
+    ///
+    /// Allows customization of how HTML tags are rendered during conversion.
     public var htmlTagCallback: HtmlTagCallback?
 
-    /// Initialize a new instance of `HtmlToHtml`.
+    /// Initializes a new instance of the ``HtmlToHtml`` class.
     ///
     /// Creates a new HTML to HTML converter.
     public override init() {
         super.init()
     }
 
-    /// The input format.
+    /// Gets the input format.
+    ///
+    /// Always returns ``TextFormat/html`` for this converter.
     public override var inputFormat: TextFormat {
         .html
     }
 
-    /// The output format.
+    /// Gets the output format.
+    ///
+    /// Always returns ``TextFormat/html`` for this converter.
     public override var outputFormat: TextFormat {
         .html
     }
@@ -94,6 +106,15 @@ public final class HtmlToHtml: TextConverter {
         return nil
     }
 
+    /// Converts the contents of the reader from the ``inputFormat`` to the ``outputFormat``
+    /// and uses the writer to write the resulting text.
+    ///
+    /// Converts HTML to HTML, optionally filtering comments and scripts based on
+    /// the ``filterComments`` and ``filterHtml`` properties.
+    ///
+    /// - Parameters:
+    ///   - reader: The text reader providing the HTML input.
+    ///   - writer: The text writer to receive the HTML output.
     public override func convert(_ reader: TextReadable, _ writer: TextWritable) {
         if let header, !header.isEmpty {
             if headerFormat == .text {

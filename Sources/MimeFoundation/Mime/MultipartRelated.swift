@@ -6,10 +6,37 @@
 
 import Foundation
 
+/// Errors that can occur when working with multipart/related entities.
 public enum MultipartRelatedError: Error, Equatable, Sendable {
+    /// The requested resource was not found.
     case notFound
 }
 
+/// A multipart/related MIME entity.
+///
+/// A ``MultipartRelated`` contains multiple related MIME parts, where one part (the root)
+/// references other parts by their Content-ID or Content-Location. This is commonly used
+/// for HTML messages with embedded images or other resources.
+///
+/// The root part is typically an HTML document, and the related parts are resources
+/// (such as images) that are referenced from within the HTML using "cid:" URLs.
+///
+/// ## Topics
+///
+/// ### Creating Multipart Related Entities
+/// - ``init()``
+/// - ``init(_:)``
+/// - ``init(args:)``
+///
+/// ### Root Part
+/// - ``root``
+/// - ``setRoot(_:)``
+///
+/// ### Finding Related Resources
+/// - ``contains(_:)``
+/// - ``indexOf(_:)``
+/// - ``open(_:)``
+/// - ``open(_:mimeType:charset:)``
 public final class MultipartRelated: Multipart {
     public override init(_ contentType: ContentType) {
         super.init(contentType)
@@ -32,6 +59,11 @@ public final class MultipartRelated: Multipart {
         }
     }
 
+    /// The root MIME part of the multipart/related entity.
+    ///
+    /// The root part is typically the main content (such as HTML) that references
+    /// other related parts. The root is determined by the "start" parameter in the
+    /// Content-Type header, or the "type" parameter, or defaults to the first part.
     public var root: MimeEntity? {
         get {
             let index = rootIndex()
@@ -47,6 +79,13 @@ public final class MultipartRelated: Multipart {
         }
     }
 
+    /// Sets the root MIME part of the multipart/related entity.
+    ///
+    /// Sets the specified entity as the root part and updates the Content-Type
+    /// parameters accordingly.
+    ///
+    /// - Parameter value: The MIME entity to set as the root.
+    /// - Throws: An error if the operation fails.
     public func setRoot(_ value: MimeEntity) throws {
         var index = -1
 
@@ -100,14 +139,36 @@ public final class MultipartRelated: Multipart {
         return false
     }
 
+    /// Checks whether the multipart/related contains a part with the specified URI.
+    ///
+    /// - Parameter uri: The URI to search for (can be a Content-ID or Content-Location).
+    /// - Returns: `true` if a part with the specified URI exists; otherwise, `false`.
     public func contains(_ uri: URL) -> Bool {
         return indexOf(uri) != -1
     }
 
+    /// Gets the index of the part with the specified URI.
+    ///
+    /// Searches for a part that matches the specified URI, which can be either a
+    /// Content-ID (using "cid:" scheme) or a Content-Location.
+    ///
+    /// - Parameter uri: The URI to search for.
+    /// - Returns: The index of the matching part, or -1 if not found.
     public func indexOf(_ uri: URL) -> Int {
         return indexOfUri(uri)
     }
 
+    /// Opens the content stream for the part with the specified URI.
+    ///
+    /// Searches for a part with the specified URI and returns its decoded content stream
+    /// along with MIME type and charset information.
+    ///
+    /// - Parameters:
+    ///   - uri: The URI to search for (can be a Content-ID or Content-Location).
+    ///   - mimeType: On return, contains the MIME type of the part.
+    ///   - charset: On return, contains the charset of the part, if applicable.
+    /// - Returns: A stream containing the decoded content.
+    /// - Throws: ``MultipartRelatedError/notFound`` if no part with the specified URI exists.
     public func open(_ uri: URL, mimeType: inout String, charset: inout String?) throws -> MimeStream {
         let index = indexOfUri(uri)
         guard index != -1 else {
@@ -124,6 +185,13 @@ public final class MultipartRelated: Multipart {
         return try content.open()
     }
 
+    /// Opens the content stream for the part with the specified URI.
+    ///
+    /// Searches for a part with the specified URI and returns its decoded content stream.
+    ///
+    /// - Parameter uri: The URI to search for (can be a Content-ID or Content-Location).
+    /// - Returns: A stream containing the decoded content.
+    /// - Throws: ``MultipartRelatedError/notFound`` if no part with the specified URI exists.
     public func open(_ uri: URL) throws -> MimeStream {
         let index = indexOfUri(uri)
         guard index != -1 else {

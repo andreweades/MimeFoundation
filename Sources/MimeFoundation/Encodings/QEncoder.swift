@@ -4,26 +4,66 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// Incrementally encodes content using a variation of the quoted-printable encoding
+/// that is specifically meant to be used for rfc2047 encoded-word tokens.
+///
+/// The Q-Encoding is an encoding often used in MIME to encode textual content outside
+/// the ASCII range within an rfc2047 encoded-word token in order to ensure that
+/// the text remains intact when sent via 7bit transports such as SMTP.
 public final class QEncoder: MimeEncoder {
     private static let hexAlphabet: [UInt8] = Array("0123456789ABCDEF".utf8)
     private let mode: QEncodeMode
 
+    /// Initialize a new instance of the ``QEncoder`` class.
+    ///
+    /// Creates a new rfc2047 quoted-printable encoder.
+    ///
+    /// - Parameter mode: The rfc2047 encoding mode.
     public init(mode: QEncodeMode) {
         self.mode = mode
     }
 
+    /// Get the encoding.
+    ///
+    /// Gets the encoding that the encoder supports.
     public var encoding: ContentEncoding {
         .quotedPrintable
     }
 
+    /// Clone the ``QEncoder`` with its current state.
+    ///
+    /// Creates a new ``QEncoder`` with exactly the same state as the current encoder.
+    ///
+    /// - Returns: A new ``QEncoder`` with identical state.
     public func copy() -> any MimeEncoder {
         QEncoder(mode: mode)
     }
 
+    /// Estimate the length of the output.
+    ///
+    /// Estimates the number of bytes needed to encode the specified number of input bytes.
+    ///
+    /// - Parameter inputLength: The input length.
+    /// - Returns: The estimated output length.
     public func estimateOutputLength(_ inputLength: Int) -> Int {
         inputLength * 3
     }
 
+    /// Encode the specified input into the output buffer.
+    ///
+    /// Encodes the specified input into the output buffer.
+    ///
+    /// The output buffer should be large enough to hold all the encoded input. For estimating the size needed for the output buffer, see ``estimateOutputLength(_:)``.
+    ///
+    /// - Parameters:
+    ///   - input: The input buffer.
+    ///   - startIndex: The starting index of the input buffer.
+    ///   - length: The length of the input buffer.
+    ///   - output: The output buffer.
+    /// - Returns: The number of bytes written to the output buffer.
+    /// - Throws: ``MimeCodingError/startIndexOutOfRange`` if `startIndex` and `length` do not specify a valid range in the `input` array.
+    /// - Throws: ``MimeCodingError/lengthOutOfRange`` if `startIndex` and `length` do not specify a valid range in the `input` array.
+    /// - Throws: ``MimeCodingError/outputTooSmall`` if `output` is not large enough to contain the encoded content. Use the ``estimateOutputLength(_:)`` method to properly determine the necessary length of the `output` array.
     public func encode(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
         var outIndex = 0
@@ -50,10 +90,28 @@ public final class QEncoder: MimeEncoder {
         return outIndex
     }
 
+    /// Encode the specified input into the output buffer, flushing any internal buffer state as well.
+    ///
+    /// Encodes the specified input into the output buffer, flushing any internal state as well.
+    ///
+    /// The output buffer should be large enough to hold all the encoded input. For estimating the size needed for the output buffer, see ``estimateOutputLength(_:)``.
+    ///
+    /// - Parameters:
+    ///   - input: The input buffer.
+    ///   - startIndex: The starting index of the input buffer.
+    ///   - length: The length of the input buffer.
+    ///   - output: The output buffer.
+    /// - Returns: The number of bytes written to the output buffer.
+    /// - Throws: ``MimeCodingError/startIndexOutOfRange`` if `startIndex` and `length` do not specify a valid range in the `input` array.
+    /// - Throws: ``MimeCodingError/lengthOutOfRange`` if `startIndex` and `length` do not specify a valid range in the `input` array.
+    /// - Throws: ``MimeCodingError/outputTooSmall`` if `output` is not large enough to contain the encoded content. Use the ``estimateOutputLength(_:)`` method to properly determine the necessary length of the `output` array.
     public func flush(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try encode(input, startIndex: startIndex, length: length, output: &output)
     }
 
+    /// Reset the encoder.
+    ///
+    /// Resets the state of the encoder.
     public func reset() {}
 
     private func isSafe(_ byte: UInt8) -> Bool {

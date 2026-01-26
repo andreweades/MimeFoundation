@@ -4,17 +4,31 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// A text to flowed text converter.
+///
+/// Wraps text to conform with the flowed text format described in RFC 3676.
+/// The Content-Type header for the wrapped output text should be set to
+/// `text/plain; format=flowed; delsp=yes`.
 public final class TextToFlowed: TextConverter {
     private static let maxLineLength = 78
 
+    /// Initializes a new instance of the ``TextToFlowed`` class.
+    ///
+    /// Creates a new text to flowed text converter.
     public override init() {
         super.init()
     }
 
+    /// Gets the input format.
+    ///
+    /// Always returns ``TextFormat/plain`` for this converter.
     public override var inputFormat: TextFormat {
         .plain
     }
 
+    /// Gets the output format.
+    ///
+    /// Always returns ``TextFormat/flowed`` for this converter.
     public override var outputFormat: TextFormat {
         .flowed
     }
@@ -116,6 +130,15 @@ public final class TextToFlowed: TextConverter {
         return String(line[..<endIndex])
     }
 
+    /// Converts the contents of the reader from the ``inputFormat`` to the ``outputFormat``
+    /// and uses the writer to write the resulting text.
+    ///
+    /// Converts plain text to flowed text by wrapping long lines at word boundaries
+    /// while preserving quote levels.
+    ///
+    /// - Parameters:
+    ///   - reader: The text reader providing the plain text input.
+    ///   - writer: The text writer to receive the flowed text output.
     public override func convert(_ reader: TextReadable, _ writer: TextWritable) {
         if let header, !header.isEmpty {
             writer.write(header)

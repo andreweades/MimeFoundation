@@ -6,16 +6,65 @@
 
 import Foundation
 
+/// Errors that can occur when working with Content-Disposition values.
 public enum ContentDispositionError: Error, Sendable {
+    /// The disposition value is invalid.
     case invalidDisposition
 }
 
+/// A MIME Content-Disposition header value.
+///
+/// The Content-Disposition header is used to specify presentation information for
+/// a MIME entity, such as whether it should be displayed inline or as an attachment,
+/// along with optional metadata such as filename and file dates.
+///
+/// ## Topics
+///
+/// ### Creating Content Dispositions
+/// - ``init(_:)``
+///
+/// ### Disposition Constants
+/// - ``attachment``
+/// - ``formData``
+/// - ``inline``
+///
+/// ### Disposition Properties
+/// - ``disposition``
+/// - ``isAttachment``
+///
+/// ### Parameters
+/// - ``parameters``
+/// - ``fileName``
+/// - ``creationDate``
+/// - ``modificationDate``
+/// - ``readDate``
+/// - ``size``
 public final class ContentDisposition: Equatable {
+    /// The disposition value for attachments.
+    ///
+    /// Use this constant when setting the disposition to "attachment".
     public static let attachment = "attachment"
+
+    /// The disposition value for form data.
+    ///
+    /// Use this constant when setting the disposition to "form-data".
     public static let formData = "form-data"
+
+    /// The disposition value for inline content.
+    ///
+    /// Use this constant when setting the disposition to "inline".
     public static let inline = "inline"
 
+    /// The disposition value.
+    ///
+    /// The disposition indicates how the content should be presented.
+    /// Common values are "inline" and "attachment".
     public private(set) var disposition: String
+
+    /// The list of parameters on the Content-Disposition header.
+    ///
+    /// Parameters provide additional information such as filename, creation-date,
+    /// modification-date, and size.
     public var parameters: ParameterList {
         didSet {
             parameters.changed = { [weak self] _ in
@@ -25,6 +74,10 @@ public final class ContentDisposition: Equatable {
         }
     }
 
+    /// Initializes a new Content-Disposition with the specified disposition value.
+    ///
+    /// - Parameter disposition: The disposition value (e.g., "attachment", "inline"). Defaults to "attachment".
+    /// - Throws: ``ContentDispositionError/invalidDisposition`` if the disposition value is invalid.
     public init(_ disposition: String = ContentDisposition.attachment) throws {
         try ContentDisposition.validateDisposition(disposition)
         self.disposition = disposition
@@ -43,6 +96,10 @@ public final class ContentDisposition: Equatable {
         }
     }
 
+    /// The filename parameter value, if present.
+    ///
+    /// The filename suggests a filename for saving the content.
+    /// This is a convenience property for accessing the "filename" parameter.
     public var fileName: String? {
         get { parameters["filename"] }
         set {
@@ -54,6 +111,11 @@ public final class ContentDisposition: Equatable {
         }
     }
 
+    /// Whether this disposition indicates an attachment.
+    ///
+    /// Gets or sets whether the disposition is "attachment". When set to `true`,
+    /// the disposition is changed to "attachment"; when set to `false`, it is
+    /// changed to "inline".
     public var isAttachment: Bool {
         get { disposition.caseInsensitiveCompare(ContentDisposition.attachment) == .orderedSame }
         set {
@@ -66,6 +128,10 @@ public final class ContentDisposition: Equatable {
         }
     }
 
+    /// The creation date of the content, if present.
+    ///
+    /// The creation-date parameter specifies when the content was created.
+    /// This is a convenience property for accessing the "creation-date" parameter.
     public var creationDate: DateTimeOffset? {
         get {
             guard let value = parameters["creation-date"], !value.isEmpty else {
@@ -91,6 +157,10 @@ public final class ContentDisposition: Equatable {
         }
     }
 
+    /// The modification date of the content, if present.
+    ///
+    /// The modification-date parameter specifies when the content was last modified.
+    /// This is a convenience property for accessing the "modification-date" parameter.
     public var modificationDate: DateTimeOffset? {
         get {
             guard let value = parameters["modification-date"], !value.isEmpty else {
@@ -116,6 +186,10 @@ public final class ContentDisposition: Equatable {
         }
     }
 
+    /// The read date of the content, if present.
+    ///
+    /// The read-date parameter specifies when the content was last read.
+    /// This is a convenience property for accessing the "read-date" parameter.
     public var readDate: DateTimeOffset? {
         get {
             guard let value = parameters["read-date"], !value.isEmpty else {
@@ -141,6 +215,10 @@ public final class ContentDisposition: Equatable {
         }
     }
 
+    /// The size of the content, if present.
+    ///
+    /// The size parameter specifies the approximate size of the content in bytes.
+    /// This is a convenience property for accessing the "size" parameter.
     public var size: Int64? {
         get {
             guard let value = parameters["size"], !value.isEmpty else {

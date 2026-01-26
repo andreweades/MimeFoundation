@@ -6,6 +6,9 @@
 
 import Foundation
 
+/// A URL match result.
+///
+/// Contains information about a matched URL pattern in text.
 struct UrlMatch {
     let pattern: String
     let prefix: String
@@ -13,6 +16,9 @@ struct UrlMatch {
     var endIndex: Int = 0
 }
 
+/// URL pattern types.
+///
+/// Identifies the type of URL pattern for proper parsing.
 enum UrlPatternType {
     case addrspec
     case mailto
@@ -20,12 +26,19 @@ enum UrlPatternType {
     case web
 }
 
+/// A URL pattern.
+///
+/// Defines a pattern for matching URLs in text.
 struct UrlPattern: Hashable {
     let type: UrlPatternType
     let pattern: String
     let prefix: String
 }
 
+/// A URL scanner for detecting URLs in text.
+///
+/// Scans text for various URL patterns including email addresses, web URLs,
+/// and file URLs using an Aho-Corasick trie for efficient pattern matching.
 final class UrlScanner {
     private static let atomCharacters = "!#$%&'*+-/=?^_`{|}~"
     private static let urlSafeCharacters = "$-_.+!*'(),{}|\\^~[]`#%\";/?:@&="
@@ -35,11 +48,23 @@ final class UrlScanner {
     private let trie = Trie(ignoreCase: true)
     private var patterns: [String: UrlPattern] = [:]
 
+    /// Adds a URL pattern to the scanner.
+    ///
+    /// - Parameter pattern: The URL pattern to add.
     func add(_ pattern: UrlPattern) {
         patterns[pattern.pattern] = pattern
         trie.add(pattern.pattern)
     }
 
+    /// Scans text for URLs.
+    ///
+    /// Searches the text for URL patterns and returns information about the first match found.
+    ///
+    /// - Parameters:
+    ///   - text: The text to scan.
+    ///   - startIndex: The index to start scanning from.
+    ///   - count: The number of characters to scan.
+    /// - Returns: A ``UrlMatch`` if a URL was found; otherwise, `nil`.
     func scan(_ text: [Character], startIndex: Int, count: Int) -> UrlMatch? {
         let (matchIndex, pattern) = trie.search(text, startIndex: startIndex, count: count)
         guard matchIndex != -1, let pattern, let url = patterns[pattern] else {

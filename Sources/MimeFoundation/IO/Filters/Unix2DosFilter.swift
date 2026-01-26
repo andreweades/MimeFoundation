@@ -4,10 +4,38 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// A filter that converts from Unix line endings to Windows/DOS line endings.
+///
+/// ``Unix2DosFilter`` converts LF (Line Feed, `\n`) sequences to CRLF
+/// (Carriage Return + Line Feed, `\r\n`), transforming Unix-style line endings
+/// into DOS/Windows-style line endings.
+///
+/// ## Overview
+///
+/// This filter is useful when:
+/// - Preparing text files for Windows systems
+/// - Ensuring proper line endings for DOS-based applications
+/// - Converting Unix format files to DOS/Windows format
+///
+/// ## Example Usage
+///
+/// ```swift
+/// let filter = Unix2DosFilter()
+/// let input = "Hello\nWorld\n".utf8.map { UInt8($0) }
+/// var outputIndex = 0
+/// var outputLength = 0
+/// let output = filter.filter(input, startIndex: 0, length: input.count,
+///                            outputIndex: &outputIndex, outputLength: &outputLength, flush: true)
+/// // Result: "Hello\r\nWorld\r\n"
+/// ```
 public final class Unix2DosFilter: MimeFilterBase {
     private let ensureNewLine: Bool
     private var previous: UInt8 = 0
 
+    /// Initializes a new instance of the ``Unix2DosFilter`` class.
+    ///
+    /// - Parameter ensureNewLine: If `true`, ensures that the stream ends with a newline character.
+    ///   Defaults to `false`.
     public init(_ ensureNewLine: Bool = false) {
         self.ensureNewLine = ensureNewLine
         super.init()
@@ -43,6 +71,17 @@ public final class Unix2DosFilter: MimeFilterBase {
         return outputIndex
     }
 
+    /// Filters the specified input, converting LF line endings to CRLF.
+    ///
+    /// - Parameters:
+    ///   - input: The input buffer containing data to filter.
+    ///   - startIndex: The starting index of the input buffer.
+    ///   - length: The length of the input buffer, starting at `startIndex`.
+    ///   - outputIndex: When this method returns, contains the starting index of the output in the returned buffer.
+    ///   - outputLength: When this method returns, contains the length of the output buffer.
+    ///   - flush: If `true`, all internally buffered data should be flushed to the output buffer.
+    ///
+    /// - Returns: The filtered output buffer.
     public override func filter(_ input: [UInt8], startIndex: Int, length: Int, outputIndex: inout Int, outputLength: inout Int, flush: Bool) -> [UInt8] {
         let slice = Array(input[startIndex..<(startIndex + length)])
         ensureOutputSize(length * 2 + (flush && ensureNewLine ? 2 : 0), preserve: false)
@@ -52,6 +91,9 @@ public final class Unix2DosFilter: MimeFilterBase {
         return out
     }
 
+    /// Resets the filter state.
+    ///
+    /// Clears the internal state tracking the previous character.
     public override func reset() {
         previous = 0
         super.reset()

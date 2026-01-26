@@ -4,7 +4,11 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// An Aho-Corasick Trie graph.
+///
+/// Implements the Aho-Corasick algorithm for efficient multi-pattern string matching.
 final class Trie {
+    /// A state in the trie.
     final class TrieState {
         var next: TrieState?
         var fail: TrieState?
@@ -17,6 +21,7 @@ final class Trie {
         }
     }
 
+    /// A match transition in the trie.
     final class TrieMatch {
         var next: TrieMatch?
         let state: TrieState
@@ -33,6 +38,11 @@ final class Trie {
     private let root: TrieState
     private let ignoreCase: Bool
 
+    /// Initializes a new instance of the ``Trie`` class.
+    ///
+    /// Creates a new Aho-Corasick Trie.
+    ///
+    /// - Parameter ignoreCase: `true` if searching should ignore case; otherwise, `false`.
     init(ignoreCase: Bool = false) {
         self.ignoreCase = ignoreCase
         self.root = TrieState(fail: nil)
@@ -61,6 +71,9 @@ final class Trie {
         return inserted
     }
 
+    /// Adds a pattern to the trie.
+    ///
+    /// - Parameter pattern: The pattern to add.
     func add(_ pattern: String) {
         guard !pattern.isEmpty else {
             return
@@ -124,6 +137,16 @@ final class Trie {
         }
     }
 
+    /// Searches for patterns in text.
+    ///
+    /// Searches the text for any of the patterns that have been added to the trie.
+    ///
+    /// - Parameters:
+    ///   - text: The text to search.
+    ///   - startIndex: The index to start searching from.
+    ///   - count: The number of characters to search.
+    /// - Returns: A tuple containing the index where the match was found and the matched pattern,
+    ///            or `(-1, nil)` if no match was found.
     func search(_ text: [Character], startIndex: Int, count: Int) -> (Int, String?) {
         guard startIndex >= 0, count >= 0, startIndex <= text.count else {
             return (-1, nil)

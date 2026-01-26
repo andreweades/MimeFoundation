@@ -4,6 +4,12 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// Incrementally decodes content encoded with the yEnc encoding.
+///
+/// The yEncoding is an encoding that is most commonly used with Usenet and
+/// is a binary encoding that includes a 32-bit cyclic redundancy check.
+///
+/// For more information, see [www.yenc.org](http://www.yenc.org).
 public final class YDecoder: MimeDecoder {
     private enum State {
         case expectYBegin
@@ -34,6 +40,11 @@ public final class YDecoder: MimeDecoder {
     private var eoln: Bool = true
     private var crc: Crc32
 
+    /// Initialize a new instance of the ``YDecoder`` class.
+    ///
+    /// Creates a new yEnc decoder.
+    ///
+    /// - Parameter payloadOnly: If `true`, decoding begins immediately rather than after finding an =ybegin line.
     public init(payloadOnly: Bool = false) {
         self.initial = payloadOnly ? .payload : .expectYBegin
         self.state = self.initial
@@ -41,14 +52,25 @@ public final class YDecoder: MimeDecoder {
         reset()
     }
 
+    /// Get the checksum.
+    ///
+    /// Gets the checksum.
     public var checksum: Int32 {
         crc.checksum
     }
 
+    /// Get the encoding.
+    ///
+    /// Gets the encoding that the decoder supports.
     public var encoding: ContentEncoding {
         .default
     }
 
+    /// Clone the ``YDecoder`` with its current state.
+    ///
+    /// Creates a new ``YDecoder`` with exactly the same state as the current decoder.
+    ///
+    /// - Returns: A new ``YDecoder`` with identical state.
     public func copy() -> any MimeDecoder {
         let copied = YDecoder(payloadOnly: initial == .payload)
         copied.crc = crc.copy()
@@ -59,10 +81,31 @@ public final class YDecoder: MimeDecoder {
         return copied
     }
 
+    /// Estimate the length of the output.
+    ///
+    /// Estimates the number of bytes needed to decode the specified number of input bytes.
+    ///
+    /// - Parameter inputLength: The input length.
+    /// - Returns: The estimated output length.
     public func estimateOutputLength(_ inputLength: Int) -> Int {
         inputLength
     }
 
+    /// Decode the specified input into the output buffer.
+    ///
+    /// Decodes the specified input into the output buffer.
+    ///
+    /// The output buffer should be large enough to hold all the decoded input. For estimating the size needed for the output buffer, see ``estimateOutputLength(_:)``.
+    ///
+    /// - Parameters:
+    ///   - input: The input buffer.
+    ///   - startIndex: The starting index of the input buffer.
+    ///   - length: The length of the input buffer.
+    ///   - output: The output buffer.
+    /// - Returns: The number of bytes written to the output buffer.
+    /// - Throws: ``MimeCodingError/startIndexOutOfRange`` if `startIndex` and `length` do not specify a valid range in the `input` array.
+    /// - Throws: ``MimeCodingError/lengthOutOfRange`` if `startIndex` and `length` do not specify a valid range in the `input` array.
+    /// - Throws: ``MimeCodingError/outputTooSmall`` if `output` is not large enough to contain the decoded content. Use the ``estimateOutputLength(_:)`` method to properly determine the necessary length of the `output` array.
     public func decode(_ input: [UInt8], startIndex: Int, length: Int, output: inout [UInt8]) throws -> Int {
         try validateArguments(input, startIndex: startIndex, length: length, output: output)
 
@@ -121,6 +164,9 @@ public final class YDecoder: MimeDecoder {
         return outIndex
     }
 
+    /// Reset the decoder.
+    ///
+    /// Resets the state of the decoder.
     public func reset() {
         octet = 0x0A
         state = initial

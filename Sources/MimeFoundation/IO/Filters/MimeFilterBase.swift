@@ -6,18 +6,84 @@
 
 import Foundation
 
+/// A base implementation for MIME filters.
+///
+/// ``MimeFilterBase`` provides the common infrastructure needed by most filter
+/// implementations, including input buffering and output buffer management.
+///
+/// ## Overview
+///
+/// This class handles the complexity of:
+/// - Buffering partial input data between filter calls
+/// - Managing output buffer allocation and resizing
+/// - Combining preloaded data with new input
+/// - Validating input parameters
+///
+/// Subclasses only need to implement the core filtering logic in
+/// ``filter(_:startIndex:length:outputIndex:outputLength:flush:)``.
+///
+/// ## Subclassing Notes
+///
+/// When subclassing ``MimeFilterBase``:
+///
+/// 1. Override ``filter(_:startIndex:length:outputIndex:outputLength:flush:)``
+///    to implement your filtering logic.
+///
+/// 2. Use ``ensureOutputSize(_:preserve:)`` to allocate space for output data.
+///
+/// 3. Use ``saveRemainingInput(_:startIndex:length:)`` to buffer incomplete
+///    input sequences for the next filter call.
+///
+/// 4. Override ``reset()`` if you have additional state to clear, but remember
+///    to call `super.reset()`.
+///
+/// ## Example
+///
+/// ```swift
+/// class MyFilter: MimeFilterBase {
+///     override func filter(_ input: [UInt8], startIndex: Int, length: Int,
+///                         outputIndex: inout Int, outputLength: inout Int,
+///                         flush: Bool) -> [UInt8] {
+///         ensureOutputSize(length, preserve: false)
+///         var output = outputBuffer
+///         // ... process input into output ...
+///         outputIndex = 0
+///         outputLength = processedLength
+///         return output
+///     }
+/// }
+/// ```
 open class MimeFilterBase: MimeFilter {
     private var preload: [UInt8] = []
     private var preloadLength: Int = 0
     private var inputBuffer: [UInt8] = []
     internal var outputBuffer: [UInt8] = []
 
+    /// Initializes a new instance of the ``MimeFilterBase`` class.
     public init() {}
 
+    /// Resets the filter to its initial state.
+    ///
+    /// Clears any internally buffered input data. Subclasses should override
+    /// this method to reset additional state, but must call `super.reset()`.
     open func reset() {
         preloadLength = 0
     }
 
+    /// Filters the specified input.
+    ///
+    /// This method handles preloading any buffered data from previous calls,
+    /// validates arguments, and delegates to the subclass implementation of
+    /// ``filter(_:startIndex:length:outputIndex:outputLength:flush:)``.
+    ///
+    /// - Parameters:
+    ///   - input: The input buffer containing data to filter.
+    ///   - startIndex: The starting index of the input buffer.
+    ///   - length: The number of bytes of the input to filter.
+    ///   - outputIndex: When this method returns, contains the starting index of the output in the returned buffer.
+    ///   - outputLength: When this method returns, contains the length of the output buffer.
+    ///
+    /// - Returns: The filtered output buffer.
     open func filter(_ input: [UInt8], startIndex: Int, length: Int, outputIndex: inout Int, outputLength: inout Int) -> [UInt8] {
         try? validateArguments(input, startIndex: startIndex, length: length)
         var start = startIndex
@@ -26,6 +92,20 @@ open class MimeFilterBase: MimeFilter {
         return filter(prepared, startIndex: start, length: count, outputIndex: &outputIndex, outputLength: &outputLength, flush: false)
     }
 
+    /// Filters the specified input, flushing all internally buffered data to the output.
+    ///
+    /// This method handles preloading any buffered data from previous calls,
+    /// validates arguments, and delegates to the subclass implementation of
+    /// ``filter(_:startIndex:length:outputIndex:outputLength:flush:)`` with `flush` set to `true`.
+    ///
+    /// - Parameters:
+    ///   - input: The input buffer containing data to filter.
+    ///   - startIndex: The starting index of the input buffer.
+    ///   - length: The number of bytes of the input to filter.
+    ///   - outputIndex: When this method returns, contains the starting index of the output in the returned buffer.
+    ///   - outputLength: When this method returns, contains the length of the output buffer.
+    ///
+    /// - Returns: The filtered output buffer.
     open func flush(_ input: [UInt8], startIndex: Int, length: Int, outputIndex: inout Int, outputLength: inout Int) -> [UInt8] {
         try? validateArguments(input, startIndex: startIndex, length: length)
         var start = startIndex
@@ -34,12 +114,37 @@ open class MimeFilterBase: MimeFilter {
         return filter(prepared, startIndex: start, length: count, outputIndex: &outputIndex, outputLength: &outputLength, flush: true)
     }
 
+    /// The core filtering method that subclasses must override.
+    ///
+    /// This method performs the actual filtering operation. The default implementation
+    /// simply returns the input unchanged (pass-through behavior).
+    ///
+    /// Subclasses should override this method to implement their specific filtering logic.
+    ///
+    /// - Parameters:
+    ///   - input: The input buffer containing data to filter.
+    ///   - startIndex: The starting index of the input buffer.
+    ///   - length: The length of the input buffer, starting at `startIndex`.
+    ///   - outputIndex: When this method returns, contains the starting index of the output in the returned buffer.
+    ///   - outputLength: When this method returns, contains the length of the output buffer.
+    ///   - flush: If `true`, all internally buffered data should be flushed to the output buffer.
+    ///
+    /// - Returns: The filtered output buffer.
     open func filter(_ input: [UInt8], startIndex: Int, length: Int, outputIndex: inout Int, outputLength: inout Int, flush: Bool) -> [UInt8] {
         outputIndex = startIndex
         outputLength = length
         return input
     }
 
+    /// Ensures that the output buffer is large enough to hold the specified number of bytes.
+    ///
+    /// This method allocates or resizes the ``outputBuffer`` as needed. The buffer size
+    /// is always rounded up to the nearest multiple of 64 bytes for efficiency.
+    ///
+    /// - Parameters:
+    ///   - need: The minimum size needed for the output buffer.
+    ///   - preserve: If `true`, the current output buffer contents are preserved;
+    ///     if `false`, the buffer can be reallocated without copying existing data.
     internal func ensureOutputSize(_ need: Int, preserve: Bool) {
         if outputBuffer.count < need {
             let size = (need + 63) & ~63
@@ -53,10 +158,24 @@ open class MimeFilterBase: MimeFilter {
         }
     }
 
+    /// Gets the output buffer.
+    ///
+    /// Provides access to the internal output buffer for subclasses.
     internal var output: [UInt8] {
         outputBuffer
     }
 
+    /// Saves the remaining input for the next round of processing.
+    ///
+    /// When a filter encounters incomplete data (such as a partial multi-byte sequence),
+    /// it can use this method to buffer that data. On the next call to ``filter(_:startIndex:length:outputIndex:outputLength:)``
+    /// or ``flush(_:startIndex:length:outputIndex:outputLength:)``, the saved data will be
+    /// automatically prepended to the new input.
+    ///
+    /// - Parameters:
+    ///   - input: The input buffer.
+    ///   - startIndex: The starting index of the data to save.
+    ///   - length: The length of the data to save, starting at `startIndex`.
     internal func saveRemainingInput(_ input: [UInt8], startIndex: Int, length: Int) {
         if length == 0 {
             preloadLength = 0

@@ -6,13 +6,32 @@
 
 import Foundation
 
+/// A collection of HTML-related utility methods.
+///
+/// Provides methods for encoding HTML text and attributes to ensure proper
+/// escaping of special characters.
 public enum HtmlUtils {
+    /// Encodes HTML text.
+    ///
+    /// Encodes special HTML characters such as `<`, `>`, `&`, and `"` into their
+    /// corresponding HTML entities.
+    ///
+    /// - Parameter data: The text to encode.
+    /// - Returns: The HTML-encoded string.
     public static func htmlEncode(_ data: String) -> String {
         let writer = StringWriter()
         htmlEncode(writer, data)
         return writer.string
     }
 
+    /// Encodes HTML text to an output writer.
+    ///
+    /// Encodes special HTML characters such as `<`, `>`, `&`, and `"` into their
+    /// corresponding HTML entities and writes the result to the output.
+    ///
+    /// - Parameters:
+    ///   - output: The output writer.
+    ///   - data: The text to encode.
     public static func htmlEncode(_ output: TextWritable, _ data: String) {
         guard !data.isEmpty else {
             return
@@ -51,12 +70,31 @@ public enum HtmlUtils {
         output.write(result)
     }
 
+    /// Encodes an HTML attribute value.
+    ///
+    /// Encodes an HTML attribute value, properly escaping special characters
+    /// and wrapping the result in the specified quote character.
+    ///
+    /// - Parameters:
+    ///   - value: The attribute value to encode.
+    ///   - quote: The character to use for quoting the attribute value.
+    /// - Returns: The HTML-encoded attribute value with quotes.
     public static func htmlAttributeEncode(_ value: String, quote: Character = "\"") -> String {
         let writer = StringWriter()
         htmlAttributeEncode(writer, value, quote: quote)
         return writer.string
     }
 
+    /// Encodes an HTML attribute value to an output writer.
+    ///
+    /// Encodes an HTML attribute value, properly escaping special characters
+    /// and wrapping the result in the specified quote character, then writes
+    /// the result to the output.
+    ///
+    /// - Parameters:
+    ///   - output: The output writer.
+    ///   - value: The attribute value to encode.
+    ///   - quote: The character to use for quoting the attribute value.
     public static func htmlAttributeEncode(_ output: TextWritable, _ value: String, quote: Character = "\"") {
         var result = ""
         result.append(quote)

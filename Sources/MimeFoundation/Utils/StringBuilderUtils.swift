@@ -6,7 +6,28 @@
 
 import Foundation
 
+/// Internal utilities for formatting and folding text in MIME headers.
+///
+/// `StringBuilderUtils` provides methods for line wrapping and folding long
+/// header values according to RFC 2822 rules. These utilities are used when
+/// formatting MIME headers to ensure they don't exceed maximum line lengths.
+///
+/// ## Line Folding
+///
+/// RFC 2822 requires that header lines be folded at whitespace boundaries when
+/// they exceed a certain length (typically 78 or 998 characters). These methods
+/// handle the insertion of CRLF (carriage return + line feed) followed by
+/// whitespace continuation.
 enum StringBuilderUtils {
+    /// Inserts a line break into text according to MIME folding rules.
+    ///
+    /// Adds a line break (CRLF) and continuation whitespace (typically a tab)
+    /// to the text. If the text ends with whitespace, the line break is inserted
+    /// before it; otherwise, a tab is appended after the line break.
+    ///
+    /// - Parameters:
+    ///   - text: The text string to modify.
+    ///   - options: Format options specifying the newline sequence to use.
     static func lineWrap(_ text: inout String, options: FormatOptions) {
         guard !text.isEmpty else {
             return
@@ -21,6 +42,18 @@ enum StringBuilderUtils {
         }
     }
 
+    /// Appends tokens to text with automatic line folding.
+    ///
+    /// Appends a series of tokens to the text, automatically inserting line
+    /// breaks when the current line would exceed the maximum length. Whitespace
+    /// tokens are preserved and used to separate non-whitespace tokens, but are
+    /// discarded when folding occurs.
+    ///
+    /// - Parameters:
+    ///   - text: The text string to append to.
+    ///   - options: Format options specifying maximum line length and newline sequence.
+    ///   - lineLength: The current line length. Updated as tokens are appended.
+    ///   - tokens: The array of token strings to append.
     static func appendTokens(_ text: inout String, options: FormatOptions, lineLength: inout Int, tokens: [String]) {
         var spaces = ""
         for token in tokens {
@@ -45,6 +78,26 @@ enum StringBuilderUtils {
         }
     }
 
+    /// Appends a value to text with word-aware line folding.
+    ///
+    /// Appends a string value to the text, automatically inserting line breaks
+    /// to keep lines within the maximum length. The method is word-aware, breaking
+    /// only at whitespace boundaries, and handles quoted strings specially to avoid
+    /// breaking them mid-quote.
+    ///
+    /// - Parameters:
+    ///   - text: The text string to append to.
+    ///   - options: Format options specifying maximum line length and newline sequence.
+    ///   - firstToken: Whether this is the first token being appended. Set to `false`
+    ///     after the first word is added.
+    ///   - value: The string value to append.
+    ///   - lineLength: The current line length. Updated as the value is appended.
+    ///
+    /// ## Quoted String Handling
+    ///
+    /// The method treats quoted strings (text enclosed in double quotes) as
+    /// indivisible units that should not be broken across lines, even if they
+    /// exceed the maximum line length.
     static func appendFolded(_ text: inout String, options: FormatOptions, firstToken: inout Bool, value: String, lineLength: inout Int) {
         var wordIndex = value.startIndex
 

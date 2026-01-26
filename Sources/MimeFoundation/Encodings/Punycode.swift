@@ -4,16 +4,75 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// A protocol for encoding and decoding international domain names.
+///
+/// An interface for encoding and decoding international domain names.
 public protocol PunycodeCoding: Sendable {
+    /// Encode a Unicode domain name, converting it to an ASCII-safe representation.
+    ///
+    /// Encodes a Unicode domain name, converting it to an ASCII-safe representation
+    /// according to the rules defined by the IDNA standard.
+    ///
+    /// - Parameter unicode: The Unicode domain name.
+    /// - Returns: The ASCII-encoded domain name.
     func encode(_ unicode: String) -> String
+
+    /// Encode a Unicode domain name, converting it to an ASCII-safe representation.
+    ///
+    /// Encodes a Unicode domain name, converting it to an ASCII-safe representation
+    /// according to the rules defined by the IDNA standard.
+    ///
+    /// - Parameters:
+    ///   - unicode: The Unicode domain name.
+    ///   - index: A zero-based offset into `unicode` that specifies the start of the substring to convert. The conversion operation continues to the end of the string.
+    /// - Returns: The ASCII-encoded domain name.
     func encode(_ unicode: String, index: Int) -> String
+
+    /// Encode a Unicode domain name, converting it to an ASCII-safe representation.
+    ///
+    /// Encodes a Unicode domain name, converting it to an ASCII-safe representation
+    /// according to the rules defined by the IDNA standard.
+    ///
+    /// - Parameters:
+    ///   - unicode: The Unicode domain name.
+    ///   - index: A zero-based offset into `unicode` that specifies the start of the substring to convert.
+    ///   - count: The number of characters to convert in the substring that starts at the position specified by `index` in the `unicode` string.
+    /// - Returns: The ASCII-encoded domain name.
     func encode(_ unicode: String, index: Int, count: Int) -> String
 
+    /// Decode a domain name, converting it to a string of Unicode characters.
+    ///
+    /// Decodes a domain name, converting it to Unicode, according to the rules defined by the IDNA standard.
+    ///
+    /// - Parameter ascii: The ASCII-encoded domain name.
+    /// - Returns: The Unicode domain name.
     func decode(_ ascii: String) -> String
+
+    /// Decode a domain name, converting it to a string of Unicode characters.
+    ///
+    /// Decodes a domain name, converting it to Unicode, according to the rules defined by the IDNA standard.
+    ///
+    /// - Parameters:
+    ///   - ascii: The ASCII-encoded domain name.
+    ///   - index: A zero-based offset into `ascii` that specifies the start of the substring to convert. The conversion operation continues to the end of the string.
+    /// - Returns: The Unicode domain name.
     func decode(_ ascii: String, index: Int) -> String
+
+    /// Decode a domain name, converting it to a string of Unicode characters.
+    ///
+    /// Decodes a domain name, converting it to Unicode, according to the rules defined by the IDNA standard.
+    ///
+    /// - Parameters:
+    ///   - ascii: The ASCII-encoded domain name.
+    ///   - index: A zero-based offset into `ascii` that specifies the start of the substring to convert.
+    ///   - count: The number of characters to convert in the substring that starts at the position specified by `index` in the `ascii` string.
+    /// - Returns: The Unicode domain name.
     func decode(_ ascii: String, index: Int, count: Int) -> String
 }
 
+/// A class for encoding and decoding international domain names.
+///
+/// A class for encoding and decoding international domain names.
 public final class Punycode: PunycodeCoding, Sendable {
     private enum PunycodeError: Error {
         case invalidInput
@@ -32,8 +91,18 @@ public final class Punycode: PunycodeCoding, Sendable {
         [".", "\u{3002}", "\u{FF0E}", "\u{FF61}"].compactMap { $0.unicodeScalars.first }
     )
 
+    /// Initialize a new instance of the ``Punycode`` class.
+    ///
+    /// Creates a new instance of ``Punycode``.
     public init() {}
 
+    /// Encode a Unicode domain name, converting it to an ASCII-safe representation.
+    ///
+    /// Encodes a Unicode domain name, converting it to an ASCII-safe representation
+    /// according to the rules defined by the IDNA standard.
+    ///
+    /// - Parameter unicode: The Unicode domain name.
+    /// - Returns: The ASCII-encoded domain name.
     public func encode(_ unicode: String) -> String {
         do {
             return try encodeDomain(unicode)
@@ -42,6 +111,15 @@ public final class Punycode: PunycodeCoding, Sendable {
         }
     }
 
+    /// Encode a Unicode domain name, converting it to an ASCII-safe representation.
+    ///
+    /// Encodes a Unicode domain name, converting it to an ASCII-safe representation
+    /// according to the rules defined by the IDNA standard.
+    ///
+    /// - Parameters:
+    ///   - unicode: The Unicode domain name.
+    ///   - index: A zero-based offset into `unicode` that specifies the start of the substring to convert. The conversion operation continues to the end of the string.
+    /// - Returns: The ASCII-encoded domain name.
     public func encode(_ unicode: String, index: Int) -> String {
         guard let substring = substring(unicode, index: index, count: nil) else {
             return ""
@@ -54,6 +132,16 @@ public final class Punycode: PunycodeCoding, Sendable {
         }
     }
 
+    /// Encode a Unicode domain name, converting it to an ASCII-safe representation.
+    ///
+    /// Encodes a Unicode domain name, converting it to an ASCII-safe representation
+    /// according to the rules defined by the IDNA standard.
+    ///
+    /// - Parameters:
+    ///   - unicode: The Unicode domain name.
+    ///   - index: A zero-based offset into `unicode` that specifies the start of the substring to convert.
+    ///   - count: The number of characters to convert in the substring that starts at the position specified by `index` in the `unicode` string.
+    /// - Returns: The ASCII-encoded domain name.
     public func encode(_ unicode: String, index: Int, count: Int) -> String {
         guard let substring = substring(unicode, index: index, count: count) else {
             return ""
@@ -66,6 +154,12 @@ public final class Punycode: PunycodeCoding, Sendable {
         }
     }
 
+    /// Decode a domain name, converting it to a string of Unicode characters.
+    ///
+    /// Decodes a domain name, converting it to Unicode, according to the rules defined by the IDNA standard.
+    ///
+    /// - Parameter ascii: The ASCII-encoded domain name.
+    /// - Returns: The Unicode domain name.
     public func decode(_ ascii: String) -> String {
         do {
             return try decodeDomain(ascii)
@@ -74,6 +168,14 @@ public final class Punycode: PunycodeCoding, Sendable {
         }
     }
 
+    /// Decode a domain name, converting it to a string of Unicode characters.
+    ///
+    /// Decodes a domain name, converting it to Unicode, according to the rules defined by the IDNA standard.
+    ///
+    /// - Parameters:
+    ///   - ascii: The ASCII-encoded domain name.
+    ///   - index: A zero-based offset into `ascii` that specifies the start of the substring to convert. The conversion operation continues to the end of the string.
+    /// - Returns: The Unicode domain name.
     public func decode(_ ascii: String, index: Int) -> String {
         guard let substring = substring(ascii, index: index, count: nil) else {
             return ""
@@ -86,6 +188,15 @@ public final class Punycode: PunycodeCoding, Sendable {
         }
     }
 
+    /// Decode a domain name, converting it to a string of Unicode characters.
+    ///
+    /// Decodes a domain name, converting it to Unicode, according to the rules defined by the IDNA standard.
+    ///
+    /// - Parameters:
+    ///   - ascii: The ASCII-encoded domain name.
+    ///   - index: A zero-based offset into `ascii` that specifies the start of the substring to convert.
+    ///   - count: The number of characters to convert in the substring that starts at the position specified by `index` in the `ascii` string.
+    /// - Returns: The Unicode domain name.
     public func decode(_ ascii: String, index: Int, count: Int) -> String {
         guard let substring = substring(ascii, index: index, count: count) else {
             return ""

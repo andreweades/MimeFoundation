@@ -6,13 +6,53 @@
 
 import Foundation
 
+/// Errors that can occur when working with text parts.
 public enum TextPartError: Error, Equatable, Sendable {
+    /// The specified charset is not supported.
     case unsupportedCharset
+
+    /// An encoding was specified more than once.
     case duplicateEncoding
+
+    /// Text was specified more than once.
     case duplicateText
+
+    /// An invalid argument was provided.
     case invalidArgument
 }
 
+/// A MIME part containing text content.
+///
+/// A ``TextPart`` represents a text-based MIME part such as text/plain, text/html,
+/// or text/enriched. The text content can be accessed and modified through the
+/// ``text`` property, and the encoding is automatically handled.
+///
+/// ## Topics
+///
+/// ### Creating Text Parts
+/// - ``init(_:)``
+/// - ``init(_:_:)``
+/// - ``init(_:args:)``
+/// - ``init(_:)``
+///
+/// ### Text Content
+/// - ``text``
+/// - ``getText(_:)-6yx98``
+/// - ``getText(_:)-8rh9e``
+/// - ``setText(_:_:)-4ys6z``
+/// - ``setText(_:_:)-5xk5f``
+///
+/// ### Text Format Properties
+/// - ``format``
+/// - ``isHtml``
+/// - ``isPlain``
+/// - ``isFlowed``
+/// - ``isEnriched``
+/// - ``isRichText``
+/// - ``isFormat(_:)``
+///
+/// ### Encoding Detection
+/// - ``tryDetectEncoding(_:confidence:)``
 open class TextPart: MimePart {
     private static var rtfContentType: ContentType {
         guard let ct = try? ContentType("text", "rtf") else {
@@ -28,6 +68,11 @@ open class TextPart: MimePart {
         super.init(contentType)
     }
 
+    /// The text content of the part.
+    ///
+    /// Gets or sets the text content using automatic encoding detection for reading
+    /// and UTF-8 encoding for writing. When reading, the encoding is detected from
+    /// the Content-Type charset parameter, BOM (byte order mark), or HTML meta tags.
     public var text: String? {
         get {
             if textLoaded {
@@ -50,6 +95,11 @@ open class TextPart: MimePart {
         }
     }
 
+    /// Initializes a new text part with the specified subtype.
+    ///
+    /// Creates a new text part with the media type "text" and the specified subtype.
+    ///
+    /// - Parameter subtype: The media subtype (e.g., "plain", "html", "enriched").
     public convenience init(_ subtype: String) {
         guard let contentType = try? ContentType("text", subtype) else {
             preconditionFailure("Invalid subtype '\(subtype)' for text content type")
@@ -66,6 +116,14 @@ open class TextPart: MimePart {
         fatalError("Use TextPart(subtype:args:) instead.")
     }
 
+    /// Initializes a new text part with the specified subtype and text content.
+    ///
+    /// Creates a new text part with the specified subtype and sets the text content
+    /// using UTF-8 encoding.
+    ///
+    /// - Parameters:
+    ///   - subtype: The media subtype (e.g., "plain", "html", "enriched").
+    ///   - text: The text content.
     public convenience init(_ subtype: String, _ text: String) {
         self.init(subtype)
         setText(.utf8, text)
@@ -76,6 +134,13 @@ open class TextPart: MimePart {
         try applyArgs(args)
     }
 
+    /// Initializes a new text part with the specified text format.
+    ///
+    /// Creates a new text part configured for the specified format. For example,
+    /// ``TextFormat/plain`` creates a text/plain part, and ``TextFormat/html`` creates
+    /// a text/html part.
+    ///
+    /// - Parameter format: The text format.
     public convenience init(_ format: TextFormat) {
         switch format {
         case .plain:
@@ -127,6 +192,9 @@ open class TextPart: MimePart {
         }
     }
 
+    /// The text format of the content.
+    ///
+    /// Returns the text format based on the Content-Type of the part.
     public var format: TextFormat {
         if isMimeType("text", "plain") {
             if let format = contentType.format?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -150,14 +218,23 @@ open class TextPart: MimePart {
         return .plain
     }
 
+    /// Whether this text part is HTML.
+    ///
+    /// Returns `true` if the Content-Type is text/html; otherwise, `false`.
     public var isHtml: Bool {
         isMimeType("text", "html")
     }
 
+    /// Whether this text part is plain text.
+    ///
+    /// Returns `true` if the Content-Type is text/plain; otherwise, `false`.
     public var isPlain: Bool {
         isMimeType("text", "plain")
     }
 
+    /// Whether this text part is flowed plain text.
+    ///
+    /// Returns `true` if the Content-Type is text/plain with format=flowed; otherwise, `false`.
     public var isFlowed: Bool {
         guard isPlain,
               let format = contentType.format?.trimmingCharacters(in: .whitespacesAndNewlines) else {
@@ -166,14 +243,24 @@ open class TextPart: MimePart {
         return format.caseInsensitiveCompare("flowed") == .orderedSame
     }
 
+    /// Whether this text part is enriched text.
+    ///
+    /// Returns `true` if the Content-Type is text/enriched or text/richtext; otherwise, `false`.
     public var isEnriched: Bool {
         isMimeType("text", "enriched") || isMimeType("text", "richtext")
     }
 
+    /// Whether this text part is RTF (Rich Text Format).
+    ///
+    /// Returns `true` if the Content-Type is text/rtf or application/rtf; otherwise, `false`.
     public var isRichText: Bool {
         isMimeType("text", "rtf") || isMimeType("application", "rtf")
     }
 
+    /// Checks whether this text part is in the specified format.
+    ///
+    /// - Parameter format: The text format to check.
+    /// - Returns: `true` if this part is in the specified format; otherwise, `false`.
     public func isFormat(_ format: TextFormat) -> Bool {
         switch format {
         case .plain:

@@ -6,25 +6,34 @@
 
 /// A text to HTML converter.
 ///
-/// Used to convert plain text into HTML.
+/// Used to convert plain text into HTML, automatically detecting and linking URLs.
 public final class TextToHtml: TextConverter {
     private let scanner: UrlScanner
 
-    /// The footer format.
+    /// Gets or sets the footer format.
+    ///
+    /// Specifies whether the ``TextConverter/footer`` property contains plain text
+    /// or HTML markup.
     public var footerFormat: HeaderFooterFormat = .text
 
-    /// The header format.
+    /// Gets or sets the header format.
+    ///
+    /// Specifies whether the ``TextConverter/header`` property contains plain text
+    /// or HTML markup.
     public var headerFormat: HeaderFooterFormat = .text
 
-    /// The `HtmlTagCallback` method to use for custom filtering of HTML tags and content.
+    /// Gets or sets the ``HtmlTagCallback`` method to use for custom filtering of HTML tags and content.
+    ///
+    /// Allows customization of how HTML tags are rendered during conversion.
     public var htmlTagCallback: HtmlTagCallback?
 
-    /// Whether the converter should only output an HTML fragment.
+    /// Gets or sets whether the converter should only output an HTML fragment.
     ///
-    /// `true` if the converter should only output an HTML fragment; otherwise, `false`.
+    /// If `true`, the converter outputs only the body content without the
+    /// `<html>` and `<body>` wrapper tags. If `false`, a complete HTML document is produced.
     public var outputHtmlFragment: Bool = false
 
-    /// Initialize a new instance of `TextToHtml`.
+    /// Initializes a new instance of the ``TextToHtml`` class.
     ///
     /// Creates a new text to HTML converter.
     public override init() {
@@ -35,12 +44,16 @@ public final class TextToHtml: TextConverter {
         super.init()
     }
 
-    /// The input format.
+    /// Gets the input format.
+    ///
+    /// Always returns ``TextFormat/plain`` for this converter.
     public override var inputFormat: TextFormat {
         .plain
     }
 
-    /// The output format.
+    /// Gets the output format.
+    ///
+    /// Always returns ``TextFormat/html`` for this converter.
     public override var outputFormat: TextFormat {
         .html
     }
@@ -157,6 +170,15 @@ public final class TextToHtml: TextConverter {
         }
     }
 
+    /// Converts the contents of the reader from the ``inputFormat`` to the ``outputFormat``
+    /// and uses the writer to write the resulting text.
+    ///
+    /// Converts plain text to HTML, handling quote levels, line breaks, and automatically
+    /// detecting and linking URLs.
+    ///
+    /// - Parameters:
+    ///   - reader: The text reader providing the plain text input.
+    ///   - writer: The text writer to receive the HTML output.
     public override func convert(_ reader: TextReadable, _ writer: TextWritable) {
         if !outputHtmlFragment {
             writer.write("<html><body>")

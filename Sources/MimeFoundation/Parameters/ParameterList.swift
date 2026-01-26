@@ -6,12 +6,50 @@
 
 import Foundation
 
+/// Errors that can occur when working with a ``ParameterList``.
 public enum ParameterListError: Error, Equatable, Sendable {
+    /// A parameter with the specified name already exists in the list.
+    ///
+    /// - Parameter name: The duplicate parameter name.
     case duplicateName(String)
+
+    /// The specified index is out of the valid range.
+    ///
+    /// - Parameters:
+    ///   - index: The index that was requested.
+    ///   - count: The number of elements in the list.
     case indexOutOfRange(index: Int, count: Int)
+
+    /// The destination array does not have sufficient capacity.
+    ///
+    /// - Parameters:
+    ///   - required: The number of elements required.
+    ///   - available: The available capacity in the destination array.
     case insufficientCapacity(required: Int, available: Int)
 }
 
+/// A list of parameters, as found in the Content-Type and Content-Disposition headers.
+///
+/// Parameters are used by both ``ContentType`` and ``ContentDisposition``.
+///
+/// ## Overview
+///
+/// ``ParameterList`` provides a collection of ``Parameter`` objects, typically used
+/// to store additional attributes for Content-Type and Content-Disposition headers.
+/// Common parameters include "charset", "boundary", "filename", and "name".
+///
+/// ## Example
+///
+/// ```swift
+/// let params = ParameterList()
+/// try params.add("charset", "utf-8")
+/// try params.add("boundary", "----boundary123")
+///
+/// // Access by name
+/// if let charset = params["charset"] {
+///     print("Charset: \(charset)")
+/// }
+/// ```
 public final class ParameterList: RandomAccessCollection, MutableCollection, RangeReplaceableCollection, ExpressibleByArrayLiteral, Equatable {
     public typealias Element = Parameter
     public typealias Index = Int
@@ -20,10 +58,16 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
 
     internal var changed: ((ParameterList) -> Void)?
 
+    /// Creates a new empty parameter list.
+    ///
+    /// Creates a new ``ParameterList`` with no parameters.
     public init() {
         self.parameters = []
     }
 
+    /// Creates a new parameter list from an array literal.
+    ///
+    /// - Parameter elements: The parameters to include in the list.
     public init(arrayLiteral elements: Parameter...) {
         self.parameters = []
         for element in elements {
@@ -32,16 +76,38 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
         }
     }
 
+    /// The starting index of the collection.
     public var startIndex: Int { parameters.startIndex }
+
+    /// The ending index of the collection.
     public var endIndex: Int { parameters.endIndex }
 
+    /// Returns the index after the given index.
+    ///
+    /// - Parameter i: A valid index of the collection.
+    ///
+    /// - Returns: The index immediately after `i`.
     public func index(after i: Int) -> Int {
         parameters.index(after: i)
     }
 
+    /// The number of parameters in the list.
     public var count: Int { parameters.count }
+
+    /// A Boolean value indicating whether the list is read-only.
+    ///
+    /// This property always returns `false` for ``ParameterList``.
     public var isReadOnly: Bool { false }
 
+    /// Accesses the parameter at the specified position.
+    ///
+    /// - Parameter position: The index of the parameter to access.
+    ///
+    /// - Returns: The parameter at the specified index.
+    ///
+    /// - Precondition: `position` must be a valid index (0 <= position < count).
+    /// - Precondition: When setting, the new parameter's name must not duplicate
+    ///                 an existing parameter at a different index.
     public subscript(position: Int) -> Parameter {
         get {
             precondition(position >= 0 && position < parameters.count, "Index out of range")
@@ -62,6 +128,18 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
         }
     }
 
+    /// Gets or sets the value of a parameter with the specified name.
+    ///
+    /// When getting, returns the value of the parameter with the specified name
+    /// (case-insensitive), or `nil` if no such parameter exists.
+    ///
+    /// When setting, if the parameter exists, its value is updated; if a non-nil
+    /// value is provided and no parameter exists, a new parameter is added; if `nil`
+    /// is provided, the parameter is removed.
+    ///
+    /// - Parameter name: The parameter name.
+    ///
+    /// - Returns: The value of the parameter, or `nil` if not found.
     public subscript(name: String) -> String? {
         get {
             guard let index = indexOfName(name) else {
@@ -87,6 +165,14 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
         }
     }
 
+    /// Adds a parameter to the list.
+    ///
+    /// Adds the specified parameter to the end of the list.
+    ///
+    /// - Parameter parameter: The parameter to add.
+    ///
+    /// - Throws: ``ParameterListError/duplicateName(_:)`` if a parameter with the
+    ///           same name already exists.
     public func add(_ parameter: Parameter) throws {
         if indexOfName(parameter.name) != nil {
             throw ParameterListError.duplicateName(parameter.name)
@@ -96,29 +182,95 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
         onChanged()
     }
 
+    /// Adds a parameter with the specified name and value.
+    ///
+    /// Creates a new parameter with the given name and value, then adds it to the list.
+    ///
+    /// - Parameters:
+    ///   - name: The parameter name.
+    ///   - value: The parameter value.
+    ///
+    /// - Throws: ``ParameterError/emptyName`` if the name is empty.
+    /// - Throws: ``ParameterError/invalidName`` if the name contains illegal characters.
+    /// - Throws: ``ParameterListError/duplicateName(_:)`` if a parameter with the
+    ///           same name already exists.
     public func add(_ name: String, _ value: String) throws {
         let parameter = try Parameter(name, value)
         try add(parameter)
     }
 
+    /// Adds a parameter with the specified encoding, name, and value.
+    ///
+    /// Creates a new parameter with the given encoding, name, and value,
+    /// then adds it to the list.
+    ///
+    /// - Parameters:
+    ///   - encoding: The character encoding to use.
+    ///   - name: The parameter name.
+    ///   - value: The parameter value.
+    ///
+    /// - Throws: ``ParameterError/emptyName`` if the name is empty.
+    /// - Throws: ``ParameterError/invalidName`` if the name contains illegal characters.
+    /// - Throws: ``ParameterListError/duplicateName(_:)`` if a parameter with the
+    ///           same name already exists.
     public func add(encoding: String.Encoding, name: String, value: String) throws {
         let parameter = try Parameter(encoding: encoding, name: name, value: value)
         try add(parameter)
     }
 
+    /// Adds a parameter with the specified charset, name, and value.
+    ///
+    /// Creates a new parameter with the given charset, name, and value,
+    /// then adds it to the list.
+    ///
+    /// - Parameters:
+    ///   - charset: The charset name (e.g., "utf-8", "iso-8859-1").
+    ///   - name: The parameter name.
+    ///   - value: The parameter value.
+    ///
+    /// - Throws: ``ParameterError/emptyName`` if the name is empty.
+    /// - Throws: ``ParameterError/invalidName`` if the name contains illegal characters.
+    /// - Throws: ``ParameterError/unsupportedCharset(_:)`` if the charset is not supported.
+    /// - Throws: ``ParameterListError/duplicateName(_:)`` if a parameter with the
+    ///           same name already exists.
     public func add(charset: String, name: String, value: String) throws {
         let parameter = try Parameter(charset: charset, name: name, value: value)
         try add(parameter)
     }
 
+    /// Checks if the list contains the specified parameter.
+    ///
+    /// Uses identity comparison (===) rather than equality comparison.
+    ///
+    /// - Parameter parameter: The parameter to search for.
+    ///
+    /// - Returns: `true` if the list contains the parameter; otherwise, `false`.
     public func contains(_ parameter: Parameter) -> Bool {
         parameters.contains(where: { $0 === parameter })
     }
 
+    /// Checks if the list contains a parameter with the specified name.
+    ///
+    /// The comparison is case-insensitive.
+    ///
+    /// - Parameter name: The parameter name to search for.
+    ///
+    /// - Returns: `true` if the list contains a parameter with the name;
+    ///            otherwise, `false`.
     public func contains(_ name: String) -> Bool {
         indexOfName(name) != nil
     }
 
+    /// Copies the parameters to an array, starting at the specified index.
+    ///
+    /// - Parameters:
+    ///   - array: The destination array.
+    ///   - arrayIndex: The starting index in the destination array.
+    ///
+    /// - Throws: ``ParameterListError/indexOutOfRange(index:count:)``
+    ///           if `arrayIndex` is out of range.
+    /// - Throws: ``ParameterListError/insufficientCapacity(required:available:)``
+    ///           if the destination array does not have enough capacity.
     public func copyTo(_ array: inout [Parameter], startingAt arrayIndex: Int) throws {
         guard arrayIndex >= 0, arrayIndex <= array.count else {
             throw ParameterListError.indexOutOfRange(index: arrayIndex, count: array.count)
@@ -131,14 +283,38 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
         }
     }
 
+    /// Gets the index of the specified parameter.
+    ///
+    /// Uses identity comparison (===) rather than equality comparison.
+    ///
+    /// - Parameter parameter: The parameter to search for.
+    ///
+    /// - Returns: The index of the parameter, or -1 if not found.
     public func indexOf(_ parameter: Parameter) -> Int {
         parameters.firstIndex(where: { $0 === parameter }) ?? -1
     }
 
+    /// Gets the index of the parameter with the specified name.
+    ///
+    /// The comparison is case-insensitive.
+    ///
+    /// - Parameter name: The parameter name to search for.
+    ///
+    /// - Returns: The index of the parameter, or -1 if not found.
     public func indexOf(_ name: String) -> Int {
         indexOfName(name) ?? -1
     }
 
+    /// Inserts a parameter at the specified index.
+    ///
+    /// - Parameters:
+    ///   - index: The index at which to insert the parameter.
+    ///   - parameter: The parameter to insert.
+    ///
+    /// - Throws: ``ParameterListError/indexOutOfRange(index:count:)``
+    ///           if the index is out of range.
+    /// - Throws: ``ParameterListError/duplicateName(_:)`` if a parameter with the
+    ///           same name already exists.
     public func insert(at index: Int, _ parameter: Parameter) throws {
         guard index >= 0 && index <= parameters.count else {
             throw ParameterListError.indexOutOfRange(index: index, count: parameters.count)
@@ -151,11 +327,34 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
         onChanged()
     }
 
+    /// Inserts a parameter with the specified name and value at the given index.
+    ///
+    /// Creates a new parameter with the given name and value, then inserts it
+    /// at the specified index.
+    ///
+    /// - Parameters:
+    ///   - index: The index at which to insert the parameter.
+    ///   - name: The parameter name.
+    ///   - value: The parameter value.
+    ///
+    /// - Throws: ``ParameterError/emptyName`` if the name is empty.
+    /// - Throws: ``ParameterError/invalidName`` if the name contains illegal characters.
+    /// - Throws: ``ParameterListError/indexOutOfRange(index:count:)``
+    ///           if the index is out of range.
+    /// - Throws: ``ParameterListError/duplicateName(_:)`` if a parameter with the
+    ///           same name already exists.
     public func insert(at index: Int, name: String, value: String) throws {
         let parameter = try Parameter(name, value)
         try insert(at: index, parameter)
     }
 
+    /// Removes the specified parameter from the list.
+    ///
+    /// Uses identity comparison (===) rather than equality comparison.
+    ///
+    /// - Parameter parameter: The parameter to remove.
+    ///
+    /// - Returns: `true` if the parameter was found and removed; otherwise, `false`.
     @discardableResult
     public func remove(_ parameter: Parameter) -> Bool {
         guard let index = parameters.firstIndex(where: { $0 === parameter }) else {
@@ -167,6 +366,13 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
         return true
     }
 
+    /// Removes the parameter with the specified name.
+    ///
+    /// The comparison is case-insensitive.
+    ///
+    /// - Parameter name: The name of the parameter to remove.
+    ///
+    /// - Returns: `true` if the parameter was found and removed; otherwise, `false`.
     @discardableResult
     public func remove(_ name: String) -> Bool {
         guard let index = indexOfName(name) else {
@@ -178,6 +384,12 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
         return true
     }
 
+    /// Removes the parameter at the specified index.
+    ///
+    /// - Parameter index: The index of the parameter to remove.
+    ///
+    /// - Throws: ``ParameterListError/indexOutOfRange(index:count:)``
+    ///           if the index is out of range.
     public func removeAt(_ index: Int) throws {
         guard index >= 0 && index < parameters.count else {
             throw ParameterListError.indexOutOfRange(index: index, count: parameters.count)
@@ -187,6 +399,7 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
         onChanged()
     }
 
+    /// Removes all parameters from the list.
     public func clear() {
         for param in parameters {
             detach(param)
@@ -195,6 +408,11 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
         onChanged()
     }
 
+    /// Replaces the specified subrange of parameters with the given collection.
+    ///
+    /// - Parameters:
+    ///   - subrange: The range of parameters to replace.
+    ///   - newElements: The new parameters to insert.
     public func replaceSubrange<C>(_ subrange: Range<Int>, with newElements: C) where C: Collection, C.Element == Parameter {
         for i in subrange {
             detach(parameters[i])
@@ -207,6 +425,13 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
         onChanged()
     }
 
+    /// Gets the parameter with the specified name.
+    ///
+    /// The comparison is case-insensitive.
+    ///
+    /// - Parameter name: The parameter name to search for.
+    ///
+    /// - Returns: The parameter with the specified name, or `nil` if not found.
     public func parameter(named name: String) -> Parameter? {
         guard let index = indexOfName(name) else {
             return nil
@@ -214,6 +439,13 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
         return parameters[index]
     }
 
+    /// Gets the value of the parameter with the specified name.
+    ///
+    /// The comparison is case-insensitive.
+    ///
+    /// - Parameter name: The parameter name to search for.
+    ///
+    /// - Returns: The value of the parameter, or `nil` if not found.
     public func value(forParameterNamed name: String) -> String? {
         guard let index = indexOfName(name) else {
             return nil
@@ -221,6 +453,11 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
         return parameters[index].value
     }
 
+    /// Returns a string representation of the parameter list.
+    ///
+    /// Formats all parameters as "; name=value" pairs.
+    ///
+    /// - Returns: A string containing all formatted parameters.
     public func toString() -> String {
         var builder = ValueStringBuilder(initialCapacity: 128)
         writeTo(&builder)
@@ -676,6 +913,16 @@ public final class ParameterList: RandomAccessCollection, MutableCollection, Ran
         changed?(self)
     }
 
+    /// Determines whether two parameter lists are equal.
+    ///
+    /// Two parameter lists are considered equal if they contain the same parameters
+    /// (matched by name, case-insensitive) with the same values, regardless of order.
+    ///
+    /// - Parameters:
+    ///   - lhs: The first parameter list to compare.
+    ///   - rhs: The second parameter list to compare.
+    ///
+    /// - Returns: `true` if the parameter lists are equal; otherwise, `false`.
     public static func == (lhs: ParameterList, rhs: ParameterList) -> Bool {
         guard lhs.parameters.count == rhs.parameters.count else {
             return false

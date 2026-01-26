@@ -4,9 +4,54 @@
 // Ported from MimeKit (C#) to Swift.
 //
 
+/// A high-performance case-insensitive string comparer for ASCII strings.
+///
+/// `OptimizedOrdinalIgnoreCaseComparer` provides fast case-insensitive comparison
+/// and hashing for strings, optimized for ASCII content. It performs character-by-character
+/// comparison with uppercase conversion only for ASCII letters (a-z), making it
+/// suitable for comparing MIME header names, parameter names, and other ASCII-based
+/// protocol elements.
+///
+/// ## Usage
+///
+/// ```swift
+/// let comparer = OptimizedOrdinalIgnoreCaseComparer()
+/// comparer.equals("Content-Type", "content-type")  // true
+/// comparer.equals("SUBJECT", "subject")            // true
+///
+/// let hash1 = comparer.getHashCode("Content-Type")
+/// let hash2 = comparer.getHashCode("content-type")
+/// // hash1 == hash2
+/// ```
+///
+/// ## Performance
+///
+/// This comparer is optimized for ASCII strings and performs minimal allocations.
+/// Non-ASCII characters are compared by their raw code point values without
+/// case conversion.
 public struct OptimizedOrdinalIgnoreCaseComparer: Sendable {
+    /// Creates a new case-insensitive comparer.
     public init() {}
 
+    /// Compares two strings for equality, ignoring ASCII case differences.
+    ///
+    /// Performs a character-by-character comparison, treating ASCII letters
+    /// (a-z and A-Z) as equal regardless of case. Non-ASCII characters must
+    /// match exactly.
+    ///
+    /// - Parameters:
+    ///   - lhs: The first string to compare.
+    ///   - rhs: The second string to compare.
+    /// - Returns: `true` if the strings are equal ignoring ASCII case; `false` otherwise.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let comparer = OptimizedOrdinalIgnoreCaseComparer()
+    /// comparer.equals("Hello", "HELLO")     // true
+    /// comparer.equals("test", "Test")       // true
+    /// comparer.equals("test", "test!")      // false
+    /// ```
     public func equals(_ lhs: String, _ rhs: String) -> Bool {
         let left = Array(lhs.utf16)
         let right = Array(rhs.utf16)
@@ -24,10 +69,28 @@ public struct OptimizedOrdinalIgnoreCaseComparer: Sendable {
         return true
     }
 
+    /// Computes a case-insensitive hash code for a string.
+    ///
+    /// Returns the same hash code for strings that differ only in ASCII case.
+    /// This allows case-insensitive lookups in hash-based collections.
+    ///
+    /// - Parameter string: The string to hash.
+    /// - Returns: A hash code that is consistent across case variations of
+    ///   ASCII letters.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let comparer = OptimizedOrdinalIgnoreCaseComparer()
+    /// let hash1 = comparer.getHashCode("Content-Type")
+    /// let hash2 = comparer.getHashCode("CONTENT-TYPE")
+    /// // hash1 == hash2
+    /// ```
     public func getHashCode(_ string: String) -> Int {
         hashCode(string)
     }
 
+    /// Internal hash code computation using a custom hash algorithm.
     private func hashCode(_ string: String) -> Int {
         let units = Array(string.utf16)
         var hash1: UInt32 = 5381
@@ -52,6 +115,14 @@ public struct OptimizedOrdinalIgnoreCaseComparer: Sendable {
         return Int(bitPattern: UInt(result))
     }
 
+    /// Converts an ASCII lowercase letter to uppercase.
+    ///
+    /// Only converts ASCII letters (a-z) to their uppercase equivalents.
+    /// All other characters (including non-ASCII) are returned unchanged.
+    ///
+    /// - Parameter codeUnit: The UTF-16 code unit to convert.
+    /// - Returns: The uppercase version if the code unit is an ASCII lowercase
+    ///   letter; otherwise, the original code unit.
     private static func toUpper(_ codeUnit: UInt16) -> UInt16 {
         if codeUnit >= 0x61 && codeUnit <= 0x7A {
             return codeUnit - 0x20

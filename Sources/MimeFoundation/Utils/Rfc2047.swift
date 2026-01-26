@@ -6,20 +6,101 @@
 
 import Foundation
 
+/// Utility methods for encoding and decoding RFC 2047 encoded-word tokens.
+///
+/// RFC 2047 defines the "encoded-word" mechanism for representing non-ASCII
+/// text in email headers. Encoded words have the format:
+///
+/// ```
+/// =?charset?encoding?encoded-text?=
+/// ```
+///
+/// Where:
+/// - `charset` is the character encoding (e.g., "utf-8", "iso-8859-1")
+/// - `encoding` is either "B" (Base64) or "Q" (Quoted-Printable)
+/// - `encoded-text` is the actual encoded content
+///
+/// ## Decoding
+///
+/// Use the ``decodePhrase(_:)-7fj0j`` or ``decodeText(_:)-2nrfy`` methods to decode
+/// RFC 2047 encoded headers:
+///
+/// ```swift
+/// let encoded = Array("=?utf-8?B?SGVsbG8gV29ybGQ=?=".utf8)
+/// let decoded = Rfc2047.decodePhrase(encoded)
+/// // "Hello World"
+/// ```
+///
+/// ## Encoding
+///
+/// Use the ``encodePhrase(_:_:)-5e8il`` or ``encodeText(_:_:)-8edqo`` methods to
+/// encode non-ASCII text for use in headers:
+///
+/// ```swift
+/// let text = "Hëllö Wörld"
+/// let encoded = Rfc2047.encodePhrase(.utf8, text)
+/// // Returns: =?utf-8?Q?H=C3=ABll=C3=B6_W=C3=B6rld?=
+/// ```
+///
+/// ## Phrase vs Text
+///
+/// - **Phrase**: Used for structured headers like From, To, Subject. Allows
+///   quoted strings and atoms. Use for RFC 822 "phrase" tokens.
+/// - **Text**: Used for unstructured headers like Subject when not in a phrase
+///   context. Simpler encoding rules.
 enum Rfc2047 {
 
+    /// Decodes an RFC 2047 encoded phrase from a byte buffer.
+    ///
+    /// Decodes an RFC 2047 encoded phrase (such as those found in From, To, Cc,
+    /// and other address headers) using default parser options.
+    ///
+    /// - Parameter phrase: The byte buffer containing the encoded phrase.
+    /// - Returns: The decoded string.
     static func decodePhrase(_ phrase: [UInt8]) -> String {
         decodePhrase(ParserOptions.default, phrase, startIndex: 0, count: phrase.count)
     }
 
+    /// Decodes a portion of an RFC 2047 encoded phrase from a byte buffer.
+    ///
+    /// - Parameters:
+    ///   - phrase: The byte buffer containing the encoded phrase.
+    ///   - startIndex: The starting index in the buffer.
+    ///   - count: The number of bytes to decode.
+    /// - Returns: The decoded string.
     static func decodePhrase(_ phrase: [UInt8], startIndex: Int, count: Int) -> String {
         decodePhrase(ParserOptions.default, phrase, startIndex: startIndex, count: count)
     }
 
+    /// Decodes an RFC 2047 encoded phrase with custom parser options.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - phrase: The byte buffer containing the encoded phrase.
+    /// - Returns: The decoded string.
     static func decodePhrase(_ options: ParserOptions, _ phrase: [UInt8]) -> String {
         decodePhrase(options, phrase, startIndex: 0, count: phrase.count)
     }
 
+    /// Decodes a portion of an RFC 2047 encoded phrase with custom parser options.
+    ///
+    /// Decodes an RFC 2047 encoded phrase (such as those found in From, To, Cc,
+    /// and other address headers) from the specified buffer range.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - phrase: The byte buffer containing the encoded phrase.
+    ///   - startIndex: The starting index in the buffer.
+    ///   - count: The number of bytes to decode.
+    /// - Returns: The decoded string.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let encoded = Array("=?utf-8?B?SGVsbG8=?=".utf8)
+    /// let decoded = Rfc2047.decodePhrase(encoded, startIndex: 0, count: encoded.count)
+    /// // "Hello"
+    /// ```
     static func decodePhrase(_ options: ParserOptions, _ phrase: [UInt8], startIndex: Int, count: Int) -> String {
         var counts: [Int: Int] = [:]
         var order: [Int] = []
@@ -34,18 +115,49 @@ enum Rfc2047 {
         return result
     }
 
+    /// Decodes RFC 2047 encoded text from a byte buffer.
+    ///
+    /// Decodes RFC 2047 encoded text (such as that found in unstructured
+    /// headers like Subject) using default parser options.
+    ///
+    /// - Parameter text: The byte buffer containing the encoded text.
+    /// - Returns: The decoded string.
     static func decodeText(_ text: [UInt8]) -> String {
         decodeText(ParserOptions.default, text, startIndex: 0, count: text.count)
     }
 
+    /// Decodes a portion of RFC 2047 encoded text from a byte buffer.
+    ///
+    /// - Parameters:
+    ///   - text: The byte buffer containing the encoded text.
+    ///   - startIndex: The starting index in the buffer.
+    ///   - count: The number of bytes to decode.
+    /// - Returns: The decoded string.
     static func decodeText(_ text: [UInt8], startIndex: Int, count: Int) -> String {
         decodeText(ParserOptions.default, text, startIndex: startIndex, count: count)
     }
 
+    /// Decodes RFC 2047 encoded text with custom parser options.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - text: The byte buffer containing the encoded text.
+    /// - Returns: The decoded string.
     static func decodeText(_ options: ParserOptions, _ text: [UInt8]) -> String {
         decodeText(options, text, startIndex: 0, count: text.count)
     }
 
+    /// Decodes a portion of RFC 2047 encoded text with custom parser options.
+    ///
+    /// Decodes RFC 2047 encoded text (such as that found in unstructured
+    /// headers like Subject) from the specified buffer range.
+    ///
+    /// - Parameters:
+    ///   - options: The parser options to use.
+    ///   - text: The byte buffer containing the encoded text.
+    ///   - startIndex: The starting index in the buffer.
+    ///   - count: The number of bytes to decode.
+    /// - Returns: The decoded string.
     static func decodeText(_ options: ParserOptions, _ text: [UInt8], startIndex: Int, count: Int) -> String {
         var counts: [Int: Int] = [:]
         var order: [Int] = []
@@ -310,18 +422,61 @@ enum Rfc2047 {
         return EncodedWordPayload(charset: charset, encodingChar: encodingChar, payload: payload)
     }
 
+    /// Encodes a phrase for use in MIME headers.
+    ///
+    /// Encodes the phrase using RFC 2047 encoded-words with the specified
+    /// character encoding and default format options.
+    ///
+    /// - Parameters:
+    ///   - encoding: The character encoding to use (e.g., `.utf8`).
+    ///   - phrase: The text to encode.
+    /// - Returns: The encoded phrase as a byte array.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let encoded = Rfc2047.encodePhrase(.utf8, "Hëllö")
+    /// // Returns encoded-word format
+    /// ```
     static func encodePhrase(_ encoding: String.Encoding, _ phrase: String) -> [UInt8] {
         encodePhrase(FormatOptions.default, encoding, phrase, startIndex: 0, count: phrase.count)
     }
 
+    /// Encodes a substring of a phrase for use in MIME headers.
+    ///
+    /// - Parameters:
+    ///   - encoding: The character encoding to use.
+    ///   - phrase: The text to encode.
+    ///   - startIndex: The starting index in the text.
+    ///   - count: The number of characters to encode.
+    /// - Returns: The encoded phrase as a byte array.
     static func encodePhrase(_ encoding: String.Encoding, _ phrase: String, startIndex: Int, count: Int) -> [UInt8] {
         encodePhrase(FormatOptions.default, encoding, phrase, startIndex: startIndex, count: count)
     }
 
+    /// Encodes a phrase with custom format options.
+    ///
+    /// - Parameters:
+    ///   - options: The format options controlling line length, character set mixing, etc.
+    ///   - encoding: The character encoding to use.
+    ///   - phrase: The text to encode.
+    /// - Returns: The encoded phrase as a byte array.
     static func encodePhrase(_ options: FormatOptions, _ encoding: String.Encoding, _ phrase: String) -> [UInt8] {
         encodePhrase(options, encoding, phrase, startIndex: 0, count: phrase.count)
     }
 
+    /// Encodes a substring of a phrase with custom format options.
+    ///
+    /// Encodes a phrase (such as those used in From, To, Cc, and other address
+    /// headers) according to RFC 2047 rules.
+    ///
+    /// - Parameters:
+    ///   - options: The format options controlling line length, character set mixing, etc.
+    ///   - encoding: The character encoding to use.
+    ///   - phrase: The text to encode.
+    ///   - startIndex: The starting index in the text.
+    ///   - count: The number of characters to encode.
+    /// - Returns: The encoded phrase as a byte array.
     static func encodePhrase(_ options: FormatOptions, _ encoding: String.Encoding, _ phrase: String, startIndex: Int, count: Int) -> [UInt8] {
         guard startIndex >= 0, count >= 0, startIndex + count <= phrase.count else {
             return []
@@ -332,18 +487,54 @@ enum Rfc2047 {
         return encodeAsBytes(options, encoding, substring, startIndex: 0, count: substring.utf16.count, type: .phrase)
     }
 
+    /// Encodes text for use in unstructured MIME headers.
+    ///
+    /// Encodes the text using RFC 2047 encoded-words with the specified
+    /// character encoding and default format options.
+    ///
+    /// - Parameters:
+    ///   - encoding: The character encoding to use (e.g., `.utf8`).
+    ///   - text: The text to encode.
+    /// - Returns: The encoded text as a byte array.
     static func encodeText(_ encoding: String.Encoding, _ text: String) -> [UInt8] {
         encodeText(FormatOptions.default, encoding, text, startIndex: 0, count: text.count)
     }
 
+    /// Encodes a substring of text for use in MIME headers.
+    ///
+    /// - Parameters:
+    ///   - encoding: The character encoding to use.
+    ///   - text: The text to encode.
+    ///   - startIndex: The starting index in the text.
+    ///   - count: The number of characters to encode.
+    /// - Returns: The encoded text as a byte array.
     static func encodeText(_ encoding: String.Encoding, _ text: String, startIndex: Int, count: Int) -> [UInt8] {
         encodeText(FormatOptions.default, encoding, text, startIndex: startIndex, count: count)
     }
 
+    /// Encodes text with custom format options.
+    ///
+    /// - Parameters:
+    ///   - options: The format options controlling line length, character set mixing, etc.
+    ///   - encoding: The character encoding to use.
+    ///   - text: The text to encode.
+    /// - Returns: The encoded text as a byte array.
     static func encodeText(_ options: FormatOptions, _ encoding: String.Encoding, _ text: String) -> [UInt8] {
         encodeText(options, encoding, text, startIndex: 0, count: text.count)
     }
 
+    /// Encodes a substring of text with custom format options.
+    ///
+    /// Encodes text (such as that used in unstructured headers like Subject)
+    /// according to RFC 2047 rules.
+    ///
+    /// - Parameters:
+    ///   - options: The format options controlling line length, character set mixing, etc.
+    ///   - encoding: The character encoding to use.
+    ///   - text: The text to encode.
+    ///   - startIndex: The starting index in the text.
+    ///   - count: The number of characters to encode.
+    /// - Returns: The encoded text as a byte array.
     static func encodeText(_ options: FormatOptions, _ encoding: String.Encoding, _ text: String, startIndex: Int, count: Int) -> [UInt8] {
         guard startIndex >= 0, count >= 0, startIndex + count <= text.count else {
             return []
@@ -354,10 +545,33 @@ enum Rfc2047 {
         return encodeAsBytes(options, encoding, substring, startIndex: 0, count: substring.utf16.count, type: .text)
     }
 
+    /// Encodes a phrase and returns the result as a string.
+    ///
+    /// Similar to ``encodePhrase(_:_:_:)-2lxzq`` but returns a string instead
+    /// of a byte array. This is useful when the encoded result will be
+    /// immediately used in string contexts.
+    ///
+    /// - Parameters:
+    ///   - options: The format options to use.
+    ///   - encoding: The character encoding to use.
+    ///   - phrase: The text to encode.
+    /// - Returns: The encoded phrase as a string.
     static func encodePhraseAsString(_ options: FormatOptions, _ encoding: String.Encoding, _ phrase: String) -> String {
         encodeAsString(options, encoding, phrase, startIndex: 0, count: phrase.utf16.count, type: .phrase)
     }
 
+    /// Encodes comment text for use in RFC 822 comments.
+    ///
+    /// Encodes text for use within RFC 822 comment tokens (parenthesized text).
+    /// The result is wrapped in parentheses and properly encoded.
+    ///
+    /// - Parameters:
+    ///   - options: The format options to use.
+    ///   - encoding: The character encoding to use.
+    ///   - text: The comment text to encode.
+    ///   - startIndex: The starting index in the text.
+    ///   - count: The number of characters to encode.
+    /// - Returns: The encoded comment as a string, including parentheses.
     static func encodeComment(_ options: FormatOptions, _ encoding: String.Encoding, _ text: String, startIndex: Int, count: Int) -> String {
         guard startIndex >= 0, count >= 0, startIndex + count <= text.count else {
             return ""
@@ -368,6 +582,25 @@ enum Rfc2047 {
         return encodeAsString(options, encoding, substring, startIndex: 0, count: substring.utf16.count, type: .comment)
     }
 
+    /// Folds an unstructured header field to fit within line length limits.
+    ///
+    /// Properly folds long unstructured header values (like Subject) by inserting
+    /// line breaks at appropriate points while preserving RFC 2047 encoded-words
+    /// and ensuring lines don't exceed the maximum length specified in the format options.
+    ///
+    /// - Parameters:
+    ///   - options: The format options controlling maximum line length and folding.
+    ///   - field: The name of the header field being folded (e.g., "Subject").
+    ///   - text: The header field value as a byte array.
+    /// - Returns: The folded header value as a byte array, with appropriate line breaks.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let longSubject = Array("Very long subject line...".utf8)
+    /// let folded = Rfc2047.foldUnstructuredHeader(.default, "Subject", longSubject)
+    /// // Returns the text properly folded with CRLF and continuation whitespace
+    /// ```
     static func foldUnstructuredHeader(_ options: FormatOptions, _ field: String, _ text: [UInt8]) -> [UInt8] {
         var output = ValueStringBuilder(initialCapacity: text.count + ((text.count / options.maxLineLength) * 2) + 2)
         let folder = TokenFolder(options: options, field: field, input: text)
