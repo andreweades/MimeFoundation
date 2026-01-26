@@ -1,5 +1,336 @@
-# Running Benchmarks:
+# MimeFoundation
 
+MimeFoundation is a comprehensive Swift library for creating, parsing, and manipulating
+MIME messages. It provides everything you need to work with email messages, including
+S/MIME cryptographic security, DKIM signing/verification, and full internationalization
+support.
+
+## Origin and Goal
+
+This project is inspired by the .NET Foundation mail stack originally created by
+Jeffrey Stedfast (MimeKit). The goal is to bring those capabilities and API ergonomics
+to Swift developers, with modern async/await support and a Swift-native type system.
+
+MimeFoundation pairs with MailFoundation to provide a complete mail solution—MimeFoundation
+handles MIME parsing and message construction while MailFoundation provides IMAP, POP3,
+and SMTP protocol implementations.
+
+## Features
+
+### Message Parsing and Creation
+
+- **RFC 5322 Compliant**: Full support for parsing and generating standards-compliant email messages
+- **Stream-Based Processing**: Efficient handling of large messages with minimal memory footprint
+- **Async/Await Support**: Modern Swift concurrency for non-blocking I/O operations
+- **Mbox Support**: Parse and iterate over Unix mbox files
+
+### MIME Content Handling
+
+- **Multipart Messages**: Create and parse multipart/mixed, multipart/alternative, multipart/related, etc.
+- **Attachments**: Easy attachment handling with automatic MIME type detection
+- **Text Content**: Support for plain text and HTML with automatic charset handling
+- **Embedded Content**: Handle inline images and related content in HTML messages
+- **TNEF Support**: Parse Microsoft TNEF (winmail.dat) attachments
+
+### Content Encodings
+
+- **Transfer Encodings**: Base64, Quoted-Printable, UUEncode, yEncode
+- **Character Sets**: Full Unicode support with automatic charset detection and conversion
+- **Internationalized Headers**: RFC 2047 encoded-word support for non-ASCII headers
+- **IDN Support**: Internationalized domain names (Punycode)
+
+### S/MIME Security
+
+- **Digital Signatures**: Sign messages with X.509 certificates (multipart/signed, application/pkcs7-mime)
+- **Signature Verification**: Verify S/MIME signatures and extract signer information
+- **Encryption**: Encrypt messages for recipients (macOS only, pending swift-certificates EnvelopedData)
+- **Decryption**: Decrypt S/MIME encrypted messages (macOS only)
+- **Certificate Management**: In-memory stores, SQLite databases with encrypted private keys, chain validation
+
+### DKIM and Email Authentication
+
+- **DKIM Signing**: Sign outgoing messages with DomainKeys Identified Mail
+- **DKIM Verification**: Verify DKIM signatures on incoming messages
+- **ARC Support**: Authenticated Received Chain verification
+- **Authentication-Results**: Parse and generate authentication result headers
+
+### Certificate Management
+
+- **X509CertificateStore**: Thread-safe in-memory certificate storage
+- **SqliteCertificateDatabase**: Persistent storage with AES-256-GCM encrypted private keys
+- **Chain Validation**: RFC 5280 compliant certificate chain validation
+- **S/MIME Capabilities**: Track recipient encryption algorithm preferences
+
+## Requirements
+
+- Swift 5.9+
+- macOS 11.0+ / iOS 14.0+ / tvOS 14.0+ / watchOS 7.0+ / Linux
+
+### Platform Feature Matrix
+
+| Feature | macOS | iOS/tvOS/watchOS | Linux |
+|---------|-------|------------------|-------|
+| MIME Parsing | ✅ | ✅ | ✅ |
+| Message Creation | ✅ | ✅ | ✅ |
+| S/MIME Signing | ✅ | ✅ | ✅ |
+| S/MIME Verification | ✅ | ✅ | ✅ |
+| S/MIME Encryption | ✅ | ❌ | ❌ |
+| S/MIME Decryption | ✅ | ❌ | ❌ |
+| DKIM Signing | ✅ | ✅ | ✅ |
+| DKIM Verification | ✅ | ✅ | ✅ |
+| Certificate Database | ✅ | ✅ | ✅ |
+
+## Installation (Swift Package Manager)
+
+Add the package to your `Package.swift` dependencies:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/migueldeicaza/MimeFoundation", branch: "main")
+]
 ```
-export MIME_BENCHMARKS=1 swift package benchmark
+
+Then add `MimeFoundation` to your target dependencies:
+
+```swift
+targets: [
+    .target(
+        name: "YourApp",
+        dependencies: [
+            "MimeFoundation"
+        ]
+    )
+]
 ```
+
+## Usage
+
+### Creating a Simple Message
+
+```swift
+import MimeFoundation
+
+let message = MimeMessage()
+message.from.add(MailboxAddress(name: "Alice", address: "alice@example.com"))
+message.to.add(MailboxAddress(name: "Bob", address: "bob@example.com"))
+message.subject = "Hello from MimeFoundation!"
+message.body = TextPart("plain", "This is the message body.")
+
+// Write to a stream or get as data
+let data = try message.toData()
+```
+
+### Creating a Message with Attachments
+
+```swift
+let message = MimeMessage()
+message.from.add(MailboxAddress("sender@example.com"))
+message.to.add(MailboxAddress("recipient@example.com"))
+message.subject = "Document attached"
+
+let multipart = Multipart("mixed")
+
+// Add text body
+multipart.add(TextPart("plain", "Please find the document attached."))
+
+// Add attachment
+let attachment = try MimePart.fromFile("/path/to/document.pdf")
+attachment.contentDisposition = ContentDisposition(.attachment)
+attachment.contentDisposition?.fileName = "document.pdf"
+multipart.add(attachment)
+
+message.body = multipart
+```
+
+### Parsing Messages
+
+```swift
+// Parse from data
+let message = try MimeMessage.load(data: messageData)
+
+// Parse from file
+let message = try MimeMessage.load(filePath: "/path/to/message.eml")
+
+// Parse from stream (async)
+let message = try await MimeMessage.loadAsync(stream: inputStream)
+
+// Access message properties
+print("From: \(message.from)")
+print("Subject: \(message.subject ?? "(none)")")
+
+// Get text content
+if let textBody = message.textBody {
+    print("Body: \(textBody)")
+}
+```
+
+### S/MIME Signing
+
+```swift
+import MimeFoundation
+
+// Create a signer with your certificate and private key
+let signer = try CmsSigner(
+    certificatePEM: signingCertificate,
+    privateKeyPEM: privateKey,
+    digestAlgorithm: .sha256
+)
+
+// Sign the message body
+let context = DefaultSecureMimeContext.shared
+let signed = try MultipartSigned.create(
+    message.body!,
+    signer: signer,
+    context: context
+)
+
+message.body = signed
+```
+
+### S/MIME Verification
+
+```swift
+if let signed = message.body as? MultipartSigned {
+    let context = DefaultSecureMimeContext.shared
+    let signatures = try context.verify(signed)
+
+    for signature in signatures {
+        print("Signed by: \(signature.signer)")
+        print("Valid: \(!signature.isExpired)")
+    }
+}
+```
+
+### DKIM Signing
+
+```swift
+let signer = try DkimSigner(
+    domain: "example.com",
+    selector: "selector1",
+    privateKey: privateKeyPEM,
+    algorithm: .rsaSha256
+)
+
+try signer.sign(message)
+```
+
+### DKIM Verification
+
+```swift
+let verifier = DkimVerifier()
+let results = try await verifier.verify(message)
+
+for result in results {
+    print("Domain: \(result.domain)")
+    print("Status: \(result.status)")
+}
+```
+
+### Certificate Database
+
+```swift
+@_spi(CMS) import X509
+
+// Create a persistent certificate database
+let db = try SqliteCertificateDatabase(
+    path: "/path/to/certificates.db",
+    password: "encryption-password"
+)
+
+// Add a certificate with private key
+let record = X509CertificateRecord(
+    certificate: cert,
+    privateKey: key,
+    isTrusted: true
+)
+try db.add(record)
+
+// Find certificates for an email address
+let certs = db.findCertificates(
+    forEmail: "alice@example.com",
+    now: Date(),
+    requirePrivateKey: true
+)
+
+// Validate a certificate chain
+let validator = X509ChainValidator()
+let result = await validator.validate(leaf: userCert, database: db)
+if result.isValid {
+    print("Certificate chain is valid")
+}
+```
+
+## Known Limitations
+
+### S/MIME Encryption (iOS/Linux)
+
+S/MIME encryption and decryption require Apple's Security framework (CMSEncoder/CMSDecoder)
+and are only available on macOS. Cross-platform support is pending the addition of
+EnvelopedData support in swift-certificates.
+
+### RSA Private Key Storage
+
+RSA private keys cannot currently be round-tripped through the certificate database
+encryption due to format differences in swift-certificates' PEM serialization.
+EC keys (P-256, P-384, P-521) work correctly.
+
+### Certificate Revocation
+
+CRL and OCSP revocation checking is not yet supported. The underlying swift-certificates
+library does not currently provide CRL/OCSP support.
+
+## Documentation
+
+Comprehensive DocC documentation is available in `Sources/MimeFoundation/MimeFoundation.docc/`.
+
+### Documentation Topics
+
+**Getting Started**
+- [Installation](Sources/MimeFoundation/MimeFoundation.docc/GettingStarted/Installation.md)
+- [Quick Start](Sources/MimeFoundation/MimeFoundation.docc/GettingStarted/QuickStart.md)
+
+**Creating and Parsing Messages**
+- [Creating Messages](Sources/MimeFoundation/MimeFoundation.docc/Essentials/CreatingMessages.md)
+- [Parsing Messages](Sources/MimeFoundation/MimeFoundation.docc/Essentials/ParsingMessages.md)
+- [Working with Headers](Sources/MimeFoundation/MimeFoundation.docc/Essentials/WorkingWithHeaders.md)
+- [Addresses and Recipients](Sources/MimeFoundation/MimeFoundation.docc/Essentials/AddressesAndRecipients.md)
+
+**Working with Content**
+- [Text Content](Sources/MimeFoundation/MimeFoundation.docc/ContentHandling/TextContent.md)
+- [Attachments](Sources/MimeFoundation/MimeFoundation.docc/ContentHandling/Attachments.md)
+- [Multipart Messages](Sources/MimeFoundation/MimeFoundation.docc/ContentHandling/MultipartMessages.md)
+- [Encoding and Charsets](Sources/MimeFoundation/MimeFoundation.docc/ContentHandling/EncodingAndCharsets.md)
+
+**Security and Cryptography**
+- [S/MIME Overview](Sources/MimeFoundation/MimeFoundation.docc/Security/SMIMEOverview.md)
+- [Signing Messages](Sources/MimeFoundation/MimeFoundation.docc/Security/SigningMessages.md)
+- [Encrypting Messages](Sources/MimeFoundation/MimeFoundation.docc/Security/EncryptingMessages.md)
+- [Verifying Signatures](Sources/MimeFoundation/MimeFoundation.docc/Security/VerifyingSignatures.md)
+- [Certificate Management](Sources/MimeFoundation/MimeFoundation.docc/Security/CertificateManagement.md)
+- [DKIM Signing](Sources/MimeFoundation/MimeFoundation.docc/Security/DKIMSigning.md)
+
+**Advanced Topics**
+- [Stream Processing](Sources/MimeFoundation/MimeFoundation.docc/Advanced/StreamProcessing.md)
+- [Message Iteration](Sources/MimeFoundation/MimeFoundation.docc/Advanced/MessageIteration.md)
+- [Parser Configuration](Sources/MimeFoundation/MimeFoundation.docc/Advanced/ParserConfiguration.md)
+- [Format Configuration](Sources/MimeFoundation/MimeFoundation.docc/Advanced/FormatConfiguration.md)
+
+### Generate Documentation Locally
+
+```bash
+swift package generate-documentation \
+  --target MimeFoundation \
+  --output-path ./docs \
+  --transform-for-static-hosting
+```
+
+## Running Benchmarks
+
+```bash
+export MIME_BENCHMARKS=1
+swift package benchmark
+```
+
+## License
+
+MimeFoundation is available under the MIT License. See the LICENSE file for details.
