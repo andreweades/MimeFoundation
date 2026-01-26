@@ -7,9 +7,10 @@ support.
 
 ## Origin and Goal
 
-This project is inspired by the .NET Foundation mail stack originally created by
-Jeffrey Stedfast (MimeKit). The goal is to bring those capabilities and API ergonomics
-to Swift developers, with modern async/await support and a Swift-native type system.
+This project is a port of the .NET Foundation mail stack originally created by
+Jeffrey Stedfast ([MailKit](https://github.com/jstedfast/MailKit)/[https://github.com/jstedfast/MimeKit](MimeKit). 
+The goal is to bring those capabilities and API ergonomics to Swift developers, with modern async/await 
+support and a Swift-native type system.
 
 MimeFoundation pairs with MailFoundation to provide a complete mail solution—MimeFoundation
 handles MIME parsing and message construction while MailFoundation provides IMAP, POP3,
