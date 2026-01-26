@@ -282,39 +282,39 @@ library does not currently provide CRL/OCSP support.
 
 ## Documentation
 
-Comprehensive DocC documentation is available in `Sources/MimeFoundation/MimeFoundation.docc/`.
+Comprehensive documentation is available at **[migueldeicaza.github.io/MimeFoundation](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/)**.
 
 ### Documentation Topics
 
 **Getting Started**
-- [Installation](Sources/MimeFoundation/MimeFoundation.docc/GettingStarted/Installation.md)
-- [Quick Start](Sources/MimeFoundation/MimeFoundation.docc/GettingStarted/QuickStart.md)
+- [Installation](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/installation)
+- [Quick Start](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/quickstart)
 
 **Creating and Parsing Messages**
-- [Creating Messages](Sources/MimeFoundation/MimeFoundation.docc/Essentials/CreatingMessages.md)
-- [Parsing Messages](Sources/MimeFoundation/MimeFoundation.docc/Essentials/ParsingMessages.md)
-- [Working with Headers](Sources/MimeFoundation/MimeFoundation.docc/Essentials/WorkingWithHeaders.md)
-- [Addresses and Recipients](Sources/MimeFoundation/MimeFoundation.docc/Essentials/AddressesAndRecipients.md)
+- [Creating Messages](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/creatingmessages)
+- [Parsing Messages](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/parsingmessages)
+- [Working with Headers](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/workingwithheaders)
+- [Addresses and Recipients](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/addressesandrecipients)
 
 **Working with Content**
-- [Text Content](Sources/MimeFoundation/MimeFoundation.docc/ContentHandling/TextContent.md)
-- [Attachments](Sources/MimeFoundation/MimeFoundation.docc/ContentHandling/Attachments.md)
-- [Multipart Messages](Sources/MimeFoundation/MimeFoundation.docc/ContentHandling/MultipartMessages.md)
-- [Encoding and Charsets](Sources/MimeFoundation/MimeFoundation.docc/ContentHandling/EncodingAndCharsets.md)
+- [Text Content](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/textcontent)
+- [Attachments](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/attachments)
+- [Multipart Messages](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/multipartmessages)
+- [Encoding and Charsets](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/encodingandcharsets)
 
 **Security and Cryptography**
-- [S/MIME Overview](Sources/MimeFoundation/MimeFoundation.docc/Security/SMIMEOverview.md)
-- [Signing Messages](Sources/MimeFoundation/MimeFoundation.docc/Security/SigningMessages.md)
-- [Encrypting Messages](Sources/MimeFoundation/MimeFoundation.docc/Security/EncryptingMessages.md)
-- [Verifying Signatures](Sources/MimeFoundation/MimeFoundation.docc/Security/VerifyingSignatures.md)
-- [Certificate Management](Sources/MimeFoundation/MimeFoundation.docc/Security/CertificateManagement.md)
-- [DKIM Signing](Sources/MimeFoundation/MimeFoundation.docc/Security/DKIMSigning.md)
+- [S/MIME Overview](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/smimeoverview)
+- [Signing Messages](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/signingmessages)
+- [Encrypting Messages](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/encryptingmessages)
+- [Verifying Signatures](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/verifyingsignatures)
+- [Certificate Management](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/certificatemanagement)
+- [DKIM Signing](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/dkimsigning)
 
 **Advanced Topics**
-- [Stream Processing](Sources/MimeFoundation/MimeFoundation.docc/Advanced/StreamProcessing.md)
-- [Message Iteration](Sources/MimeFoundation/MimeFoundation.docc/Advanced/MessageIteration.md)
-- [Parser Configuration](Sources/MimeFoundation/MimeFoundation.docc/Advanced/ParserConfiguration.md)
-- [Format Configuration](Sources/MimeFoundation/MimeFoundation.docc/Advanced/FormatConfiguration.md)
+- [Stream Processing](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/streamprocessing)
+- [Message Iteration](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/messageiteration)
+- [Parser Configuration](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/parserconfiguration)
+- [Format Configuration](https://migueldeicaza.github.io/MimeFoundation/documentation/mimefoundation/formatconfiguration)
 
 ### Generate Documentation Locally
 
