@@ -6,16 +6,11 @@
 
 import Foundation
 
-final class UrlMatch {
+struct UrlMatch {
     let pattern: String
     let prefix: String
     var startIndex: Int = 0
     var endIndex: Int = 0
-
-    init(pattern: String, prefix: String) {
-        self.pattern = pattern
-        self.prefix = prefix
-    }
 }
 
 enum UrlPatternType {
@@ -51,11 +46,11 @@ final class UrlScanner {
             return nil
         }
 
-        let match = UrlMatch(pattern: url.pattern, prefix: url.prefix)
+        var match = UrlMatch(pattern: url.pattern, prefix: url.prefix)
         let endIndex = startIndex + count
 
-        let getStartIndex: (UrlMatch, [Character], Int, Int, Int) -> Bool
-        let getEndIndex: (UrlMatch, [Character], Int, Int, Int) -> Bool
+        let getStartIndex: (inout UrlMatch, [Character], Int, Int, Int) -> Bool
+        let getEndIndex: (inout UrlMatch, [Character], Int, Int, Int) -> Bool
 
         switch url.type {
         case .addrspec:
@@ -72,11 +67,11 @@ final class UrlScanner {
             getEndIndex = Self.getWebEndIndex
         }
 
-        if !getStartIndex(match, text, startIndex, matchIndex, endIndex) {
+        if !getStartIndex(&match, text, startIndex, matchIndex, endIndex) {
             return nil
         }
 
-        if !getEndIndex(match, text, startIndex, matchIndex, endIndex) {
+        if !getEndIndex(&match, text, startIndex, matchIndex, endIndex) {
             return nil
         }
 
@@ -340,7 +335,7 @@ final class UrlScanner {
         return compact ? colons < 7 : colons == 7
     }
 
-    private static func getAddrspecStartIndex(_ match: UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
+    private static func getAddrspecStartIndex(_ match: inout UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
         var index = matchIndex - 1
         if matchIndex == startIndex {
             return false
@@ -370,7 +365,7 @@ final class UrlScanner {
         return true
     }
 
-    private static func getAddrspecEndIndex(_ match: UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
+    private static func getAddrspecEndIndex(_ match: inout UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
         var index = matchIndex + 1
         if index == endIndex {
             return false
@@ -409,12 +404,12 @@ final class UrlScanner {
         return true
     }
 
-    private static func getFileStartIndex(_ match: UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
+    private static func getFileStartIndex(_ match: inout UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
         match.startIndex = matchIndex
         return true
     }
 
-    private static func getFileEndIndex(_ match: UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
+    private static func getFileEndIndex(_ match: inout UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
         let close = getClosingBrace(match, text, startIndex)
         var index = matchIndex + match.pattern.count
 
@@ -426,7 +421,7 @@ final class UrlScanner {
         return index > matchIndex + match.pattern.count
     }
 
-    private static func getMailToStartIndex(_ match: UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
+    private static func getMailToStartIndex(_ match: inout UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
         match.startIndex = matchIndex
         return true
     }
@@ -484,7 +479,7 @@ final class UrlScanner {
         return true
     }
 
-    private static func getMailToEndIndex(_ match: UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
+    private static func getMailToEndIndex(_ match: inout UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
         let close = getClosingBrace(match, text, startIndex)
         let contentIndex = matchIndex + match.pattern.count
         var index = contentIndex
@@ -508,12 +503,12 @@ final class UrlScanner {
         return index > contentIndex
     }
 
-    private static func getWebStartIndex(_ match: UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
+    private static func getWebStartIndex(_ match: inout UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
         match.startIndex = matchIndex
         return true
     }
 
-    private static func getWebEndIndex(_ match: UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
+    private static func getWebEndIndex(_ match: inout UrlMatch, _ text: [Character], _ startIndex: Int, _ matchIndex: Int, _ endIndex: Int) -> Bool {
         let close = getClosingBrace(match, text, startIndex)
         var index = matchIndex + match.pattern.count
 

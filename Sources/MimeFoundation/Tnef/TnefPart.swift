@@ -124,7 +124,7 @@ open class TnefPart: MimePart {
                 case .displayName:
                     displayName = try prop.readValueAsString()
                 case .emailAddress:
-                    if addr == nil || addr!.isEmpty {
+                    if addr?.isEmpty ?? true {
                         addr = try prop.readValueAsString()
                     }
                 case .smtpAddress:
@@ -141,7 +141,7 @@ open class TnefPart: MimePart {
         }
     }
 
-    private class TnefEmailAddress {
+    private struct TnefEmailAddress {
         var addrType = "SMTP"
         var searchKey: String?
         var name: String?
@@ -154,7 +154,7 @@ open class TnefPart: MimePart {
 
         func tryGetMailboxAddress() -> MailboxAddress? {
             var address = addr
-            if (address == nil || address!.isEmpty), canUseSearchKey, let key = searchKey {
+            if address?.isEmpty ?? true, canUseSearchKey, let key = searchKey {
                 address = String(key.dropFirst(addrType.count + 1))
             }
 
@@ -261,8 +261,8 @@ open class TnefPart: MimePart {
 
     private static func extractMapiProperties(_ reader: TnefReader, _ message: MimeMessage, _ alternatives: MultipartAlternative) throws {
         let prop = reader.tnefPropertyReader!
-        let sender = TnefEmailAddress()
-        let recipient = TnefEmailAddress()
+        var sender = TnefEmailAddress()
+        var recipient = TnefEmailAddress()
         var normalizedSubject: String? = nil
         var subjectPrefix: String? = nil
         var msgidSet = false
@@ -405,7 +405,7 @@ open class TnefPart: MimePart {
             }
         }
 
-        if (message.subject == nil || message.subject!.isEmpty), let normalized = normalizedSubject {
+        if message.subject?.isEmpty ?? true, let normalized = normalizedSubject {
             if let prefix = subjectPrefix {
                 message.subject = prefix + normalized
             } else {
@@ -552,25 +552,26 @@ open class TnefPart: MimePart {
                     part.contentDisposition?.modificationDate = try prop.readValueAsDateTime()
                 }
             case .attachTitle:
-                if let part = attachment, (part.fileName == nil || part.fileName!.isEmpty) {
+                if let part = attachment, part.fileName?.isEmpty ?? true {
                     part.fileName = try prop.readValueAsString()
                 }
             case .attachData:
                 guard let part = attachment, attachMethod == .byValue else { break }
 
-                attachData = try prop.readValueAsBytes()
+                let data = try prop.readValueAsBytes()
+                attachData = data
 
                 if part.contentType.isMimeType("text", "*") {
                     var outputIndex = 0
                     var outputLength = 0
-                    _ = filter.flush(attachData!, startIndex: 0, length: attachData!.count, outputIndex: &outputIndex, outputLength: &outputLength)
+                    _ = filter.flush(data, startIndex: 0, length: data.count, outputIndex: &outputIndex, outputLength: &outputLength)
                     part.contentTransferEncoding = (try? filter.getBestEncoding(.sevenBit)) ?? .base64
                     filter.reset()
                 } else {
                     part.contentTransferEncoding = .base64
                 }
 
-                part.content = MimeContent(MemoryStream(attachData!, writable: false))
+                part.content = MimeContent(MemoryStream(data, writable: false))
                 try attachments.add(part)
             default:
                 break

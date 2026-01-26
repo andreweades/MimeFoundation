@@ -7,7 +7,7 @@
 import Foundation
 
 /// A TNEF name identifier.
-public struct TnefNameId: Equatable, Sendable {
+public struct TnefNameId: Hashable, Sendable {
     public let kind: TnefNameIdKind
     public let name: String?
     public let guid: UUID

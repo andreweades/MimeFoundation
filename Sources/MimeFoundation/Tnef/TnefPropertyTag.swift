@@ -5,7 +5,7 @@
 //
 
 /// A TNEF property tag.
-public struct TnefPropertyTag: Equatable, Sendable {
+public struct TnefPropertyTag: Hashable, Sendable {
     public let id: TnefPropertyId
     public let type: TnefPropertyType
     public let isMultiValued: Bool
