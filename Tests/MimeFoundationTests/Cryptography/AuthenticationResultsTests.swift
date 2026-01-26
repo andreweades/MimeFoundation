@@ -56,7 +56,7 @@ struct AuthenticationResultsTests {
         var options = FormatOptions.default
         options.newLineFormat = .unix
 
-        let authres = AuthenticationResults(authservId)
+        var authres = AuthenticationResults(authservId)
         authres.results.append(AuthenticationMethodResult("dkim", "pass"))
         authres.results.append(AuthenticationMethodResult("spf", "pass"))
 
@@ -72,7 +72,7 @@ struct AuthenticationResultsTests {
         var options = FormatOptions.default
         options.newLineFormat = .unix
 
-        let authres = AuthenticationResults(authservId)
+        var authres = AuthenticationResults(authservId)
         authres.results.append(AuthenticationMethodResult("dkim", "pass"))
         authres.results.append(AuthenticationMethodResult("spf", "pass"))
         authres.version = 1
@@ -88,7 +88,7 @@ struct AuthenticationResultsTests {
         var options = FormatOptions.default
         options.newLineFormat = .unix
 
-        let authres = AuthenticationResults("lists.example.com")
+        var authres = AuthenticationResults("lists.example.com")
         authres.results.append(AuthenticationMethodResult("really-long-method-name", "really-long-value"))
         authres.version = 1
 
@@ -103,10 +103,10 @@ struct AuthenticationResultsTests {
         var options = FormatOptions.default
         options.newLineFormat = .unix
 
-        let result = AuthenticationMethodResult("really-long-method-name", "really-long-value")
+        var result = AuthenticationMethodResult("really-long-method-name", "really-long-value")
         result.version = 1
 
-        let authres = AuthenticationResults("lists.example.com")
+        var authres = AuthenticationResults("lists.example.com")
         authres.results.append(result)
         authres.version = 1
 
@@ -121,8 +121,8 @@ struct AuthenticationResultsTests {
         var options = FormatOptions.default
         options.newLineFormat = .unix
 
-        let authres = AuthenticationResults("lists.example.com")
-        let result = AuthenticationMethodResult("foo", "pass")
+        var authres = AuthenticationResults("lists.example.com")
+        var result = AuthenticationMethodResult("foo", "pass")
         result.resultComment = "2 of 3 tests OK"
         result.properties.append(AuthenticationMethodProperty("ptype", "prop", "value1;value2"))
         authres.results.append(result)
@@ -139,11 +139,11 @@ struct AuthenticationResultsTests {
         var options = FormatOptions.default
         options.newLineFormat = .unix
 
-        let result = AuthenticationMethodResult("really-long-method-name", "really-long-value")
+        var result = AuthenticationMethodResult("really-long-method-name", "really-long-value")
         result.resultComment = "this is a really long result comment"
         result.version = 1
 
-        let authres = AuthenticationResults("lists.example.com")
+        var authres = AuthenticationResults("lists.example.com")
         authres.results.append(result)
         authres.version = 1
 
@@ -158,13 +158,13 @@ struct AuthenticationResultsTests {
         var options = FormatOptions.default
         options.newLineFormat = .unix
 
-        let result = AuthenticationMethodResult("really-really-really-long-method-name", "really-really-really-long-value")
+        var result = AuthenticationMethodResult("really-really-really-long-method-name", "really-really-really-long-value")
         result.resultComment = "this is a really really long result comment"
         result.reason = "this is a really really really long reason"
         result.version = 214748367
         result.properties.append(AuthenticationMethodProperty("this-is-a-really-really-long-ptype", "this-is-a-really-really-long-property", "this-is-a-really-really-long-value"))
 
-        let authres = AuthenticationResults("lists.example.com")
+        var authres = AuthenticationResults("lists.example.com")
         authres.results.append(result)
         authres.version = 1
 
@@ -179,19 +179,19 @@ struct AuthenticationResultsTests {
         var options = FormatOptions.default
         options.newLineFormat = .unix
 
-        let authres = AuthenticationResults("lists.example.com")
-        let spf = AuthenticationMethodResult("spf", "fail")
+        var authres = AuthenticationResults("lists.example.com")
+        var spf = AuthenticationMethodResult("spf", "fail")
         spf.resultComment = "sender IP is 1.1.1.1"
         spf.properties.append(AuthenticationMethodProperty("smtp", "mailfrom", "eu-west-1.amazonses.com"))
         authres.results.append(spf)
 
-        let dkim = AuthenticationMethodResult("dkim", "pass")
+        var dkim = AuthenticationMethodResult("dkim", "pass")
         dkim.office365AuthenticationServiceIdentifier = "really-really-long-receivingdomain.com"
         dkim.resultComment = "signature was verified"
         dkim.properties.append(AuthenticationMethodProperty("header", "d", "domain.com"))
         authres.results.append(dkim)
 
-        let dmarc = AuthenticationMethodResult("dmarc", "bestguesspass")
+        var dmarc = AuthenticationMethodResult("dmarc", "bestguesspass")
         dmarc.office365AuthenticationServiceIdentifier = "another-really-really-long-receivingdomain.com"
         dmarc.action = "none"
         dmarc.properties.append(AuthenticationMethodProperty("header", "from", "domain.com"))

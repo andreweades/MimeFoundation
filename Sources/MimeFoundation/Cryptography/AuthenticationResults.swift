@@ -10,19 +10,24 @@ public enum AuthenticationResultsError: Error, Equatable, Sendable {
     case invalidRange
 }
 
-public final class AuthenticationResults: Codable {
-    public private(set) var authenticationServiceIdentifier: String?
+public struct AuthenticationResults: Codable, Hashable, Sendable {
+    public var authenticationServiceIdentifier: String?
     public var instance: Int?
     public var version: Int?
     public var results: [AuthenticationMethodResult]
 
     internal init() {
-        results = []
+        self.authenticationServiceIdentifier = nil
+        self.instance = nil
+        self.version = nil
+        self.results = []
     }
 
     public init(_ authservId: String) {
-        authenticationServiceIdentifier = authservId
-        results = []
+        self.authenticationServiceIdentifier = authservId
+        self.instance = nil
+        self.version = nil
+        self.results = []
     }
 
     // MARK: - Codable
@@ -198,7 +203,7 @@ public final class AuthenticationResults: Codable {
         return true
     }
 
-    private static func tryParseMethods(_ text: [UInt8], index: inout Int, endIndex: Int, throwOnError: Bool, authres: AuthenticationResults) throws -> Bool {
+    private static func tryParseMethods(_ text: [UInt8], index: inout Int, endIndex: Int, throwOnError: Bool, authres: inout AuthenticationResults) throws -> Bool {
         var value = ""
         var quoted = false
 
@@ -283,9 +288,10 @@ public final class AuthenticationResults: Codable {
                     return true
                 }
 
-                let resinfo = AuthenticationMethodResult(method)
+                var resinfo = AuthenticationMethodResult(method)
                 resinfo.office365AuthenticationServiceIdentifier = srvid
                 authres.results.append(resinfo)
+                let resinfoIndex = authres.results.count - 1
 
                 var tokenIndex: Int
 
@@ -306,7 +312,7 @@ public final class AuthenticationResults: Codable {
                         return false
                     }
 
-                    resinfo.version = version
+                    authres.results[resinfoIndex].version = version
 
                     if !(try ParseUtils.skipCommentsAndWhiteSpace(text, index: &index, endIndex: endIndex, throwOnError: throwOnError)) {
 
@@ -351,7 +357,7 @@ public final class AuthenticationResults: Codable {
                     return false
                 }
 
-                resinfo.result = String(decoding: text[tokenIndex..<index], as: UTF8.self)
+                authres.results[resinfoIndex].result = String(decoding: text[tokenIndex..<index], as: UTF8.self)
 
                 _ = ParseUtils.skipWhiteSpace(text, index: &index, endIndex: endIndex)
 
@@ -367,7 +373,7 @@ public final class AuthenticationResults: Codable {
 
                     let start = commentIndex + 1
                     let comment = String(decoding: text[start..<(index - 1)], as: UTF8.self)
-                    resinfo.resultComment = Header.unfold(comment)
+                    authres.results[resinfoIndex].resultComment = Header.unfold(comment)
 
                     if !(try ParseUtils.skipCommentsAndWhiteSpace(text, index: &index, endIndex: endIndex, throwOnError: throwOnError)) {
 
@@ -443,9 +449,9 @@ public final class AuthenticationResults: Codable {
                     }
 
                     if value == "action" {
-                        resinfo.action = reason
+                        authres.results[resinfoIndex].action = reason
                     } else {
-                        resinfo.reason = reason
+                        authres.results[resinfoIndex].reason = reason
                     }
 
                     if !(try ParseUtils.skipCommentsAndWhiteSpace(text, index: &index, endIndex: endIndex, throwOnError: throwOnError)) {
@@ -569,7 +575,7 @@ public final class AuthenticationResults: Codable {
                     }
 
                     let propspec = AuthenticationMethodProperty(ptype: ptype, property: property, value: propValue, quoted: quoted)
-                    resinfo.properties.append(propspec)
+                    authres.results[resinfoIndex].properties.append(propspec)
 
                     if !(try ParseUtils.skipCommentsAndWhiteSpace(text, index: &index, endIndex: endIndex, throwOnError: throwOnError)) {
 
@@ -649,9 +655,11 @@ public final class AuthenticationResults: Codable {
                     }
 
                     if value != "i" {
-                        authres = AuthenticationResults()
+                        var temp = AuthenticationResults()
                         index = 0
-                        return try tryParseMethods(text, index: &index, endIndex: endIndex, throwOnError: throwOnError, authres: authres!)
+                        let result = try tryParseMethods(text, index: &index, endIndex: endIndex, throwOnError: throwOnError, authres: &temp)
+                        authres = temp
+                        return result
                     }
 
                     index += 1
@@ -705,9 +713,8 @@ public final class AuthenticationResults: Codable {
             }
         } while srvid == nil
 
-        let parsed = AuthenticationResults(srvid!)
+        var parsed = AuthenticationResults(srvid!)
         parsed.instance = instance
-        authres = parsed
 
         if !(try ParseUtils.skipCommentsAndWhiteSpace(text, index: &index, endIndex: endIndex, throwOnError: throwOnError)) {
 
@@ -715,6 +722,7 @@ public final class AuthenticationResults: Codable {
 
         }
         if index >= endIndex {
+            authres = parsed
             return true
         }
 
@@ -737,6 +745,7 @@ public final class AuthenticationResults: Codable {
 
             }
             if index >= endIndex {
+                authres = parsed
                 return true
             }
 
@@ -750,42 +759,40 @@ public final class AuthenticationResults: Codable {
 
         index += 1
 
-        return try tryParseMethods(text, index: &index, endIndex: endIndex, throwOnError: throwOnError, authres: parsed)
+        let result = try tryParseMethods(text, index: &index, endIndex: endIndex, throwOnError: throwOnError, authres: &parsed)
+        authres = parsed
+        return result
     }
 
     // MARK: - Swift-Idiomatic Parsing Initializers
 
     /// Throwing initializer - throws ParseException on failure.
     /// Use `try?` for optional behavior: `let ar = try? AuthenticationResults(parsing: text)`
-    public convenience init(parsing text: String) throws {
+    public init(parsing text: String) throws {
         let buffer = Array(text.utf8)
         try self.init(parsing: buffer)
     }
 
     /// Throwing initializer - throws ParseException on failure.
     /// Use `try?` for optional behavior: `let ar = try? AuthenticationResults(parsing: buffer)`
-    public convenience init(parsing buffer: [UInt8]) throws {
+    public init(parsing buffer: [UInt8]) throws {
         var authres: AuthenticationResults? = nil
         var index = 0
         if try Self.tryParse(buffer, index: &index, endIndex: buffer.count, throwOnError: true, authres: &authres), let parsed = authres {
-            self.init()
-            self.authenticationServiceIdentifier = parsed.authenticationServiceIdentifier
-            self.instance = parsed.instance
-            self.version = parsed.version
-            self.results = parsed.results
+            self = parsed
         } else {
             throw ParseException("Failed to parse authentication results.", tokenIndex: 0, errorIndex: index)
         }
     }
 }
 
-public final class AuthenticationMethodResult: Codable {
-    public internal(set) var office365AuthenticationServiceIdentifier: String?
+public struct AuthenticationMethodResult: Codable, Hashable, Sendable {
+    public var office365AuthenticationServiceIdentifier: String?
     public let method: String
     public var version: Int?
-    public internal(set) var result: String
+    public var result: String
     public var resultComment: String?
-    public internal(set) var action: String?
+    public var action: String?
     public var reason: String?
     public var properties: [AuthenticationMethodProperty]
 
@@ -957,7 +964,7 @@ public final class AuthenticationMethodResult: Codable {
     }
 }
 
-public final class AuthenticationMethodProperty: Codable {
+public struct AuthenticationMethodProperty: Codable, Hashable, Sendable {
     private static let tokenSpecials: Set<UInt32> = Set("()<>@,;:\\\"/[]?=".unicodeScalars.map { $0.value })
     private let quoted: Bool?
 

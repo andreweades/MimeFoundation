@@ -139,7 +139,7 @@ final class Trie {
         var i = startIndex
         while i < endIndex {
             let ch = ignoreCase ? Character(String(text[i]).lowercased()) : text[i]
-            match = state != nil ? Trie.findMatch(state!, ch) : nil
+            match = state.flatMap { Trie.findMatch($0, ch) }
             while let current = state, match == nil && matched == 0 {
                 state = current.fail
                 if let state = state {
