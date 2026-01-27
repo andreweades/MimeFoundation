@@ -3,12 +3,12 @@
 MimeFoundation is a comprehensive Swift library for creating, parsing, and manipulating
 MIME messages. It provides everything you need to work with email messages, including
 S/MIME cryptographic security, DKIM signing/verification, and full internationalization
-support.
+support.   You can use this together with [MailFoundation](https://github.com/migueldeicaza/MailFoundation)
 
 ## Origin and Goal
 
 This project is a port of the .NET Foundation mail stack originally created by
-Jeffrey Stedfast ([MailKit](https://github.com/jstedfast/MailKit)/[https://github.com/jstedfast/MimeKit](MimeKit). 
+Jeffrey Stedfast ([MailKit](https://github.com/jstedfast/MailKit)/[MimeKit](https://github.com/jstedfast/MimeKit). 
 The goal is to bring those capabilities and API ergonomics to Swift developers, with modern async/await 
 support and a Swift-native type system.
 
