@@ -346,6 +346,9 @@ func mimeReaderContentLengthMbox() throws {
     try testMbox(options: options, baseName: "content-length")
 }
 
+// MARK: - (AE) disbaling test as package requirements don't align with this
+// TODO: - need advice on a fix that reenables test
+@available(iOS 16.0, macOS 13.0, *)
 @Test("MimeReader Performance content-length mbox")
 func perfMimeReaderContentLengthMbox() throws {
     let signposter = OSSignposter(subsystem: "MimeFoundationTest", category: .pointsOfInterest)
