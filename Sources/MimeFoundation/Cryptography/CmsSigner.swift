@@ -323,7 +323,7 @@ public struct CmsSigner: Sendable {
             throw SecureMimeError.pkcs12LoadFailed("Failed to extract private key from identity")
         }
 
-        // Convert SecKey to swift-certificates Certificate.PrivateKey using SecItemExport
+        // Convert SecKey to swift-certificates Certificate.PrivateKey using SecItemExport (macOS)
         self.privateKey = try Self.exportSecKeyToPrivateKey(privateKeyRef, password: password)
 
         // Extract certificate chain if present
@@ -391,6 +391,7 @@ public struct CmsSigner: Sendable {
         let keyType = attributes[kSecAttrKeyType as String] as? String
         let keySize = attributes[kSecAttrKeySizeInBits as String] as? Int ?? 0
 
+        #if os(macOS) && !targetEnvironment(macCatalyst)
         // Try exporting to PEM format (PKCS#8 wrapped with PEM armor)
         var exportedData: CFData?
         var exportStatus = SecItemExport(
@@ -440,6 +441,7 @@ public struct CmsSigner: Sendable {
                 return privateKey
             }
         }
+        #endif
 
         // Try SecKeyCopyExternalRepresentation (raw format)
         var error: Unmanaged<CFError>?
